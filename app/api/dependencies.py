@@ -25,6 +25,7 @@ from app.repositories.base import LmsRepository
 from app.repositories.csv_repository import CsvLmsRepository
 from app.services.role_matching import RoleMatchingService
 from app.services.skill_analysis import SkillAnalysisService
+from app.services.training_recommendation import TrainingRecommendationService
 
 
 @lru_cache
@@ -54,3 +55,13 @@ def get_role_matching_service(repository: RepositoryDep) -> RoleMatchingService:
 
 
 RoleMatchingServiceDep = Annotated[RoleMatchingService, Depends(get_role_matching_service)]
+
+
+def get_training_recommendation_service(repository: RepositoryDep) -> TrainingRecommendationService:
+    # completion_model is added in Phase 8; until then the score uses the other three parts.
+    return TrainingRecommendationService(repository)
+
+
+TrainingRecommendationServiceDep = Annotated[
+    TrainingRecommendationService, Depends(get_training_recommendation_service)
+]

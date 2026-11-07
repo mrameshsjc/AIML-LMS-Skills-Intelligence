@@ -7,7 +7,7 @@ Routers only: receive the request, call a service, return the response. No busin
 | `health.py` | `GET /api/v1/health` | 1 – **done** |
 | `skills.py` | `POST /api/v1/skills/analyze` | 5 – **done** |
 | `roles.py` | `POST /api/v1/roles/match` | 6 – **done** |
-| `trainings.py` | `POST /api/v1/trainings/recommend` | 7 |
+| `trainings.py` | `POST /api/v1/trainings/recommend` | 7 – **done** |
 | `learning_path.py` | `GET /api/v1/learning-path/{employee_id}` | 10 |
 | `ai_chat.py` | `POST /api/v1/ai/chat` | 13 |
 | `rag.py` | `POST /api/v1/rag/ingest` | 13 |

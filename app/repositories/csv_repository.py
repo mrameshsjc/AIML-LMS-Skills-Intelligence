@@ -20,8 +20,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.data_processing.loader import load_all
-from app.domain.models import Employee, JobRole, RoleRequirement, Skill
+from app.domain.models import Course, CourseSkill, Employee, JobRole, RoleRequirement, Skill
 from app.repositories.base import LmsRepository
+
+# When a course appears more than once in someone's history, keep the most advanced status.
+STATUS_ORDER = {"Completed": 4, "In Progress": 3, "Enrolled": 2, "Dropped": 1}
 
 
 class CsvLmsRepository(LmsRepository):
@@ -53,6 +56,33 @@ class CsvLmsRepository(LmsRepository):
             self._employee_skills.setdefault(r.employee_id, {})[r.skill_id] = int(r.current_level)
         self._goals = {r.employee_id: r.target_role_id for r in data["career_goals.csv"].itertuples()}
 
+        self._courses = {
+            r.course_id: Course(
+                r.course_id,
+                r.course_title,
+                r.description,
+                r.difficulty,
+                int(r.duration_hours),
+                r.delivery_mode,
+                r.provider,
+                bool(r.is_active),
+            )
+            for r in data["courses.csv"].itertuples()
+        }
+        self._course_skills: dict[str, list[CourseSkill]] = {}
+        for r in data["course_skills.csv"].itertuples():
+            self._course_skills.setdefault(r.course_id, []).append(
+                CourseSkill(r.course_id, r.skill_id, int(r.level_from), int(r.level_to))
+            )
+        self._prerequisites: dict[str, list[str]] = {}
+        for r in data["course_prerequisites.csv"].itertuples():
+            self._prerequisites.setdefault(r.course_id, []).append(r.prerequisite_course_id)
+        self._training: dict[str, dict[str, str]] = {}
+        for r in data["training_history.csv"].itertuples():
+            statuses = self._training.setdefault(r.employee_id, {})
+            if STATUS_ORDER.get(r.status, 0) > STATUS_ORDER.get(statuses.get(r.course_id, ""), 0):
+                statuses[r.course_id] = r.status
+
     def get_employee(self, employee_id: str) -> Employee | None:
         return self._employees.get(employee_id)
 
@@ -73,3 +103,15 @@ class CsvLmsRepository(LmsRepository):
 
     def get_career_goal(self, employee_id: str) -> str | None:
         return self._goals.get(employee_id)
+
+    def get_courses(self) -> dict[str, Course]:
+        return dict(self._courses)
+
+    def get_course_skills(self, course_id: str) -> list[CourseSkill]:
+        return list(self._course_skills.get(course_id, []))
+
+    def get_prerequisites(self, course_id: str) -> list[str]:
+        return list(self._prerequisites.get(course_id, []))
+
+    def get_training_status(self, employee_id: str) -> dict[str, str]:
+        return dict(self._training.get(employee_id, {}))

@@ -7,7 +7,7 @@ The engine exposes seven business endpoints under `/api/v1`. They are stable con
 | – | `GET /api/v1/health` | Live (Phase 1) |
 | 1 | `POST /api/v1/skills/analyze` | **Live (Phase 5)** |
 | 2 | `POST /api/v1/roles/match` | **Live (Phase 6)** |
-| 3 | `POST /api/v1/trainings/recommend` | Phase 7 |
+| 3 | `POST /api/v1/trainings/recommend` | **Live (Phase 7)** |
 | 4 | `GET /api/v1/learning-path/{employee_id}` | Phase 10 |
 | 5 | `POST /api/v1/ai/chat` | Phase 13 |
 | 6 | `POST /api/v1/ml/retrain` | Phase 16 |
@@ -194,4 +194,75 @@ How the similarity is computed is explained in [`ML_MODEL_GUIDE.md`](ML_MODEL_GU
 ```powershell
 Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/roles/match `
   -ContentType "application/json" -Body '{"employee_id": "E1001", "top_n": 3}'
+```
+
+## API 3 – Training recommendations
+
+`POST /api/v1/trainings/recommend`
+
+Recommends courses that close an employee's skill gaps for a target role. Each course comes with a score, the parts of that score, and a reason.
+
+### Request
+
+| Field | Type | Required | Rules |
+| --- | --- | --- | --- |
+| `employee_id` | text | yes | `E` + 4 digits |
+| `target_role_id` | text | no | Default: the career goal, else the current role (as in API 1) |
+| `skills` | list | no | Only recommend for these skills (names or IDs). Default: every gap |
+| `max_results` | number | no | 1–30, default 10 |
+| `include_enrolled` | true/false | no | Default `true`. With `false`, courses the employee is already enrolled in are left out |
+
+```json
+{"employee_id": "E1001"}
+```
+
+### Which courses are considered
+- **Included:** active courses that raise at least one of the employee's gap skills by at least one level.
+- **Excluded:** courses the employee has already **completed**.
+- **Flagged:** courses the employee is enrolled in, or dropped before, keep their `enrollment_status`, and the reason mentions it.
+
+### The score
+```
+score = 0.50 × gap_coverage + 0.20 × level_fit + 0.15 × prereq_ready + 0.15 × completion_probability
+```
+
+| Part | Meaning | Example |
+| --- | --- | --- |
+| `gap_coverage` | Share of the gap in the course's skills that it closes. Gain per skill = min(course_to, required) − max(current, course_from) | SQL 2→4 needed, course 2→4: 2/2 = **1.0**. AWS 1→3 needed, course 0→2: 1/2 = **0.5** |
+| `level_fit` | 1.0 when the course starts at your level. Starts *n* levels above you: 1 − 0.5n. Starts *n* below (revision): 1 − 0.2n, at least 0.5 | AWS-201 starts at 2, you are at 1: **0.5** |
+| `prereq_ready` | Share of prerequisites that are completed **or** already covered by your skill level | Docker-101 ends at level 2 and you have Docker 2: satisfied |
+| `completion_probability` | From the ML model in Phase 8 | `null` for now |
+
+While `completion_probability` is `null`, its 15% weight is shared proportionally among the other three parts: `weights_used` = 0.588 / 0.235 / 0.176. The response explains this in `notes`.
+
+**Order:** courses that address a **mandatory** gap come first; within each group, the highest score first. A perfect course for an optional skill therefore appears after courses for mandatory skills.
+
+### Response (200)
+
+| Field | Meaning |
+| --- | --- |
+| `recommendations` | `rank`, course details, `skills_covered` (current, required, course_from, course_to, gap_closed), `prerequisites` (`satisfied`, `how`), `score`, `components`, `addresses_mandatory_gap`, `enrollment_status`, `reason` |
+| `skill_gaps` | The gaps considered, e.g. `"SQL 2->4 (mandatory)"` |
+| `uncovered_skills` | Gap skills that no available course can close |
+| `weights_used`, `notes` | How the score was combined, plus anything to be aware of |
+| `target_role`, `target_source`, `gap_score`, `match_percentage` | As in API 1 |
+
+### Example (E1001 → Data Engineer)
+
+| Rank | Course | Score | Coverage | Fit | Prereqs | Why |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | C-SQL-201 SQL for Data Engineering | 1.00 | 1.0 | 1.0 | 1.0 | SQL 2→4 exactly; C-SQL-101 completed |
+| 2 | C-PY-201 Python for Practitioners | 0.95 | 1.0 | 0.8 | 1.0 | Python 3→4; starts at 2, so part of it is revision |
+| 3 | C-AWS-101 AWS Cloud Foundations | 0.66 | 0.5 | 0.8 | 1.0 | Closes 1 of the 2 AWS levels |
+| 4 | C-AWS-201 AWS for Data and Application Workloads | 0.41 | 0.5 | 0.5 | 0.0 | Starts above AWS 1; complete C-AWS-101 first |
+| 5 | C-DOCKER-201 Docker in Production | 1.00 | 1.0 | 1.0 | 1.0 | Docker is not mandatory, so it is listed after the mandatory gaps |
+
+Reason for rank 1: *"Your SQL is level 2 and Data Engineer needs level 4; this course takes it from level 2 to 4. Prerequisites met (C-SQL-101 completed)."*
+
+The order in which to take these courses (AWS-101 before AWS-201) is the job of the learning path, API 4 (Phase 10).
+
+### Try it from PowerShell
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/trainings/recommend `
+  -ContentType "application/json" -Body '{"employee_id": "E1001"}'
 ```

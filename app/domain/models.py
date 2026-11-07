@@ -55,3 +55,25 @@ class Employee:
     @property
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}"
+
+
+@dataclass(frozen=True)
+class Course:
+    course_id: str
+    title: str
+    description: str
+    difficulty: str
+    duration_hours: int
+    delivery_mode: str
+    provider: str
+    is_active: bool = True
+
+
+@dataclass(frozen=True)
+class CourseSkill:
+    """A course raises one skill from level_from (expected entry level) to level_to."""
+
+    course_id: str
+    skill_id: str
+    level_from: int
+    level_to: int

@@ -71,3 +71,10 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"employee_id": "E1001"}' | tee roles.json
           grep -q '"title":"Data Engineer"' roles.json && echo && echo "Role matching smoke test passed"
+
+      - name: Smoke test - training recommendations API
+        run: |
+          curl -fsS -X POST http://127.0.0.1:8000/api/v1/trainings/recommend \
+            -H "Content-Type: application/json" \
+            -d '{"employee_id": "E1001"}' | tee trainings.json
+          grep -q '"course_id":"C-SQL-201"' trainings.json && echo && echo "Recommendations smoke test passed"

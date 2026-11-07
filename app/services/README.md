@@ -13,7 +13,7 @@ Rules for this folder:
 | `data_upload_service.py` | 4 – **done** | Upload, preview and validate CSV files |
 | `skill_analysis.py` | 5 – **done** | Per-skill gaps, gap score, match %, suggestions |
 | `role_matching.py`, `role_similarity.py` | 6 – **done** | Ranked roles with explanations; TF-IDF related roles |
-| `training_recommendation.py` | 7 | Ranked, explained course recommendations |
+| `training_recommendation.py` | 7 – **done** | Ranked, explained course recommendations |
 | `learning_path_service.py` | 10 | Prerequisite-ordered path and progress |
 | `chat_service.py` | 13 | Builds the RAG answer for the assistant |
 | `ingestion_service.py` | 13 | Document upload → chunks → vectors |
