@@ -5,7 +5,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | | |
 | --- | --- |
 | Project folder / Git repo | `AIML-LMS-Skills-Intelligence` |
-| Current phase | **Phase 10 – API 4: Personalised Learning Path** (Phases 1–9 on GitHub, CI green) |
+| Current phase | **Phase 11 – LLM with Ollama** (Phases 1–10 on GitHub, CI green) |
 | Python | 3.11 |
 | LMS integration | Not in this project. The architecture is API-ready for it (later phase). |
 
@@ -13,7 +13,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 
 ---
 
-## 1. What is built so far (Phases 1–10)
+## 1. What is built so far (Phases 1–11)
 
 | Item | File(s) | Why it exists |
 | --- | --- | --- |
@@ -61,6 +61,9 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | **Phase 10:** API 4 | `GET /api/v1/learning-path/{employee_id}` | The courses that close every gap, prerequisites first, with progress and the next action |
 | **Phase 10:** path engine | `app/services/learning_path.py` | Greedy course selection + topological sort; completed courses count as evidence |
 | **Phase 10:** tests + docs | `tests/unit/test_learning_path.py`, `tests/api/test_learning_path_api.py` | 15 + 5 checks (incl. all 1,300 employee × role paths); API and ML guide sections |
+| **Phase 11:** LLM layer | `app/llm/` (Ollama, fallback, auto choice, prompts, guardrails) | Local language model with a labelled no-LLM fallback; data stays on the machine |
+| **Phase 11:** explanations | `app/services/explanation_service.py`, API 4 `?explain=true`, `GET /api/v1/health/llm` | Plain-language learning paths, grounded in the engine's facts and checked |
+| **Phase 11:** check + tests + docs | `scripts/check_llm.py`, `tests/unit/test_llm.py`, `tests/api/test_llm_api.py`, `docs/LLM_RAG_GUIDE.md` | 24 + 4 checks with a fake Ollama server; LLM guide |
 
 APIs 1 (`/skills/analyze`), 2 (`/roles/match`), 3 (`/trainings/recommend`) and 4 (`/learning-path/{id}`) are live. The other three (`/ai/chat`, `/ml/retrain`, `/rag/ingest`) are added in later phases. Full reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
 
@@ -82,7 +85,7 @@ AIML-LMS-Skills-Intelligence/
 │   ├── database/                 # sqlite3 connection, migrations/*.sql, tables  [Phase 9 ✓]
 │   ├── ml/                       # features, train, evaluate, registry, predict ✓; MLflow later  [Phase 8 ✓]
 │   ├── rag/                      # load, chunk, embed, FAISS, retrieve         (later, 12–13)
-│   ├── llm/                      # Ollama / hosted / fallback providers        (later, 11)
+│   ├── llm/                      # Ollama + fallback providers, prompts, guardrails ✓  [Phase 11 ✓]
 │   └── security/                 # auth, roles, rate limits, audit             (later, 17)
 ├── dashboard/                    # Streamlit UI: pages/, components/           (later, 4, 15)
 ├── data_science/                 # scripts 01–15 ✓                             [Phases 3–4, 8–9 ✓]
@@ -109,6 +112,7 @@ AIML-LMS-Skills-Intelligence/
 │   ├── unit/test_completion_model.py # 16 checks (+1 API)                   [Phase 8 ✓]
 │   ├── unit/test_database.py, api/test_database_source.py # 22 + 6 checks   [Phase 9 ✓]
 │   ├── unit/test_learning_path.py, api/test_learning_path_api.py # 15 + 5  [Phase 10 ✓]
+│   ├── unit/test_llm.py, api/test_llm_api.py # 24 + 4 checks (fake Ollama)  [Phase 11 ✓]
 │   ├── unit/  integration/  security/
 ├── reports/                      # generated charts and reports (not in Git)   [Phase 4]
 ├── deployment/                   # docker/, kubernetes/, cloud/                (later, 18–20)
@@ -204,7 +208,7 @@ AIML-LMS-Skills-Intelligence/
 ## 5. Tests and code quality
 
 ```powershell
-pytest -v              # expected: 260 passed (37 API + 223 unit)
+pytest -v              # expected: 288 passed (41 API + 247 unit)
 ruff check .           # expected: All checks passed!
 ruff format --check .  # expected: N files already formatted
 pre-commit install     # one time: runs Ruff automatically before each commit
@@ -370,6 +374,22 @@ In Swagger UI: **4. Learning Path → GET /api/v1/learning-path/{employee_id} �
 
 Progress: match 62.5 % now and 100 % after 5 steps (90 hours). Next action: "Enrol in C-SQL-201 …". Try `target_role_id=R009`, or `include_optional=false`. How the path is built: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md) (API 4) and [`docs/ML_MODEL_GUIDE.md`](docs/ML_MODEL_GUIDE.md) section 6.
 
+## 5j. Language model with Ollama (Phase 11)
+
+The engine works without a language model. With **Ollama** running, it can also explain results in plain language. Everything runs on your PC.
+
+```powershell
+# one time (see docs/LLM_RAG_GUIDE.md; low space on C:? set OLLAMA_MODELS to D: first)
+ollama pull llama3.2:3b
+python scripts/check_llm.py        # expected: "OK    Ollama is running with llama3.2:3b." and an explanation
+```
+
+Then, in Swagger UI:
+- **Health → GET /api/v1/health/llm** shows `available: true` and the installed models.
+- **4. Learning Path → E1001 with `explain = true`** returns an `explanation` written by the model, with the `facts` it was given and `grounding_warnings` (empty is good).
+
+Without Ollama (`LLM_PROVIDER=auto`), the same request returns a labelled "Fallback - no LLM" list of facts, and `notes` says why. Guide: [`docs/LLM_RAG_GUIDE.md`](docs/LLM_RAG_GUIDE.md).
+
 ## 6. Run with Docker
 
 Docker Desktop must be running.
@@ -457,6 +477,10 @@ See the results in the repository's **Actions** tab. Never commit `.env`, passwo
 | `MODEL_DIR` | `models` | Folder of the model registry (Phase 8) |
 | `USE_COMPLETION_MODEL` | `true` | `false` makes API 3 ignore any trained model |
 | `DATABASE_URL` | `sqlite:///./data/lms_ai.db` | SQLite file used when `DATA_SOURCE=database`. Only `sqlite:///` URLs in this version; MySQL later |
+| `LLM_PROVIDER` | `auto` | `auto` (Ollama, else labelled fallback), `ollama` (only; 503 when down) or `fallback` (no model) |
+| `OLLAMA_BASE_URL` / `OLLAMA_MODEL` | `http://localhost:11434` / `llama3.2:3b` | Where Ollama runs and which model to use (`ollama list`) |
+| `LLM_TIMEOUT_SECONDS` / `LLM_TEMPERATURE` / `LLM_MAX_TOKENS` | `120` / `0.2` / `512` | Model call limits; the first call loads the model and is slow |
+| `LLM_ALLOW_REMOTE` | `false` | Allow a non-local Ollama host. Only with approval: employee data would leave the machine |
 
 ## 9. Troubleshooting
 
@@ -469,10 +493,11 @@ See the results in the repository's **Actions** tab. Never commit `.env`, passwo
 | `ValidationError` at start-up | A value in `.env` is not allowed, e.g. `APP_ENV=dev`; use a value from section 8 |
 | `docker compose` rejects `env_file` | Update Docker Desktop (Compose 2.24 or newer) |
 | `Database file not found` / `has no LMS data` | Run `python data_science/14_save_to_database.py`, or set `DATA_SOURCE=csv` |
+| Explanations say "Fallback - no LLM" | Ollama is not running or the model is missing: `python scripts/check_llm.py` tells you which |
 
 ## 10. Roadmap
 
-Phase 1 ✓ → 2 synthetic datasets ✓ → 3 data validation ✓ → 4 cleaning, EDA, quality report, upload service ✓ → 5 skills analysis API ✓ → 6 role matching API ✓ → 7 recommendations API ✓ → 8 ML completion model ✓ → 9 database (SQLite) ✓ → 10 learning path API ✓ → 11 Ollama LLM → 12 embeddings + FAISS → 13 RAG + chat → 14 all seven APIs tested → 15 Streamlit dashboard → 16 MLflow retraining → 17 security → 18 Docker hardening → 19 public demo → 20 Kubernetes → 21 full CI/CD with Snyk → 22 submission package.
+Phase 1 ✓ → 2 synthetic datasets ✓ → 3 data validation ✓ → 4 cleaning, EDA, quality report, upload service ✓ → 5 skills analysis API ✓ → 6 role matching API ✓ → 7 recommendations API ✓ → 8 ML completion model ✓ → 9 database (SQLite) ✓ → 10 learning path API ✓ → 11 Ollama LLM ✓ → 12 embeddings + FAISS → 13 RAG + chat → 14 all seven APIs tested → 15 Streamlit dashboard → 16 MLflow retraining → 17 security → 18 Docker hardening → 19 public demo → 20 Kubernetes → 21 full CI/CD with Snyk → 22 submission package.
 
 The full plan, API contracts and database design are in the project blueprint (Enterprise LMS AI Intelligence Engine – Analysis & Technical Blueprint).
 

@@ -33,6 +33,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
+from app.api.dependencies import LLMProviderDep
 from app.core.config import get_settings
 
 router = APIRouter(tags=["Health"])
@@ -76,4 +77,37 @@ def health() -> HealthResponse:
         environment=settings.app_env,
         profile=settings.app_profile,
         timestamp=datetime.now(UTC),
+    )
+
+
+class LlmStatusResponse(BaseModel):
+    setting: str = Field(examples=["auto"], description="LLM_PROVIDER: auto, ollama or fallback.")
+    provider: str = Field(
+        examples=["ollama"], description="Who answers now: ollama, auto (= fallback) or fallback."
+    )
+    model: str = Field(examples=["llama3.2:3b"])
+    available: bool = Field(description="True if requests needing the LLM can be answered.")
+    detail: str = Field(description="Plain-language status, with the fix when something is missing.")
+    models_installed: list[str] = Field(description="Models Ollama has installed (empty if unreachable).")
+
+
+@router.get(
+    "/health/llm",
+    response_model=LlmStatusResponse,
+    summary="Language model status",
+    description=(
+        "Is Ollama running, and is the configured model installed? Always answers 200; "
+        "`available` and `detail` tell you what to fix. Kept separate from /health so Docker's "
+        "health check never depends on the LLM."
+    ),
+)
+def llm_status(llm: LLMProviderDep) -> LlmStatusResponse:
+    status = llm.status()
+    return LlmStatusResponse(
+        setting=get_settings().llm_provider,
+        provider=status.provider,
+        model=status.model,
+        available=status.available,
+        detail=status.detail,
+        models_installed=status.models_installed,
     )

@@ -5,6 +5,7 @@ The engine exposes seven business endpoints under `/api/v1`. They are stable con
 | # | Method and path | Status |
 | --- | --- | --- |
 | – | `GET /api/v1/health` | Live (Phase 1) |
+| – | `GET /api/v1/health/llm` | Live (Phase 11): is Ollama running, is the model installed? |
 | 1 | `POST /api/v1/skills/analyze` | **Live (Phase 5)** |
 | 2 | `POST /api/v1/roles/match` | **Live (Phase 6)** |
 | 3 | `POST /api/v1/trainings/recommend` | **Live (Phase 7)** |
@@ -31,6 +32,7 @@ Every error has the same shape, so a client needs only one piece of error-handli
 | 422 | `VALIDATION_ERROR` | A field has the wrong format. `details` lists every bad field |
 | 422 | `UNKNOWN_SKILL`, `INVALID_LEVEL` | A what-if skill does not exist, or a level is outside 0–5 |
 | 422 | `INVALID_ROLE_ID` | An entry in `role_ids` is not like `R004` |
+| 503 | `LLM_UNAVAILABLE` | `explain=true` with `LLM_PROVIDER=ollama` while Ollama is down (with `auto`, the fallback answers instead) |
 | 500 | `INTERNAL_ERROR` | Unexpected. The details are in the server log, findable by `request_id` |
 
 Every response carries an `X-Request-ID` header. Send your own `X-Request-ID` (as the LMS will later) and it is reused, so one ID follows a request across systems.
@@ -280,6 +282,7 @@ API 3 ranks courses one by one; API 4 turns them into a **plan**: the courses th
 | `employee_id` (path) | `E` + 4 digits | – | The employee |
 | `target_role_id` (query) | `R` + 3 digits | career goal, else current role | Role to prepare for |
 | `include_optional` (query) | bool | `true` | `false` plans for mandatory skills only |
+| `explain` (query) | bool | `false` | Add a plain-language `explanation` written by the language model (Phase 11) |
 
 Example: `/api/v1/learning-path/E1001?target_role_id=R004&include_optional=false`
 
@@ -303,6 +306,7 @@ Example: `/api/v1/learning-path/E1001?target_role_id=R004&include_optional=false
 | `progress` | `match_percentage` now, `projected_match_percentage` after the path, `skills_met` / `skills_required`, `completed_courses` relevant to the target, `in_progress_courses`, `total_steps`, `total_hours` |
 | `next_action` | The first step that can be started now (or "Continue …" for a course already started) |
 | `uncovered_skills`, `notes` | Gaps no available course fully closes; model, data and option notes |
+| `explanation` | Only with `explain=true`: `text`, `provider` / `model`, the `facts` the model was given, `grounding_warnings`, `notes`, `duration_ms`. `null` otherwise |
 
 ### Example (E1001 → Data Engineer)
 
@@ -325,7 +329,10 @@ Other cases:
 ```powershell
 Invoke-RestMethod -Uri http://127.0.0.1:8000/api/v1/learning-path/E1001
 Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v1/learning-path/E1001?target_role_id=R009"
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v1/learning-path/E1001?explain=true"
 ```
+
+**The explanation (Phase 11).** With `explain=true`, the path is turned into short factual lines (first name, roles, gaps, steps, next action). The language model then writes a friendly paragraph from those lines only, and the answer is checked for course IDs and numbers that are not in the facts. Without a running model (`LLM_PROVIDER=auto`), a labelled fallback lists the facts instead. Check the model with `GET /api/v1/health/llm`. Details: [`LLM_RAG_GUIDE.md`](LLM_RAG_GUIDE.md).
 
 ### How it works inside
 `app/api/v1/learning_path.py` (HTTP only) → `LearningPathService.build()` in `app/services/learning_path.py`, which reuses `TrainingRecommendationService` for gaps, scores and the shared prerequisite rule. The algorithm is explained in [`ML_MODEL_GUIDE.md`](ML_MODEL_GUIDE.md) section 6.

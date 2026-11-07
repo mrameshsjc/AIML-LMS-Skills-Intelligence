@@ -1,1 +1,1 @@
-"""LLM providers: Ollama (local), hosted endpoint, labelled fallback (Phase 11)."""
+"""Language model providers (Phase 11): Ollama, a no-LLM fallback, and the automatic choice between them."""

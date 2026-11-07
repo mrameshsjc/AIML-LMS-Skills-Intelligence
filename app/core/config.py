@@ -31,6 +31,7 @@ HOW TO TRY IT
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -85,6 +86,17 @@ class Settings(BaseSettings):
     # completion model when one has been trained (python data_science/11_train_model.py).
     model_dir: str = "models"
     use_completion_model: bool = True
+
+    # --- Language model (Phase 11) ----------------------------------------------
+    # auto = Ollama when it is running, otherwise the no-LLM fallback (labelled).
+    llm_provider: Literal["auto", "ollama", "fallback"] = "auto"
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3.2:3b"
+    llm_timeout_seconds: float = Field(default=120, gt=0, le=600)  # the first call loads the model: slow
+    llm_temperature: float = Field(default=0.2, ge=0, le=2)  # low = factual and repeatable
+    llm_max_tokens: int = Field(default=512, ge=16, le=4096)
+    # Ollama must run on this machine (or the Compose network) unless an external host is approved.
+    llm_allow_remote: bool = False
 
     # --- Database (Phase 9) -------------------------------------------------
     # SQLite is a single file and needs no server, which is ideal for the

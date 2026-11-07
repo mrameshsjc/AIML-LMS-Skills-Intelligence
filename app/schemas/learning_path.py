@@ -65,6 +65,21 @@ class ProgressOut(BaseModel):
     total_hours: int
 
 
+class ExplanationOut(BaseModel):
+    text: str = Field(description="The explanation (or, from the fallback, the facts as a list).")
+    provider: str = Field(description="ollama, or fallback when no language model was used.")
+    model: str
+    is_fallback: bool
+    duration_ms: int
+    grounding_warnings: list[str] = Field(
+        description="Course IDs or numbers in the text that are not in the engine's facts. Empty is good."
+    )
+    facts: list[str] = Field(
+        description="Exactly what the model was given: the text can be checked against it."
+    )
+    notes: list[str]
+
+
 class LearningPathResponse(BaseModel):
     employee_id: str
     employee_name: str
@@ -78,4 +93,7 @@ class LearningPathResponse(BaseModel):
     next_action: str = Field(description="The one thing to do next.")
     uncovered_skills: list[str] = Field(description="Gaps no available course fully closes.")
     notes: list[str]
+    explanation: ExplanationOut | None = Field(
+        default=None, description="Plain-language explanation, only with ?explain=true (Phase 11)."
+    )
     engine_version: str

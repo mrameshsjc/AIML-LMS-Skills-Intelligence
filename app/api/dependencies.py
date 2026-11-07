@@ -22,10 +22,13 @@ from typing import Annotated
 from fastapi import Depends
 
 from app.core.config import get_settings
+from app.llm.base import LLMProvider
+from app.llm.factory import build_provider
 from app.ml.predict import CompletionPredictor
 from app.repositories.base import LmsRepository
 from app.repositories.csv_repository import CsvLmsRepository
 from app.repositories.sqlite_repository import SqliteLmsRepository
+from app.services.explanation_service import ExplanationService
 from app.services.learning_path import LearningPathService
 from app.services.role_matching import RoleMatchingService
 from app.services.skill_analysis import SkillAnalysisService
@@ -95,3 +98,19 @@ def get_learning_path_service(repository: RepositoryDep) -> LearningPathService:
 
 
 LearningPathServiceDep = Annotated[LearningPathService, Depends(get_learning_path_service)]
+
+
+@lru_cache
+def get_llm_provider() -> LLMProvider:
+    """The language model chosen by LLM_PROVIDER (auto / ollama / fallback). Created once."""
+    return build_provider(get_settings())
+
+
+LLMProviderDep = Annotated[LLMProvider, Depends(get_llm_provider)]
+
+
+def get_explanation_service(llm: LLMProviderDep) -> ExplanationService:
+    return ExplanationService(None, llm)  # API 4 passes the path it has already built
+
+
+ExplanationServiceDep = Annotated[ExplanationService, Depends(get_explanation_service)]

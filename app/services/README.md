@@ -15,6 +15,7 @@ Rules for this folder:
 | `role_matching.py`, `role_similarity.py` | 6 – **done** | Ranked roles with explanations; TF-IDF related roles |
 | `training_recommendation.py` | 7 – **done** | Ranked, explained course recommendations |
 | `learning_path.py` | 10 – **done** | Course selection, prerequisite order, progress and next action |
+| `explanation_service.py` | 11 – **done** | Learning path → facts → LLM → grounded, checked explanation |
 | `chat_service.py` | 13 | Builds the RAG answer for the assistant |
 | `ingestion_service.py` | 13 | Document upload → chunks → vectors |
 | `retraining_service.py` | 16 | Controlled ML retraining workflow |

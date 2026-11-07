@@ -20,12 +20,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, Query
 
-from app.api.dependencies import LearningPathServiceDep
+from app.api.dependencies import ExplanationServiceDep, LearningPathServiceDep
 from app.core.config import get_settings
 from app.schemas.common import ErrorResponse, RoleRef
 from app.schemas.learning_path import (
     CourseRef,
     CurrentSkillOut,
+    ExplanationOut,
     LearningPathResponse,
     PathStepOut,
     ProgressOut,
@@ -33,6 +34,7 @@ from app.schemas.learning_path import (
     StepSkillOut,
 )
 from app.schemas.trainings import PrerequisiteOut
+from app.services.explanation_service import Explanation
 from app.services.learning_path import LearningPath, PathStep
 
 router = APIRouter(prefix="/learning-path", tags=["4. Learning Path"])
@@ -73,7 +75,20 @@ def _step_out(s: PathStep) -> PathStepOut:
     )
 
 
-def to_response(p: LearningPath) -> LearningPathResponse:
+def _explanation_out(e: Explanation) -> ExplanationOut:
+    return ExplanationOut(
+        text=e.text,
+        provider=e.provider,
+        model=e.model,
+        is_fallback=e.is_fallback,
+        duration_ms=e.duration_ms,
+        grounding_warnings=e.grounding_warnings,
+        facts=e.facts,
+        notes=e.notes,
+    )
+
+
+def to_response(p: LearningPath, explanation: Explanation | None = None) -> LearningPathResponse:
     return LearningPathResponse(
         employee_id=p.employee_id,
         employee_name=p.employee_name,
@@ -110,6 +125,7 @@ def to_response(p: LearningPath) -> LearningPathResponse:
         next_action=p.next_action,
         uncovered_skills=p.uncovered_skills,
         notes=p.notes,
+        explanation=_explanation_out(explanation) if explanation else None,
         engine_version=get_settings().app_version,
     )
 
@@ -123,16 +139,23 @@ def to_response(p: LearningPath) -> LearningPathResponse:
         "they can follow: **prerequisites first**, then mandatory gaps, then the API 3 score. "
         "Courses already completed are never included; courses in progress are kept, with their status.\n\n"
         "Also returns current skills, gaps (with the courses that close each), progress "
-        "(match % now and after the path) and the **next action**."
+        "(match % now and after the path) and the **next action**.\n\n"
+        "**explain=true** adds a plain-language explanation written by the language model (Ollama), "
+        "based only on the path's facts; without a running model, a labelled fallback lists the facts."
     ),
     responses={
         404: {"model": ErrorResponse, "description": "Employee or role not found"},
         422: {"model": ErrorResponse, "description": "Invalid employee or role ID"},
+        503: {
+            "model": ErrorResponse,
+            "description": "explain=true but the LLM is unavailable (LLM_PROVIDER=ollama)",
+        },
     },
 )
 def get_learning_path(
     employee_id: Annotated[str, Path(pattern=r"^E\d{4}$", examples=["E1001"])],
     service: LearningPathServiceDep,
+    explainer: ExplanationServiceDep,
     target_role_id: Annotated[
         str | None,
         Query(
@@ -143,5 +166,9 @@ def get_learning_path(
     include_optional: Annotated[
         bool, Query(description="Also plan for optional (non-mandatory) skills.")
     ] = True,
+    explain: Annotated[
+        bool, Query(description="Add a plain-language explanation from the language model (slower).")
+    ] = False,
 ) -> LearningPathResponse:
-    return to_response(service.build(employee_id, target_role_id, include_optional))
+    path = service.build(employee_id, target_role_id, include_optional)
+    return to_response(path, explainer.explain_path(path) if explain else None)
