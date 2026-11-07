@@ -6,7 +6,7 @@ How the engine uses a language model (LLM): Phase 11 adds the model layer, Phase
 | --- | --- | --- |
 | LLM providers: Ollama, fallback, automatic choice | 11 | **Done** |
 | Grounded explanations (API 4 `?explain=true`) and guardrails | 11 | **Done** |
-| Embeddings + FAISS document search | 12 | Planned |
+| Embeddings + FAISS document search | 12 | **Done** (section 10) |
 | RAG chat assistant (API 5), document ingestion (API 7) | 13 | Planned |
 
 ## 1. What the LLM does here, and what it does not
@@ -146,3 +146,117 @@ Inside a container, `localhost` is the container itself, so Compose points the A
 | `is not on this machine ... LLM_ALLOW_REMOTE` | `OLLAMA_BASE_URL` points to another computer. Use localhost, or get approval first |
 | Docker: cannot reach Ollama | Ollama must run on Windows; Compose uses `host.docker.internal`. Update Docker Desktop if the name does not resolve |
 | C: drive full after pulling a model | Set `OLLAMA_MODELS` to a folder on D: (section 3), restart Ollama, and pull again. Delete the old copy in `%USERPROFILE%\.ollama\models` |
+
+## 10. Document search: embeddings and a vector store (Phase 12)
+
+The assistant will answer questions about policies and courses from **approved documents**, not from what the language model happens to remember. Phase 12 builds the search half of RAG (Retrieval-Augmented Generation): find the passages that answer a question, with their sources. Phase 13 gives those passages to the language model.
+
+```
+documents/ -> load -> clean -> chunk -> embed -> vector store (vector_store/default/)
+question   -> embed (same model) -> nearest chunks -> text + source + section + page
+```
+
+### 10.1 The documents
+`documents/` holds 8 sample documents. All are fictional and exist to demonstrate the assistant:
+
+| Document | Type | Content |
+| --- | --- | --- |
+| `learning_policy.md` | Markdown | Learning time (40 h/year), approval, attempts, assessments, career goals |
+| `faq.md` | Markdown | How gaps, recommendations and learning paths work |
+| `proficiency_scale.md` | Markdown | The 1–5 skill levels |
+| `data_engineer_career_guide.md` | Markdown | The route from Software Developer to Data Engineer |
+| `course_catalogue.md` | Markdown, **generated** | Every course: level, hours, skills, prerequisites |
+| `job_role_profiles.md` | Markdown, **generated** | Every role: mandatory and optional skills |
+| `certification_reimbursement_policy.pdf` | PDF, 2 pages | Exam fees, approval, claims |
+| `mentoring_programme.docx` | Word | When and how mentoring works |
+
+The two **generated** documents come from the LMS data (`python scripts/generate_documents.py`), so they can never disagree with what the APIs say. A test fails if the data changes and they were not regenerated.
+
+### 10.2 Loading and chunking
+- **Loading:** `.md` and `.txt` are read as text, `.pdf` page by page with **pypdf** (page numbers are kept for citations), and `.docx` with Python's built-in `zipfile` (a Word file is a ZIP of XML files). Word headings become section titles. Scanned PDFs have no text and are reported.
+- **Cleaning:** normalises spaces and line endings, and re-joins words a PDF split across lines.
+- **Chunking:** each document is cut into passages of about **800 characters** (`RAG_CHUNK_SIZE`, about 150 words), along headings and paragraphs. Each chunk keeps its **section path**, for example *Learning and Development Policy > 4. Completing courses*, and that path is embedded with the text. This is why "How many attempts?" finds the right passage even if it never says "course".
+- **Overlap:** the last ~120 characters (`RAG_CHUNK_OVERLAP`, whole sentences) of a chunk are repeated at the start of the next one in the same section, so a fact cut at a boundary is still found whole.
+
+The sample documents give **132 chunks**.
+
+### 10.3 Embeddings: text → numbers that capture meaning
+An **embedding** is a vector (here 768 numbers for `nomic-embed-text`) that represents what a text means. Similar meanings point in similar directions, so search becomes "find the chunk vectors closest to the question's vector". Closeness is measured by **cosine similarity**: 1 = same direction, 0 = unrelated.
+
+| `EMBEDDING_PROVIDER` | Embedder | For | Against |
+| --- | --- | --- | --- |
+| `auto` (default) | Ollama if `nomic-embed-text` is installed, else TF-IDF | Best available, no setup required | – |
+| `ollama` | `nomic-embed-text` via Ollama `/api/embed` (~270 MB) | Understands meaning and synonyms ("retake" ≈ "attempt"); local | Needs Ollama running at build time and at question time |
+| `tfidf` | TF-IDF (scikit-learn) | No download, works everywhere | Matches **words**, not meaning |
+
+**Why not sentence-transformers?** It needs PyTorch, which is several GB. Ollama already runs on the machine and serves good embedding models.
+
+**One embedder per index.** Vectors from different models cannot be compared. The index records its embedder in `manifest.json`, and questions are always embedded with the same one. After changing the embedder, rebuild the index.
+
+**`nomic-embed-text` prefixes:** this model was trained with `search_document:` and `search_query:` before texts; the engine adds them automatically.
+
+### 10.4 The vector store
+| `VECTOR_BACKEND` | Store | Notes |
+| --- | --- | --- |
+| `auto` (default) | FAISS if installed, else NumPy | `faiss-cpu` is in `requirements.txt` |
+| `faiss` | FAISS `IndexFlatIP` | Library built for millions of vectors. Flat = exact search; its approximate indexes (IVF, HNSW) are the next step for very large collections |
+| `numpy` | One matrix multiplication | Exact, simple; fine for tens of thousands of chunks |
+
+All vectors are normalised to length 1, so the inner product **is** the cosine similarity. Both stores give the same results for the same vectors; a test checks this when FAISS is installed.
+
+**On disk:** `vector_store/<tenant>/` holds `manifest.json` (embedder, backend, chunk settings, SHA-256 fingerprint of each document), `chunks.jsonl`, and `index.faiss` or `vectors.npy` (plus `tfidf_vectorizer.joblib` for TF-IDF). A build writes to a temporary folder and swaps it in at the end, so a failed build never damages the previous index. **One index per tenant** (`RAG_TENANT`), so one customer's documents can never appear in another customer's answers.
+
+### 10.5 Build and search
+
+```powershell
+ollama pull nomic-embed-text                 # optional but recommended, ~270 MB (goes to D: with your setup)
+python scripts/build_index.py                # "Indexed 8 documents as 132 chunks"
+python scripts/search_documents.py "How many times can I retake a course?"
+python scripts/search_documents.py "certification fee" -k 2
+```
+
+Each result shows its score, source, section and page:
+
+```
+1. score 0.315  mentoring_programme.docx (Mentoring Programme > How to find a mentor)
+     Ask your manager or the Learning and Development team. A mentor has the skill at level 4 or 5 ...
+```
+
+In Swagger UI: **Health → GET /api/v1/health/rag** shows whether the index is ready, how it was built and which documents it contains. Restart uvicorn after rebuilding the index.
+
+### 10.6 Search quality: what to expect
+With **TF-IDF**, the right document is in the top 3 for 7 of 8 test questions (the tests check 6 of them). It misses *"What does level 3 mean?"*, because the scale document says "Intermediate" and "works independently", not "mean". This is exactly what neural embeddings fix: they match **meaning**, not words. With `nomic-embed-text`, rebuild the index and compare the same questions yourself.
+
+Scores are relative: TF-IDF scores are lower (0.1–0.4 is a good match) than neural embedding scores (often 0.5–0.8). Phase 13 sets a minimum score below which the assistant says it has no information.
+
+### 10.7 Docker
+The image contains `documents/` and `scripts/`; the index lives on the `lms_index` volume:
+```powershell
+docker compose up -d --build
+docker compose exec api python scripts/build_index.py
+```
+Ollama embeddings work from the container through `host.docker.internal`, like the chat model.
+
+### 10.8 Settings
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `DOCUMENTS_DIR` | `documents` | Folder of documents to index (`.md`, `.txt`, `.pdf`, `.docx`) |
+| `VECTOR_STORE_DIR` | `vector_store` | Where indexes are saved |
+| `RAG_TENANT` | `default` | Index folder name (letters, digits, `-`, `_`) |
+| `EMBEDDING_PROVIDER` | `auto` | `auto`, `ollama` or `tfidf` |
+| `OLLAMA_EMBED_MODEL` | `nomic-embed-text` | Embedding model in Ollama (`ollama list`) |
+| `VECTOR_BACKEND` | `auto` | `auto`, `faiss` or `numpy` |
+| `RAG_CHUNK_SIZE` / `RAG_CHUNK_OVERLAP` | `800` / `120` | Characters per chunk / repeated between chunks |
+| `RAG_TOP_K` | `4` | Chunks returned per search |
+
+### 10.9 Troubleshooting
+
+| Problem | Fix |
+| --- | --- |
+| `No knowledge index in ...` | `python scripts/build_index.py` |
+| Build says "Using TF-IDF instead" | Ollama is not running, or `nomic-embed-text` is missing: `ollama pull nomic-embed-text`, then rebuild |
+| `The index was built with Ollama embeddings (...)` | Questions must use the same model: start Ollama, check `OLLAMA_EMBED_MODEL`, or rebuild with `--provider tfidf` |
+| `VECTOR_BACKEND=faiss, but FAISS is not installed` | `pip install faiss-cpu`, or use `VECTOR_BACKEND=auto` |
+| A document is "skipped" | The build lists the reason: unsupported type, not UTF-8, scanned PDF without text, or a damaged Word file |
+| New documents not found | Rebuild the index, then restart uvicorn |

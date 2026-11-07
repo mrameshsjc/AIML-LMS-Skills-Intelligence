@@ -27,6 +27,7 @@ services:
       - "host.docker.internal:host-gateway"   # makes that name work on Linux too (Docker Desktop has it already)
     volumes:
       - lms_data:/app/data/uploads   # keeps uploaded files when the container is recreated
+      - lms_index:/app/vector_store  # keeps the knowledge index (Phase 12)
       # (data/sample is inside the image; later phases add volumes for the database and indexes)
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=4).status == 200 else 1)"]
@@ -38,3 +39,4 @@ services:
 
 volumes:
   lms_data:                  # named volume managed by Docker (survives `docker compose down`)
+  lms_index:                 # the knowledge index built by scripts/build_index.py
