@@ -231,9 +231,9 @@ score = 0.50 × gap_coverage + 0.20 × level_fit + 0.15 × prereq_ready + 0.15 �
 | `gap_coverage` | Share of the gap in the course's skills that it closes. Gain per skill = min(course_to, required) − max(current, course_from) | SQL 2→4 needed, course 2→4: 2/2 = **1.0**. AWS 1→3 needed, course 0→2: 1/2 = **0.5** |
 | `level_fit` | 1.0 when the course starts at your level. Starts *n* levels above you: 1 − 0.5n. Starts *n* below (revision): 1 − 0.2n, at least 0.5 | AWS-201 starts at 2, you are at 1: **0.5** |
 | `prereq_ready` | Share of prerequisites that are completed **or** already covered by your skill level | Docker-101 ends at level 2 and you have Docker 2: satisfied |
-| `completion_probability` | From the ML model in Phase 8 | `null` for now |
+| `completion_probability` | Probability (0–1) from the Phase 8 completion model | C-SQL-201 for E1001: **0.59** |
 
-While `completion_probability` is `null`, its 15% weight is shared proportionally among the other three parts: `weights_used` = 0.588 / 0.235 / 0.176. The response explains this in `notes`.
+**Without a model** (none trained yet, or `USE_COMPLETION_MODEL=false`), `completion_probability` is `null` and its 15% weight is shared proportionally among the other three parts: `weights_used` = 0.588 / 0.235 / 0.176. **With a model** (train it with `data_science/11_train_model.py`, then restart the API), all four weights are used and `notes` names the model version and that it was trained on synthetic data. For E1001 the order stays the same; C-SQL-201 scores 0.94 instead of 1.00. The model is explained in [`ML_MODEL_GUIDE.md`](ML_MODEL_GUIDE.md) section 5.
 
 **Order:** courses that address a **mandatory** gap come first; within each group, the highest score first. A perfect course for an optional skill therefore appears after courses for mandatory skills.
 

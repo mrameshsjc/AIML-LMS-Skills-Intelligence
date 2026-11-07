@@ -5,7 +5,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | | |
 | --- | --- |
 | Project folder / Git repo | `AIML-LMS-Skills-Intelligence` |
-| Current phase | **Phase 7 – API 3: Training Recommendations** (Phases 1–6 on GitHub, CI green) |
+| Current phase | **Phase 8 – ML: course-completion model** (Phases 1–7 on GitHub, CI green) |
 | Python | 3.11 |
 | LMS integration | Not in this project. The architecture is API-ready for it (later phase). |
 
@@ -13,7 +13,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 
 ---
 
-## 1. What is built so far (Phases 1–7)
+## 1. What is built so far (Phases 1–8)
 
 | Item | File(s) | Why it exists |
 | --- | --- | --- |
@@ -50,6 +50,10 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | **Phase 6:** tests + docs | `tests/unit/test_role_matching.py`, `tests/api/test_roles_api.py`, `docs/ML_MODEL_GUIDE.md` | 23 + 6 checks; algorithm guide |
 | **Phase 7:** API 3 | `POST /api/v1/trainings/recommend` | Courses for each gap, hybrid score with its parts, plain-language reasons |
 | **Phase 7:** tests + docs | `tests/unit/test_training_recommendation.py`, `tests/api/test_trainings_api.py` | 21 + 5 checks; API and ML guide sections |
+| **Phase 8:** ML engine | `app/ml/` (features, train, evaluate, model_registry, predict) | Predicts course completion; no leakage; versioned models with rollback |
+| **Phase 8:** ML scripts | `data_science/09_feature_engineering.py` … `13_predict.py` | Features → split → train/compare → evaluate → predict, step by step |
+| **Phase 8:** API 3 + model | `app/api/dependencies.py` | API 3 uses the model's completion probability when one is registered |
+| **Phase 8:** tests + docs | `tests/unit/test_completion_model.py`, `docs/ML_MODEL_GUIDE.md` section 5 | 16 + 1 checks; model guide |
 
 APIs 1 (`/skills/analyze`), 2 (`/roles/match`) and 3 (`/trainings/recommend`) are live. The other four (`/learning-path/{id}`, `/ai/chat`, `/ml/retrain`, `/rag/ingest`) are added in later phases. Full reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
 
@@ -190,7 +194,7 @@ AIML-LMS-Skills-Intelligence/
 ## 5. Tests and code quality
 
 ```powershell
-pytest -v              # expected: 195 passed (25 API + 170 unit)
+pytest -v              # expected: 212 passed (26 API + 186 unit)
 ruff check .           # expected: All checks passed!
 ruff format --check .  # expected: N files already formatted
 pre-commit install     # one time: runs Ruff automatically before each commit
@@ -322,6 +326,18 @@ In Swagger UI: **3. Training Recommendations → POST /api/v1/trainings/recommen
 
 Each course comes with its score parts and a reason. The score formula and the example are in [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md); why it is designed this way is in [`docs/ML_MODEL_GUIDE.md`](docs/ML_MODEL_GUIDE.md) section 4.
 
+## 5g. Course-completion model (Phase 8)
+
+```powershell
+python data_science/09_feature_engineering.py
+python data_science/10_split_data.py
+python data_science/11_train_model.py      # saves models/completion_model_v1.joblib
+python data_science/12_evaluate_model.py   # expected: roc_auc 0.693 (baseline 0.5)
+python data_science/13_predict.py
+```
+
+Restart uvicorn, then call API 3 again for E1001: the same five courses in the same order, now with a `completion_probability` (C-SQL-201: 0.59, score 0.94), and a note that the model was trained on synthetic data. Without a trained model, API 3 works exactly as in Phase 7. Model files are not committed to Git, and the Docker image does not contain one. How it works: [`docs/ML_MODEL_GUIDE.md`](docs/ML_MODEL_GUIDE.md) section 5.
+
 ## 6. Run with Docker
 
 Docker Desktop must be running.
@@ -405,6 +421,8 @@ See the results in the repository's **Actions** tab. Never commit `.env`, passwo
 | `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING` or `ERROR` |
 | `API_V1_PREFIX` | `/api/v1` | URL prefix for all v1 endpoints |
 | `DATA_DIR` | `data/sample` | Folder with the 11 LMS CSV files the API serves (e.g. `data/processed`) |
+| `MODEL_DIR` | `models` | Folder of the model registry (Phase 8) |
+| `USE_COMPLETION_MODEL` | `true` | `false` makes API 3 ignore any trained model |
 | `DATABASE_URL` | `sqlite:///./data/lms_ai.db` | Used from Phase 9; MySQL supported later |
 
 ## 9. Troubleshooting
@@ -420,7 +438,7 @@ See the results in the repository's **Actions** tab. Never commit `.env`, passwo
 
 ## 10. Roadmap
 
-Phase 1 ✓ → 2 synthetic datasets ✓ → 3 data validation ✓ → 4 cleaning, EDA, quality report, upload service ✓ → 5 skills analysis API ✓ → 6 role matching API ✓ → 7 recommendations API ✓ → 8 ML training → 9 database → 10 learning path → 11 Ollama LLM → 12 embeddings + FAISS → 13 RAG + chat → 14 all seven APIs tested → 15 Streamlit dashboard → 16 MLflow retraining → 17 security → 18 Docker hardening → 19 public demo → 20 Kubernetes → 21 full CI/CD with Snyk → 22 submission package.
+Phase 1 ✓ → 2 synthetic datasets ✓ → 3 data validation ✓ → 4 cleaning, EDA, quality report, upload service ✓ → 5 skills analysis API ✓ → 6 role matching API ✓ → 7 recommendations API ✓ → 8 ML completion model ✓ → 9 database → 10 learning path → 11 Ollama LLM → 12 embeddings + FAISS → 13 RAG + chat → 14 all seven APIs tested → 15 Streamlit dashboard → 16 MLflow retraining → 17 security → 18 Docker hardening → 19 public demo → 20 Kubernetes → 21 full CI/CD with Snyk → 22 submission package.
 
 The full plan, API contracts and database design are in the project blueprint (Enterprise LMS AI Intelligence Engine – Analysis & Technical Blueprint).
 

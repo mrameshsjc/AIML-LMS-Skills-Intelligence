@@ -16,3 +16,6 @@ matplotlib>=3.8,<4.0          # EDA charts saved as PNG (data_science/08_eda.py)
 
 # Phase 6: machine learning
 scikit-learn>=1.5,<2.0        # TF-IDF + cosine similarity for related roles; ML models from Phase 8
+
+# Phase 8: saving trained models
+joblib>=1.4,<2.0              # saves/loads scikit-learn pipelines (models/completion_model_vN.joblib)

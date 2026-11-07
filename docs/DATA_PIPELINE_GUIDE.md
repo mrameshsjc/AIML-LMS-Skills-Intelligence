@@ -274,6 +274,38 @@ For example, a new `skills.csv` without SQL is reported as invalid, because 84 r
 
 A file that cannot be read at all raises an `UploadError` with a plain-language message, such as "The file is not UTF-8 text. In Excel, save it as 'CSV UTF-8'." `save_upload()` stores accepted files in `data/uploads/` and refuses invalid ones.
 
+## 6a. Phase 8: the course-completion model
+
+Scripts 09–13 walk through one machine-learning workflow, one step per script. Each saves its result, so you can open the files in between. The logic lives in `app/ml/`, which the API uses too.
+
+```powershell
+python data_science/09_feature_engineering.py   # -> data/processed/ml/features.csv
+python data_science/10_split_data.py            # -> data/processed/ml/train.csv, test.csv
+python data_science/11_train_model.py           # -> models/completion_model_v1.joblib + .json
+python data_science/12_evaluate_model.py        # -> metrics, reports/ml/feature_importance.png
+python data_science/13_predict.py               # -> E1001's probabilities and API 3 before/after
+```
+
+### 09 – Feature engineering
+Builds one row per **finished** enrolment (443): 11 features and the label `completed`. It prints the completion rate per value of key features. For example, with one too-advanced skill only 46 % complete, against 74 % with none. **Leakage rule:** only information from before the enrolment is used; `score`, `attempts` and `completed_date` are never features.
+
+### 10 – Split
+Stratified 80/20 split with seed 42: 354 training rows and 89 test rows, each about 67 % completed. The test rows are kept aside until script 12.
+
+### 11 – Train
+Compares Logistic Regression, Decision Tree and Random Forest with 5-fold cross-validation on the training rows. The best (Logistic Regression, CV ROC AUC 0.637) is trained and saved as a **new version** in `models/`. Run it again and you get version 2; nothing is overwritten. Restart uvicorn so API 3 loads it.
+
+### 12 – Evaluate
+Tests the model on the 89 unseen rows: ROC AUC **0.693** against 0.5 for the "always completes" baseline. It also prints the confusion matrix and the coefficients, and saves a chart. Accuracy (0.685) is close to the baseline (0.663): on unbalanced data, accuracy alone hides how much the model really learned.
+
+### 13 – Predict
+Shows E1001's probability for 7 courses (C-AWS-101 0.80, C-MLOPS-201 0.44), then API 3's recommendations without and with the model. Use `--employee E1020` to try another person.
+
+### Retrain or roll back
+- Retrain: run 09–11 again (for example after uploading new training history), then restart the API.
+- Roll back: `python -c "from app.ml.model_registry import set_current; set_current(1)"`, then restart.
+- Switch the model off: set `USE_COMPLETION_MODEL=false` in `.env`.
+
 ## 7. Adding or changing a rule
 
 1. Edit `app/data_processing/schemas.py`. For example, change `max_value` of `duration_hours`, or add a value to `allowed`.
@@ -287,6 +319,7 @@ A file that cannot be read at all raises an `UploadError` with a plain-language 
 pytest tests/unit/test_data_validation.py -v   # Phase 3: 28 tests
 pytest tests/unit/test_data_cleaning.py -v     # Phase 4: cleaning, report, scripts 07/08/15
 pytest tests/unit/test_upload_service.py -v    # Phase 4: upload service
+pytest tests/unit/test_completion_model.py -v  # Phase 8: features, leakage, split, model, registry
 ```
 The Phase 3 tests check two promises:
 - **No false alarms:** clean data gives zero issues.
