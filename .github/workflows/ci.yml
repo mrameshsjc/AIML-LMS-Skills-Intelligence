@@ -64,3 +64,10 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"employee_id": "E1001", "target_role_id": "R004"}' | tee response.json
           grep -q '"gap_score":37.5' response.json && echo && echo "Skills analysis smoke test passed"
+
+      - name: Smoke test - role matching API
+        run: |
+          curl -fsS -X POST http://127.0.0.1:8000/api/v1/roles/match \
+            -H "Content-Type: application/json" \
+            -d '{"employee_id": "E1001"}' | tee roles.json
+          grep -q '"title":"Data Engineer"' roles.json && echo && echo "Role matching smoke test passed"

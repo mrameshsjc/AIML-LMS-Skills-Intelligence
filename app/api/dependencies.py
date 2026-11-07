@@ -23,6 +23,7 @@ from fastapi import Depends
 from app.core.config import get_settings
 from app.repositories.base import LmsRepository
 from app.repositories.csv_repository import CsvLmsRepository
+from app.services.role_matching import RoleMatchingService
 from app.services.skill_analysis import SkillAnalysisService
 
 
@@ -40,3 +41,16 @@ def get_skill_analysis_service(repository: RepositoryDep) -> SkillAnalysisServic
 
 
 SkillAnalysisServiceDep = Annotated[SkillAnalysisService, Depends(get_skill_analysis_service)]
+
+
+@lru_cache
+def _role_matching_service(repository: LmsRepository) -> RoleMatchingService:
+    # Cached per repository: the role similarity index is built once, not on every request.
+    return RoleMatchingService(repository)
+
+
+def get_role_matching_service(repository: RepositoryDep) -> RoleMatchingService:
+    return _role_matching_service(repository)
+
+
+RoleMatchingServiceDep = Annotated[RoleMatchingService, Depends(get_role_matching_service)]

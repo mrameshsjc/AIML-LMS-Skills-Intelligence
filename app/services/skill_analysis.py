@@ -115,6 +115,33 @@ def suggestion_for(gap: SkillGap) -> str:
     return f"Raise {gap.skill_name}{must} from level {gap.current_level} to {gap.required_level}."
 
 
+def apply_skill_overrides(
+    levels: dict[str, int], overrides: dict[str, int], skills: dict[str, Skill]
+) -> list[str]:
+    """Apply what-if levels to `levels` in place. Used by skill analysis and role matching.
+
+    Accepts skill IDs or names (any letter case). Level 0 removes the skill.
+    Returns readable notes such as "SQL = 4". Raises InvalidInputError for an
+    unknown skill or a level outside 0-5.
+    """
+    by_name = {s.name.lower(): s.skill_id for s in skills.values()}
+    applied = []
+    for key, level in overrides.items():
+        skill_id = key if key in skills else by_name.get(key.strip().lower())
+        if skill_id is None:
+            raise InvalidInputError("UNKNOWN_SKILL", f"Skill '{key}' does not exist.")
+        if not 0 <= level <= 5:
+            raise InvalidInputError(
+                "INVALID_LEVEL", f"Level for '{key}' must be between 0 and 5, not {level}."
+            )
+        if level == 0:
+            levels.pop(skill_id, None)
+        else:
+            levels[skill_id] = level
+        applied.append(f"{skills[skill_id].name} = {level}")
+    return applied
+
+
 @dataclass(frozen=True)
 class ProfileSkill:
     skill_id: str
@@ -189,7 +216,7 @@ class SkillAnalysisService:
 
         skills = self.repo.get_skills()
         levels = self.repo.get_employee_skills(employee_id)
-        applied = self._apply_overrides(levels, skill_overrides or {}, skills)
+        applied = apply_skill_overrides(levels, skill_overrides or {}, skills)
 
         requirements = self.repo.get_role_requirements(target.role_id)
         summary = compute_gaps(levels, requirements, skills)
@@ -215,28 +242,6 @@ class SkillAnalysisService:
             explanation=self._explain(employee.full_name, summary, target),
             overrides_applied=applied,
         )
-
-    @staticmethod
-    def _apply_overrides(
-        levels: dict[str, int], overrides: dict[str, int], skills: dict[str, Skill]
-    ) -> list[str]:
-        """Apply what-if levels in place; accept skill IDs or names (any letter case)."""
-        by_name = {s.name.lower(): s.skill_id for s in skills.values()}
-        applied = []
-        for key, level in overrides.items():
-            skill_id = key if key in skills else by_name.get(key.strip().lower())
-            if skill_id is None:
-                raise InvalidInputError("UNKNOWN_SKILL", f"Skill '{key}' does not exist.")
-            if not 0 <= level <= 5:
-                raise InvalidInputError(
-                    "INVALID_LEVEL", f"Level for '{key}' must be between 0 and 5, not {level}."
-                )
-            if level == 0:
-                levels.pop(skill_id, None)
-            else:
-                levels[skill_id] = level
-            applied.append(f"{skills[skill_id].name} = {level}")
-        return applied
 
     @staticmethod
     def _suggestions(summary: GapSummary, target: JobRole) -> list[str]:

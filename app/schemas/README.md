@@ -7,7 +7,7 @@ Pydantic models that describe exactly what each endpoint accepts and returns. Fa
 | Planned file | For endpoint |
 | --- | --- |
 | `skills.py` | `POST /api/v1/skills/analyze` (**done**) |
-| `roles.py` | `POST /api/v1/roles/match` |
+| `roles.py` | `POST /api/v1/roles/match` (**done**) |
 | `trainings.py` | `POST /api/v1/trainings/recommend` |
 | `learning_path.py` | `GET /api/v1/learning-path/{employee_id}` |
 | `chat.py` | `POST /api/v1/ai/chat` |
