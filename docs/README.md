@@ -6,7 +6,7 @@ Guides are added in the phase that needs them:
 | --- | --- |
 | PROJECT_PROPOSAL.md, ARCHITECTURE.md | Copied from the approved blueprint |
 | DATA_DICTIONARY.md (**done**), DATA_PIPELINE_GUIDE.md (scripts 01–08 and 15 **done**) | 2–4 |
-| API_DOCUMENTATION.md | 5–14 |
+| API_DOCUMENTATION.md (API 1 **done**) | 5–14 |
 | ML_MODEL_GUIDE.md | 8, 16 |
 | LLM_RAG_GUIDE.md | 11–13 |
 | MYSQL_CONFIGURATION_GUIDE.md | 9 |

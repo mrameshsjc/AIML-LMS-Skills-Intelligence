@@ -24,8 +24,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-# Now copy the application code.
+# Now copy the application code and the synthetic sample data the API serves.
 COPY app ./app
+COPY data/sample ./data/sample
 
 # Run as a normal user, not root: if the app were ever compromised, the
 # attacker would have far fewer permissions inside the container.

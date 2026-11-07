@@ -34,8 +34,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api.v1 import health
+from app.api.v1 import health, skills
 from app.core.config import get_settings
+from app.core.errors import AppError
 from app.core.logging_config import request_id_var, setup_logging
 
 logger = logging.getLogger(__name__)
@@ -44,8 +45,18 @@ API_DESCRIPTION = """
 AI engine for an enterprise LMS: skills-gap analysis, job-role matching,
 training recommendations, personalised learning paths and an LLM + RAG assistant.
 
-**Phase 1:** only the health endpoint is live. The seven business APIs are
-added phase by phase as described in the project blueprint.
+| # | Endpoint | Status |
+| --- | --- | --- |
+| 1 | `POST /api/v1/skills/analyze` | **live** (Phase 5) |
+| 2 | `POST /api/v1/roles/match` | Phase 6 |
+| 3 | `POST /api/v1/trainings/recommend` | Phase 7 |
+| 4 | `GET /api/v1/learning-path/{employee_id}` | Phase 10 |
+| 5 | `POST /api/v1/ai/chat` | Phase 13 |
+| 6 | `POST /api/v1/ml/retrain` | Phase 16 |
+| 7 | `POST /api/v1/rag/ingest` | Phase 13 |
+
+All data is synthetic. Try `POST /api/v1/skills/analyze` with
+`{"employee_id": "E1001", "target_role_id": "R004"}`.
 """
 
 
@@ -107,6 +118,14 @@ def create_app() -> FastAPI:
     # ------------------------------------------------------------------
     # Error handlers: turn every error into the same JSON format.
     # ------------------------------------------------------------------
+    @app.exception_handler(AppError)
+    async def app_error_handler(request: Request, exc: AppError):
+        """Errors raised on purpose by services (unknown employee, unknown skill, ...)."""
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=_error_body(exc.code, exc.message, getattr(request.state, "request_id", "-")),
+        )
+
     @app.exception_handler(StarletteHTTPException)
     async def http_error_handler(request: Request, exc: StarletteHTTPException):
         """Errors raised on purpose (404 not found, 403 forbidden, ...)."""
@@ -155,6 +174,7 @@ def create_app() -> FastAPI:
     # ml_training and rag.
     # ------------------------------------------------------------------
     app.include_router(health.router, prefix=settings.api_v1_prefix)
+    app.include_router(skills.router, prefix=settings.api_v1_prefix)
 
     @app.get("/", include_in_schema=False)
     def root() -> dict:

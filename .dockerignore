@@ -11,7 +11,9 @@ __pycache__
 .vscode
 .env
 .env.*
-data
+# data: only the synthetic sample is copied into the image
+data/*
+!data/sample
 models
 vector_store
 mlruns
