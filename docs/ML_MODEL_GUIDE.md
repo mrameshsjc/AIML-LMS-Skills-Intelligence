@@ -7,6 +7,7 @@ This guide explains every algorithm the engine uses: why it was chosen, what the
 | Rule-based formula | Skill gaps, gap score, match % (APIs 1 and 2) | 5–6 | Done |
 | TF-IDF + cosine similarity | Related roles (API 2) | 6 | Done |
 | Hybrid scoring | Course recommendations (API 3) | 7 | Done |
+| Greedy selection + topological sort | Learning path order (API 4) | 10 | Done |
 | Logistic Regression / Random Forest | Course completion prediction (API 3) | 8 | Done |
 | Sentence embeddings + FAISS | Document search for the AI assistant | 12 | Planned |
 | LLM (Ollama) + RAG | AI assistant answers | 11–13 | Planned |
@@ -189,3 +190,37 @@ Each training run saves a **new version** and never overwrites an old one:
 - Retrain when new enrolment outcomes arrive (Phase 16 adds an admin-only `/ml/retrain` API with MLflow tracking).
 
 **Code:** `app/ml/` (`features`, `train`, `evaluate`, `model_registry`, `predict`). **Scripts:** `data_science/09`–`13`. **Tests:** `tests/unit/test_completion_model.py`.
+
+## 6. Learning path: greedy selection + topological sort
+
+**Goal:** turn ranked courses into a plan, the courses that close every gap, in an order the learner can follow.
+
+### Step 1: choose the courses (a greedy "climb")
+For each gap skill, mandatory and largest first, start at the learner's level and repeat until the required level is reached:
+1. Candidates are active courses that raise this skill above the current level and are not completed.
+2. Prefer a course the learner can **start**: it begins at or below their level at that point. Otherwise take the one starting lowest.
+3. Then prefer a course they are **already enrolled in** (finish what you started), then the one closing **most of the gap**, then the best **API 3 score**.
+4. Assume the course brings every skill it teaches to its `level_to`, and climb on.
+
+Example, AWS 1 → 3: `C-AWS-101` (0→2) can start now; then `C-AWS-201` (2→4) can start at 2 and finishes the gap.
+
+**Why greedy?** Each choice can be explained in one sentence ("starts at your level and closes the most of the gap"). An optimiser, for example minimum total hours, might find a slightly shorter plan, but not one a learner could check. The sweep test runs all 100 employees × 13 roles (1,300 paths, under one second) and checks that every gap is either closed or reported.
+
+### Step 2: add missing prerequisites
+A chosen course whose prerequisite is not satisfied (not completed, not covered by the learner's level, the same rule as API 3) pulls the prerequisite into the path, recursively.
+
+### Step 3: order with a topological sort
+The courses and their "must come before" links form a **directed acyclic graph** (DAG):
+- a prerequisite comes before the course that needs it;
+- a lower course on the same skill comes before a higher one.
+
+A **topological sort** lists the nodes so that every link points forward. Kahn's algorithm repeats: among the courses whose predecessors are all placed, pick the most urgent. Urgency is the API 3 order (mandatory first, then score), and a prerequisite inherits the urgency of the course that needs it, so it is placed just in time. If the data ever contained a loop, the sort would place the remaining courses anyway rather than fail; the Phase 3 validation already rejects prerequisite loops.
+
+### Completed courses as evidence
+In the synthetic data, as in real LMS data, a skill record is sometimes lower than the courses a person has completed. For example, `C-PY-101` (Python 0→2) is completed but the Python record says 0. The climb then allows courses starting at the completed course's `level_to`, explains this in the step's reason, and suggests a re-assessment. Gap and match numbers keep using the recorded levels, so APIs 1–4 report the same figures.
+
+**Code:** `app/services/learning_path.py`. **Tests:** `tests/unit/test_learning_path.py` (E1001 example, the 1,300-path sweep, prerequisites, in-progress courses, evidence, uncovered skills).
+
+**Limits:**
+- The plan is sequential. It does not schedule courses in parallel or by calendar dates.
+- "Completing a course brings the skill to `level_to`" is an assumption. Real progress should be confirmed by assessment.

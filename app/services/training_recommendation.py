@@ -256,9 +256,13 @@ class TrainingRecommendationService:
                 )
         return result
 
-    def _prerequisites(
+    def check_prerequisites(
         self, course_id: str, levels: dict[str, int], history: dict[str, str], courses: dict[str, Course]
     ) -> list[PrerequisiteCheck]:
+        """Is each prerequisite satisfied: completed, or already covered by the learner's level?
+
+        Shared with the learning path (API 4), so both APIs apply the same rule.
+        """
         checks = []
         for pid in self.repo.get_prerequisites(course_id):
             title = courses[pid].title if pid in courses else pid
@@ -279,7 +283,7 @@ class TrainingRecommendationService:
             c.weight * c.gap for c in contributions
         )
         fit = min(level_fit(c.current_level, c.level_from) for c in contributions)
-        prereqs = self._prerequisites(course.course_id, levels, history, courses)
+        prereqs = self.check_prerequisites(course.course_id, levels, history, courses)
         ready = sum(p.satisfied for p in prereqs) / len(prereqs) if prereqs else 1.0
         completion = self.completion_model(employee_id, course.course_id) if self.completion_model else None
         components = {

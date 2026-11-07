@@ -78,3 +78,8 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"employee_id": "E1001"}' | tee trainings.json
           grep -q '"course_id":"C-SQL-201"' trainings.json && echo && echo "Recommendations smoke test passed"
+
+      - name: Smoke test - learning path API
+        run: |
+          curl -fsS http://127.0.0.1:8000/api/v1/learning-path/E1001 | tee path.json
+          grep -q '"projected_match_percentage":100.0' path.json && echo && echo "Learning path smoke test passed"

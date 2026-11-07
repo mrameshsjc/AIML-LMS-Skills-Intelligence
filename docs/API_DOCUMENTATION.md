@@ -8,7 +8,7 @@ The engine exposes seven business endpoints under `/api/v1`. They are stable con
 | 1 | `POST /api/v1/skills/analyze` | **Live (Phase 5)** |
 | 2 | `POST /api/v1/roles/match` | **Live (Phase 6)** |
 | 3 | `POST /api/v1/trainings/recommend` | **Live (Phase 7)** |
-| 4 | `GET /api/v1/learning-path/{employee_id}` | Phase 10 |
+| 4 | `GET /api/v1/learning-path/{employee_id}` | **Live (Phase 10)** |
 | 5 | `POST /api/v1/ai/chat` | Phase 13 |
 | 6 | `POST /api/v1/ml/retrain` | Phase 16 |
 | 7 | `POST /api/v1/rag/ingest` | Phase 13 |
@@ -259,10 +259,73 @@ score = 0.50 × gap_coverage + 0.20 × level_fit + 0.15 × prereq_ready + 0.15 �
 
 Reason for rank 1: *"Your SQL is level 2 and Data Engineer needs level 4; this course takes it from level 2 to 4. Prerequisites met (C-SQL-101 completed)."*
 
-The order in which to take these courses (AWS-101 before AWS-201) is the job of the learning path, API 4 (Phase 10).
+The order in which to take these courses (AWS-101 before AWS-201) is the job of the learning path, API 4.
 
 ### Try it from PowerShell
 ```powershell
 Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/trainings/recommend `
   -ContentType "application/json" -Body '{"employee_id": "E1001"}'
 ```
+
+## API 4 – Personalised learning path
+
+`GET /api/v1/learning-path/{employee_id}`
+
+API 3 ranks courses one by one; API 4 turns them into a **plan**: the courses that close every gap, in an order the learner can follow, with progress and one next action. It reads data and changes nothing, so it is a `GET` and the options are query parameters.
+
+### Request
+
+| Part | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `employee_id` (path) | `E` + 4 digits | – | The employee |
+| `target_role_id` (query) | `R` + 3 digits | career goal, else current role | Role to prepare for |
+| `include_optional` (query) | bool | `true` | `false` plans for mandatory skills only |
+
+Example: `/api/v1/learning-path/E1001?target_role_id=R004&include_optional=false`
+
+### How the path is built
+1. **Gaps, scores and reasons** come from API 3, so the two APIs never disagree.
+2. **Select:** for each gap skill (mandatory and largest first), climb from the current level to the required one. At each step, take a course the learner can start (it begins at or below their level at that point), preferring a course they are already enrolled in, then the one closing most of the gap, then the best API 3 score. A course raising several skills counts for all of them.
+3. **Prerequisites:** a chosen course whose prerequisite is not yet satisfied pulls that prerequisite into the path (`purpose: prerequisite`).
+4. **Order:** prerequisites, and lower courses on the same skill, always come first. Otherwise the API 3 order decides: mandatory gaps first, then score. A prerequisite takes the priority of the course that needs it, so it appears just before it.
+5. **Never included:** completed and inactive courses. Courses in progress stay, with their `status`.
+
+**Completed courses count as evidence.** If someone completed `C-PY-101` (Python 0→2) but their skill record still says 0, the path lets them start `C-PY-201` (from level 2), and a note suggests a skill re-assessment. The gap and match numbers still use the recorded levels, as in APIs 1–3. The synthetic data has many such records, as real LMS data often does.
+
+### Response (200)
+
+| Field | Meaning |
+| --- | --- |
+| `current_role`, `target_role`, `target_source` | As in API 1 |
+| `current_skills` | Every skill the employee has, with `required_for_target` |
+| `skill_gaps` | Each gap with `closed_by` (path courses that raise it) and `level_after_path` |
+| `path` | The steps: `step`, course details, `purpose`, `status`, `raises` (skill from→to), `prerequisites`, `after_steps`, `ready_now`, `addresses_mandatory_gap`, `score` (API 3), `reason`, `cumulative_hours` |
+| `progress` | `match_percentage` now, `projected_match_percentage` after the path, `skills_met` / `skills_required`, `completed_courses` relevant to the target, `in_progress_courses`, `total_steps`, `total_hours` |
+| `next_action` | The first step that can be started now (or "Continue …" for a course already started) |
+| `uncovered_skills`, `notes` | Gaps no available course fully closes; model, data and option notes |
+
+### Example (E1001 → Data Engineer)
+
+| Step | Course | Hours | After | Why |
+| --- | --- | --- | --- | --- |
+| 1 | C-SQL-201 SQL for Data Engineering | 21 | – | SQL 2→4, mandatory |
+| 2 | C-PY-201 Python for Practitioners | 19 | – | Python 3→4, mandatory |
+| 3 | C-AWS-101 AWS Cloud Foundations | 14 | – | AWS 1→2, mandatory |
+| 4 | C-AWS-201 AWS for Data and Application Workloads | 19 | step 3 | AWS 2→3; needs C-AWS-101 |
+| 5 | C-DOCKER-201 Docker in Production | 17 | – | Docker 2→3, optional |
+
+Progress: match **62.5 %** now, **100 %** after 5 steps (90 hours). Next action: *"Enrol in C-SQL-201 'SQL for Data Engineering' (step 1, 21 h). …"*
+
+Other cases:
+- Target already met (`?target_role_id=R001`): empty path, "You already meet every requirement…".
+- A requirement above every course in the catalogue (Advanced Excel level 4 for R003): listed in `uncovered_skills`, with the level the path reaches.
+- No career goal: the current role is used, and a note says to pass `target_role_id`.
+
+### Try it from PowerShell
+```powershell
+Invoke-RestMethod -Uri http://127.0.0.1:8000/api/v1/learning-path/E1001
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v1/learning-path/E1001?target_role_id=R009"
+```
+
+### How it works inside
+`app/api/v1/learning_path.py` (HTTP only) → `LearningPathService.build()` in `app/services/learning_path.py`, which reuses `TrainingRecommendationService` for gaps, scores and the shared prerequisite rule. The algorithm is explained in [`ML_MODEL_GUIDE.md`](ML_MODEL_GUIDE.md) section 6.

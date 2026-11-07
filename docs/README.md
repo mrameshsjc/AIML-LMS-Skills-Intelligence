@@ -6,8 +6,8 @@ Guides are added in the phase that needs them:
 | --- | --- |
 | PROJECT_PROPOSAL.md, ARCHITECTURE.md | Copied from the approved blueprint |
 | DATA_DICTIONARY.md (**done**), DATA_PIPELINE_GUIDE.md (scripts 01–15 **done**) | 2–4, 8, 9 |
-| API_DOCUMENTATION.md (APIs 1–3 **done**) | 5–14 |
-| ML_MODEL_GUIDE.md (formula, TF-IDF, hybrid scoring, completion model **done**) | 5–8, 16 |
+| API_DOCUMENTATION.md (APIs 1–4 **done**) | 5–14 |
+| ML_MODEL_GUIDE.md (formula, TF-IDF, hybrid scoring, completion model, learning path **done**) | 5–8, 16 |
 | LLM_RAG_GUIDE.md | 11–13 |
 | DATABASE_GUIDE.md (SQLite **done**; MySQL later) | 9 |
 | DOCKER_GUIDE.md | 1, 18 |

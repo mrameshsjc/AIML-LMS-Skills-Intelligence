@@ -100,7 +100,7 @@ DATA_SOURCE=database
 DATABASE_URL=sqlite:///./data/lms_ai.db
 ```
 
-Restart uvicorn. The seven API contracts stay the same: APIs 1–3 now read through `SqliteLmsRepository`. The completion model's features (API 3) are read from the database too. Tests prove the database gives **exactly the same answers** as the CSV files, for every employee, role and course.
+Restart uvicorn. The seven API contracts stay the same: APIs 1–4 now read through `SqliteLmsRepository`. The completion model's features (API 3) are read from the database too. Tests prove the database gives **exactly the same answers** as the CSV files, for every employee, role and course.
 
 | `DATABASE_URL` | Meaning |
 | --- | --- |
@@ -132,7 +132,7 @@ Any other URL, such as `mysql+pymysql://...`, is refused with a clear message in
 | `app/database/tables.py` | `save_datasets()` / `read_datasets()`: DataFrames ↔ tables, with identical types both ways |
 | `app/repositories/sqlite_repository.py` | `SqliteLmsRepository`: the 11 repository questions answered with SQL |
 | `data_science/14_save_to_database.py` | The learning script |
-| `tests/unit/test_database.py`, `tests/api/test_database_source.py` | 22 + 5 checks |
+| `tests/unit/test_database.py`, `tests/api/test_database_source.py` | 22 + 6 checks |
 
 **SQL habits in the code:**
 - Values are always passed as **parameters** (`WHERE employee_id = ?`), never pasted into the SQL text. This prevents SQL injection.
