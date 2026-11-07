@@ -2,7 +2,8 @@
 # A red X on GitHub means a step failed; click it to read the log.
 #
 # Stages: checkout -> Python 3.11 -> install -> lint -> format check -> tests -> Docker build
-# Later phases add: Snyk security scan, image publish, deploy and smoke test.
+# The Docker job runs scripts/api_smoke_test.py against the container (Phase 14).
+# Later phases add: Snyk security scan, image publish and deploy.
 
 name: CI
 
@@ -35,8 +36,9 @@ jobs:
       - name: Formatting (ruff format --check)
         run: ruff format --check .
 
-      - name: Tests (pytest)
-        run: pytest -v
+      - name: Tests with coverage (pytest)
+        # --cov prints which lines of app/ the tests never run ("Missing" column).
+        run: pytest -v --cov=app --cov-report=term-missing:skip-covered
 
   docker:
     name: Build Docker image
@@ -58,35 +60,10 @@ jobs:
           done
           echo "Health check failed"; docker logs api; exit 1
 
-      - name: Smoke test - skills analysis API
-        run: |
-          curl -fsS -X POST http://127.0.0.1:8000/api/v1/skills/analyze \
-            -H "Content-Type: application/json" \
-            -d '{"employee_id": "E1001", "target_role_id": "R004"}' | tee response.json
-          grep -q '"gap_score":37.5' response.json && echo && echo "Skills analysis smoke test passed"
+      - name: Smoke test - every API over real HTTP (scripts/api_smoke_test.py)
+        # Same script you can run on your PC. No Ollama in CI, so the LLM check is a WARN, not a failure.
+        run: python3 scripts/api_smoke_test.py --base-url http://127.0.0.1:8000 --wait 60
 
-      - name: Smoke test - role matching API
-        run: |
-          curl -fsS -X POST http://127.0.0.1:8000/api/v1/roles/match \
-            -H "Content-Type: application/json" \
-            -d '{"employee_id": "E1001"}' | tee roles.json
-          grep -q '"title":"Data Engineer"' roles.json && echo && echo "Role matching smoke test passed"
-
-      - name: Smoke test - training recommendations API
-        run: |
-          curl -fsS -X POST http://127.0.0.1:8000/api/v1/trainings/recommend \
-            -H "Content-Type: application/json" \
-            -d '{"employee_id": "E1001"}' | tee trainings.json
-          grep -q '"course_id":"C-SQL-201"' trainings.json && echo && echo "Recommendations smoke test passed"
-
-      - name: Smoke test - learning path API
-        run: |
-          curl -fsS http://127.0.0.1:8000/api/v1/learning-path/E1001 | tee path.json
-          grep -q '"projected_match_percentage":100.0' path.json && echo && echo "Learning path smoke test passed"
-
-      - name: Smoke test - AI assistant API (no LLM in CI, so the labelled fallback answers)
-        run: |
-          curl -fsS -X POST http://127.0.0.1:8000/api/v1/ai/chat \
-            -H "Content-Type: application/json" \
-            -d '{"question": "Which skills are required for an AI Engineer?"}' | tee chat.json
-          grep -q '"role_requirements"' chat.json && echo && echo "AI assistant smoke test passed"
+      - name: Show container logs if anything failed
+        if: failure()
+        run: docker logs api

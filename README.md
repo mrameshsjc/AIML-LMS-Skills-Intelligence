@@ -5,7 +5,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | | |
 | --- | --- |
 | Project folder / Git repo | `AIML-LMS-Skills-Intelligence` |
-| Current phase | **Phase 13 – RAG assistant (API 5) and document ingestion (API 7)** (Phases 1–12 on GitHub, CI green) |
+| Current phase | **Phase 14 – All APIs tested together** (Phases 1–13 on GitHub, CI green) |
 | Python | 3.11 |
 | LMS integration | Not in this project. The architecture is API-ready for it (later phase). |
 
@@ -13,7 +13,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 
 ---
 
-## 1. What is built so far (Phases 1–13)
+## 1. What is built so far (Phases 1–14)
 
 | Item | File(s) | Why it exists |
 | --- | --- | --- |
@@ -70,6 +70,10 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | **Phase 13:** API 5 | `POST /api/v1/ai/chat`, `app/services/chat_service.py`, `scripts/ask.py` | Answers from LMS data + cited documents; says when it does not know; conversations |
 | **Phase 13:** API 7 | `POST /api/v1/rag/ingest`, `GET`/`DELETE /api/v1/rag/documents`, `app/services/ingestion_service.py` | Upload PDF/DOCX/TXT/CSV/MD; updates, duplicate detection, deletion, rollback |
 | **Phase 13:** tests + docs | `tests/unit/test_chat.py`, `test_ingestion.py`, `tests/api/test_chat_api.py`, `test_rag_api.py` | 19 + 14 + 3 unit, 8 API checks; LLM guide section 11, API docs |
+| **Phase 14:** integration tests | `tests/integration/test_business_flow.py`, `test_api_flow.py` | The APIs agree for all 100 employees; the full journey over HTTP |
+| **Phase 14:** API contract | `app/schemas/contract.py`, `docs/api_contract.json`, `scripts/update_api_contract.py`, `tests/api/test_api_contract.py` | Request/response shapes cannot change by accident; every error has the shared format |
+| **Phase 14:** smoke test + CI | `scripts/api_smoke_test.py`, `.github/workflows/ci.yml` | Every API over real HTTP against a running server (and the CI container); coverage report |
+| **Phase 14:** guide | `docs/TESTING_GUIDE.md`, `@pytest.mark.slow` | Test layers, test doubles, contract workflow; `pytest -m "not slow"` for quick runs |
 
 APIs 1 (`/skills/analyze`), 2 (`/roles/match`), 3 (`/trainings/recommend`), 4 (`/learning-path/{id}`), 5 (`/ai/chat`) and 7 (`/rag/ingest`) are live. API 6 (`/ml/retrain`) comes in Phase 16. Full reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
 
@@ -121,6 +125,8 @@ AIML-LMS-Skills-Intelligence/
 │   ├── unit/test_llm.py, api/test_llm_api.py # 24 + 4 checks (fake Ollama)  [Phase 11 ✓]
 │   ├── unit/test_rag.py, api/test_rag_api.py # 39 + 4 checks               [Phases 12–13 ✓]
 │   ├── unit/test_chat.py, test_ingestion.py, api/test_chat_api.py # 19 + 14 + 6  [Phase 13 ✓]
+│   ├── integration/              # business flow, HTTP journey, API contract (24)  [Phase 14 ✓]
+│   ├── api/test_api_contract.py  # OpenAPI = contract; error format of every endpoint (20)  [Phase 14 ✓]
 │   ├── unit/  integration/  security/
 ├── reports/                      # generated charts and reports (not in Git)   [Phase 4]
 ├── deployment/                   # docker/, kubernetes/, cloud/                (later, 18–20)
@@ -216,7 +222,8 @@ AIML-LMS-Skills-Intelligence/
 ## 5. Tests and code quality
 
 ```powershell
-pytest -v              # expected: 370 passed (51 API + 319 unit)
+pytest -v              # expected: 414 passed (319 unit + 71 API + 24 integration)
+pytest -m "not slow"   # quick run (skips tests that start scripts or train models)
 ruff check .           # expected: All checks passed!
 ruff format --check .  # expected: N files already formatted
 pre-commit install     # one time: runs Ruff automatically before each commit
@@ -426,6 +433,20 @@ In Swagger UI:
 
 Without Ollama, a labelled fallback lists the facts and passages instead of writing an answer. Guide: [`docs/LLM_RAG_GUIDE.md`](docs/LLM_RAG_GUIDE.md) section 11; reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md) (APIs 5 and 7).
 
+## 5m. Testing everything together (Phase 14)
+
+```powershell
+pytest                                   # 414 tests: unit, API, integration
+uvicorn app.main:app                     # then, in a second window:
+python scripts/api_smoke_test.py         # every API over real HTTP: PASS / WARN / FAIL with timings
+```
+
+- **Integration tests** check that the APIs never contradict each other, for all 100 employees: the same gap score in APIs 1 and 2, the same course scores in APIs 3 and 4, and the assistant repeating the path's next action.
+- **Contract tests** keep every request and response shape stable for the dashboard and the future LMS integration (`docs/api_contract.json`). After an intended API change, run `python scripts/update_api_contract.py` and review the diff.
+- **CI** now runs the smoke-test script against the Docker container and prints a coverage report.
+
+Guide: [`docs/TESTING_GUIDE.md`](docs/TESTING_GUIDE.md).
+
 ## 6. Run with Docker
 
 Docker Desktop must be running.
@@ -538,10 +559,11 @@ See the results in the repository's **Actions** tab. Never commit `.env`, passwo
 | Explanations say "Fallback - no LLM" | Ollama is not running or the model is missing: `python scripts/check_llm.py` tells you which |
 | `No knowledge index in ...` | `python scripts/build_index.py`, then restart uvicorn |
 | The assistant says it has no information | Check the passage scores with `scripts/search_documents.py`; see `RAG_MIN_SCORE` in the LLM guide |
+| A contract test fails | Unintended: fix the code. Intended API change: `python scripts/update_api_contract.py`, review and commit `docs/api_contract.json` |
 
 ## 10. Roadmap
 
-Phase 1 ✓ → 2 synthetic datasets ✓ → 3 data validation ✓ → 4 cleaning, EDA, quality report, upload service ✓ → 5 skills analysis API ✓ → 6 role matching API ✓ → 7 recommendations API ✓ → 8 ML completion model ✓ → 9 database (SQLite) ✓ → 10 learning path API ✓ → 11 Ollama LLM ✓ → 12 embeddings + FAISS ✓ → 13 RAG + chat ✓ → 14 all seven APIs tested → 15 Streamlit dashboard → 16 MLflow retraining → 17 security → 18 Docker hardening → 19 public demo → 20 Kubernetes → 21 full CI/CD with Snyk → 22 submission package.
+Phase 1 ✓ → 2 synthetic datasets ✓ → 3 data validation ✓ → 4 cleaning, EDA, quality report, upload service ✓ → 5 skills analysis API ✓ → 6 role matching API ✓ → 7 recommendations API ✓ → 8 ML completion model ✓ → 9 database (SQLite) ✓ → 10 learning path API ✓ → 11 Ollama LLM ✓ → 12 embeddings + FAISS ✓ → 13 RAG + chat ✓ → 14 all APIs tested together ✓ → 15 Streamlit dashboard → 16 MLflow retraining → 17 security → 18 Docker hardening → 19 public demo → 20 Kubernetes → 21 full CI/CD with Snyk → 22 submission package.
 
 The full plan, API contracts and database design are in the project blueprint (Enterprise LMS AI Intelligence Engine – Analysis & Technical Blueprint).
 

@@ -180,18 +180,21 @@ def _run(script: str, *args: str) -> subprocess.CompletedProcess:
     )
 
 
+@pytest.mark.slow
 def test_script_07_cleans_dirty_data(dirty_folder, tmp_path):
     result = _run("07_clean_data.py", "--data", str(dirty_folder), "--out", str(tmp_path))
     assert result.returncode == 0, result.stdout[-2000:] + result.stderr[-2000:]
     assert "No problems found." in result.stdout
 
 
+@pytest.mark.slow
 def test_script_08_saves_seven_charts(tmp_path):
     result = _run("08_eda.py", "--out", str(tmp_path))
     assert result.returncode == 0, result.stdout[-2000:] + result.stderr[-2000:]
     assert len(list(tmp_path.glob("*.png"))) == 7
 
 
+@pytest.mark.slow
 def test_script_15_reports_status(dirty_folder, tmp_path):
     clean = _run("15_data_quality_report.py", "--out", str(tmp_path / "clean"))
     assert clean.returncode == 0 and "Overall status: PASS" in clean.stdout

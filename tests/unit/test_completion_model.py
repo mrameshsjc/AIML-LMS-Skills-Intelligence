@@ -107,6 +107,7 @@ def test_split_is_reproducible(table):
     assert list(first["enrollment_id"]) == list(again["enrollment_id"])
 
 
+@pytest.mark.slow
 def test_model_beats_the_baseline(trained):
     report, _ = trained
     assert report.best_model in {"logistic_regression", "decision_tree", "random_forest"}
@@ -114,6 +115,7 @@ def test_model_beats_the_baseline(trained):
     assert set(report.comparison["model"]) == {"logistic_regression", "decision_tree", "random_forest"}
 
 
+@pytest.mark.slow
 def test_evaluate_and_importance_shapes(trained, table):
     _, models_dir = trained
     pipeline, _ = load_current(models_dir)
@@ -128,6 +130,7 @@ def test_evaluate_and_importance_shapes(trained, table):
 # --- Registry ------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 def test_registry_versions_and_rollback(trained, tmp_path):
     _, models_dir = trained
     pipeline, card = load_current(models_dir)
@@ -149,6 +152,7 @@ def test_registry_versions_and_rollback(trained, tmp_path):
 # --- Predictor and API 3 integration ----------------------------------------------------
 
 
+@pytest.mark.slow
 def test_predictor_returns_probabilities(trained):
     _, models_dir = trained
     predictor = CompletionPredictor.from_files(models_dir)
@@ -163,11 +167,13 @@ def test_predictor_is_none_without_a_model(tmp_path):
     assert CompletionPredictor.from_files(tmp_path) is None
 
 
+@pytest.mark.slow
 def test_too_advanced_courses_get_lower_probability(trained):
     predictor = CompletionPredictor.from_files(trained[1])
     assert predictor("E1001", "C-MLOPS-201") < predictor("E1001", "C-AWS-101")
 
 
+@pytest.mark.slow
 def test_recommendations_use_the_model(trained):
     predictor = CompletionPredictor.from_files(trained[1])
     result = TrainingRecommendationService(CsvLmsRepository(), completion_model=predictor).recommend("E1001")

@@ -203,6 +203,7 @@ def test_services_give_identical_results(csv_repo, db_repo):
         assert db == TrainingRecommendationService(csv_repo).recommend(employee_id)
 
 
+@pytest.mark.slow
 def test_predictor_reads_features_from_the_database(db_url, tmp_path):
     run_training(models_dir=tmp_path)
     from_csv = CompletionPredictor.from_files(tmp_path)
@@ -221,6 +222,7 @@ def _run_14(*args: str) -> subprocess.CompletedProcess:
     )
 
 
+@pytest.mark.slow
 def test_script_14_creates_the_database(tmp_path):
     result = _run_14("--db", str(tmp_path / "lms.db"))
     assert result.returncode == 0, result.stderr
@@ -230,6 +232,7 @@ def test_script_14_creates_the_database(tmp_path):
     assert "nothing - the database was already up to date" in again.stdout
 
 
+@pytest.mark.slow
 def test_script_14_refuses_invalid_data(tmp_path):
     spec = importlib.util.spec_from_file_location(
         "make_dirty_data", PROJECT_ROOT / "scripts" / "make_dirty_data.py"

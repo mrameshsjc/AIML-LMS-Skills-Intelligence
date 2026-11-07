@@ -231,6 +231,7 @@ def _run_check(url: str) -> subprocess.CompletedProcess:
     )
 
 
+@pytest.mark.slow
 def test_check_script_with_a_running_model(fake_ollama):
     result = _run_check(fake_ollama.url)
     assert result.returncode == 0, result.stdout + result.stderr
@@ -238,6 +239,7 @@ def test_check_script_with_a_running_model(fake_ollama):
     assert "provider=ollama" in result.stdout
 
 
+@pytest.mark.slow
 def test_check_script_without_ollama():
     result = _run_check(closed_port_url())
     assert result.returncode == 1
