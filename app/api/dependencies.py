@@ -25,6 +25,8 @@ from app.core.config import get_settings
 from app.llm.base import LLMProvider
 from app.llm.factory import build_provider
 from app.ml.predict import CompletionPredictor
+from app.rag.factory import tenant_folder
+from app.rag.index import read_manifest
 from app.repositories.base import LmsRepository
 from app.repositories.csv_repository import CsvLmsRepository
 from app.repositories.sqlite_repository import SqliteLmsRepository
@@ -114,3 +116,8 @@ def get_explanation_service(llm: LLMProviderDep) -> ExplanationService:
 
 
 ExplanationServiceDep = Annotated[ExplanationService, Depends(get_explanation_service)]
+
+
+def get_index_manifest() -> dict | None:
+    """What the knowledge index for RAG_TENANT contains (None if it has not been built)."""
+    return read_manifest(tenant_folder(get_settings()))

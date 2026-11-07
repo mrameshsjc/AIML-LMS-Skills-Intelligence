@@ -29,11 +29,12 @@ OUTPUT (HTTP 200)
 """
 
 from datetime import UTC, datetime
+from typing import Annotated
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from app.api.dependencies import LLMProviderDep
+from app.api.dependencies import LLMProviderDep, get_index_manifest
 from app.core.config import get_settings
 
 router = APIRouter(tags=["Health"])
@@ -110,4 +111,54 @@ def llm_status(llm: LLMProviderDep) -> LlmStatusResponse:
         available=status.available,
         detail=status.detail,
         models_installed=status.models_installed,
+    )
+
+
+class IndexedDocumentOut(BaseModel):
+    source: str
+    title: str
+    pages: int
+    chunks: int
+
+
+class RagStatusResponse(BaseModel):
+    ready: bool = Field(description="True if a knowledge index has been built for this tenant.")
+    tenant: str
+    detail: str
+    embedder: str | None = Field(default=None, examples=["ollama"], description="ollama or tfidf.")
+    embedding_model: str | None = Field(default=None, examples=["nomic-embed-text"])
+    backend: str | None = Field(default=None, examples=["numpy"], description="numpy or faiss.")
+    chunk_count: int = 0
+    built_at: str | None = None
+    documents: list[IndexedDocumentOut] = []
+
+
+@router.get(
+    "/health/rag",
+    response_model=RagStatusResponse,
+    summary="Knowledge index status",
+    description=(
+        "Which documents the AI assistant can search, and how the index was built. Always answers 200; "
+        "build the index with `python scripts/build_index.py`."
+    ),
+)
+def rag_status(manifest: Annotated[dict | None, Depends(get_index_manifest)]) -> RagStatusResponse:
+    tenant = get_settings().rag_tenant
+    if manifest is None:
+        return RagStatusResponse(
+            ready=False, tenant=tenant, detail="No index yet. Build it with: python scripts/build_index.py"
+        )
+    return RagStatusResponse(
+        ready=True,
+        tenant=tenant,
+        detail=f"{len(manifest['documents'])} documents, {manifest['chunk_count']} chunks.",
+        embedder=manifest["embedder"]["name"],
+        embedding_model=manifest["embedder"]["model"],
+        backend=manifest["backend"],
+        chunk_count=manifest["chunk_count"],
+        built_at=manifest["created_at"],
+        documents=[
+            IndexedDocumentOut(**{k: d[k] for k in ("source", "title", "pages", "chunks")})
+            for d in manifest["documents"]
+        ],
     )

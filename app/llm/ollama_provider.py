@@ -77,7 +77,8 @@ class OllamaProvider(LLMProvider):
         self.max_tokens = max_tokens
 
     # --- HTTP -----------------------------------------------------------------------
-    def _call(self, path: str, payload: dict | None = None, timeout: float | None = None) -> dict:
+    def call(self, path: str, payload: dict | None = None, timeout: float | None = None) -> dict:
+        """One JSON request to Ollama, with clear errors. Also used by the embedding model (Phase 12)."""
         data = None if payload is None else json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(
             f"{self.base_url}{path}", data=data, headers={"Content-Type": "application/json"}
@@ -122,7 +123,7 @@ class OllamaProvider(LLMProvider):
             },
         }
         start = time.perf_counter()
-        reply = self._call("/api/chat", payload)
+        reply = self.call("/api/chat", payload)
         text = (reply.get("message") or {}).get("content", "").strip()
         if not text:
             raise LLMUnavailableError("Ollama returned an empty answer.")
@@ -138,7 +139,7 @@ class OllamaProvider(LLMProvider):
 
     def status(self) -> ProviderStatus:
         try:
-            tags = self._call("/api/tags", timeout=min(5.0, self.timeout))
+            tags = self.call("/api/tags", timeout=min(5.0, self.timeout))
         except LLMUnavailableError as error:
             return ProviderStatus(self.name, self.model, False, str(error))
         installed = sorted(m.get("name", "") for m in tags.get("models", []))

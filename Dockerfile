@@ -27,11 +27,15 @@ RUN pip install -r requirements.txt
 # Now copy the application code and the synthetic sample data the API serves.
 COPY app ./app
 COPY data/sample ./data/sample
+# Phase 12: knowledge documents and the scripts that index them
+# (inside the container: python scripts/build_index.py)
+COPY documents ./documents
+COPY scripts ./scripts
 
 # Run as a normal user, not root: if the app were ever compromised, the
 # attacker would have far fewer permissions inside the container.
 RUN useradd --create-home appuser \
-    && mkdir -p /app/data \
+    && mkdir -p /app/data /app/vector_store \
     && chown -R appuser:appuser /app
 USER appuser
 

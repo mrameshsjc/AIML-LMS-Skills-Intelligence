@@ -98,6 +98,18 @@ class Settings(BaseSettings):
     # Ollama must run on this machine (or the Compose network) unless an external host is approved.
     llm_allow_remote: bool = False
 
+    # --- Knowledge documents and search (Phase 12) ---------------------------------
+    documents_dir: str = "documents"  # the documents the assistant may use
+    vector_store_dir: str = "vector_store"  # where indexes are saved (one folder per tenant)
+    rag_tenant: str = Field(default="default", pattern=r"^[A-Za-z0-9_-]+$")
+    # auto = Ollama embeddings when the model is installed, else TF-IDF (no download).
+    embedding_provider: Literal["auto", "ollama", "tfidf"] = "auto"
+    ollama_embed_model: str = "nomic-embed-text"
+    vector_backend: Literal["auto", "numpy", "faiss"] = "auto"  # auto = FAISS if installed
+    rag_chunk_size: int = Field(default=800, ge=200, le=4000)  # characters per chunk
+    rag_chunk_overlap: int = Field(default=120, ge=0, le=1000)
+    rag_top_k: int = Field(default=4, ge=1, le=20)  # chunks returned per search
+
     # --- Database (Phase 9) -------------------------------------------------
     # SQLite is a single file and needs no server, which is ideal for the
     # first local version. MySQL (e.g. mysql+pymysql://user:password@host/lms_ai)

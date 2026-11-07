@@ -1,7 +1,7 @@
 """
 Tests for the language model layer (Phase 11). No Ollama needed.
 
-A FAKE OLLAMA SERVER
+A FAKE OLLAMA SERVER (tests/unit/conftest.py)
     Instead of a real model, a tiny HTTP server on a random local port answers
     /api/tags and /api/chat the way Ollama does. The real HTTP code of
     OllamaProvider is exercised (requests, JSON, errors, timeouts), but the
@@ -11,14 +11,9 @@ HOW TO RUN
     PS> pytest tests/unit/test_llm.py -v
 """
 
-import json
 import os
-import socket
 import subprocess
 import sys
-import threading
-import time
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
@@ -34,71 +29,9 @@ from app.llm.prompts import SYSTEM_PROMPT, build_messages
 from app.repositories.csv_repository import CsvLmsRepository
 from app.services.explanation_service import ExplanationService, learning_path_facts
 from app.services.learning_path import LearningPathService
+from tests.unit.conftest import closed_port_url
 
 ROOT = Path(__file__).resolve().parents[2]
-
-
-class FakeOllama(BaseHTTPRequestHandler):
-    """Answers like Ollama. Behaviour is set on the server object (see the fixture)."""
-
-    def log_message(self, *args):  # keep the test output quiet
-        pass
-
-    def _send(self, status: int, body: dict) -> None:
-        data = json.dumps(body).encode()
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(data)))
-        self.end_headers()
-        self.wfile.write(data)
-
-    def do_GET(self):
-        if self.path == "/api/tags":
-            self._send(200, {"models": [{"name": m} for m in self.server.models]})
-        else:
-            self._send(404, {"error": "not found"})
-
-    def do_POST(self):
-        body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
-        self.server.requests.append(body)
-        if self.server.delay:
-            time.sleep(self.server.delay)
-        if body["model"] not in self.server.models:
-            self._send(404, {"error": f"model '{body['model']}' not found, try pulling it first"})
-            return
-        self._send(
-            200,
-            {
-                "model": body["model"],
-                "message": {"role": "assistant", "content": self.server.reply},
-                "done": True,
-                "prompt_eval_count": 120,
-                "eval_count": 42,
-            },
-        )
-
-
-@pytest.fixture
-def fake_ollama():
-    server = ThreadingHTTPServer(("127.0.0.1", 0), FakeOllama)
-    server.models, server.reply, server.delay, server.requests = (
-        ["llama3.2:3b"],
-        "Hello from the fake model.",
-        0,
-        [],
-    )
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    server.url = f"http://127.0.0.1:{server.server_address[1]}"
-    yield server
-    server.shutdown()
-    server.server_close()
-
-
-def _closed_port_url() -> str:
-    with socket.socket() as s:  # ask the OS for a free port, then close it: nothing listens there
-        s.bind(("127.0.0.1", 0))
-        return f"http://127.0.0.1:{s.getsockname()[1]}"
 
 
 class FixedProvider:
@@ -145,7 +78,7 @@ def test_missing_model_explains_how_to_pull_it(fake_ollama):
 
 def test_ollama_not_running():
     with pytest.raises(LLMUnavailableError, match="Is it running"):
-        OllamaProvider(_closed_port_url()).generate(LLMRequest("x"))
+        OllamaProvider(closed_port_url()).generate(LLMRequest("x"))
 
 
 def test_timeout(fake_ollama):
@@ -166,7 +99,7 @@ def test_status_lists_models_and_checks_the_configured_one(fake_ollama):
     assert ok.available and ok.models_installed == ["llama3.2:3b", "qwen2.5:3b"]
     missing = OllamaProvider(fake_ollama.url, model="phi3").status()
     assert not missing.available and "ollama pull phi3" in missing.detail
-    assert not OllamaProvider(_closed_port_url()).status().available
+    assert not OllamaProvider(closed_port_url()).status().available
 
 
 def test_model_without_tag_means_latest(fake_ollama):
@@ -199,7 +132,7 @@ def test_auto_uses_ollama_when_it_answers(fake_ollama):
 
 
 def test_auto_falls_back_and_says_why():
-    auto = AutoProvider(OllamaProvider(_closed_port_url()))
+    auto = AutoProvider(OllamaProvider(closed_port_url()))
     result = auto.generate(LLMRequest("x", context=["A fact."]))
     assert result.is_fallback and "- A fact." in result.text
     assert "fallback used" in result.notes[0] and "Is it running" in result.notes[0]
@@ -277,7 +210,7 @@ def test_explanation_with_the_fallback(paths):
 
 
 def test_ollama_only_setting_turns_an_outage_into_503(paths):
-    service = ExplanationService(paths, OllamaProvider(_closed_port_url()))
+    service = ExplanationService(paths, OllamaProvider(closed_port_url()))
     with pytest.raises(ServiceUnavailableError) as error:
         service.explain_learning_path("E1001")
     assert error.value.code == "LLM_UNAVAILABLE" and error.value.status_code == 503
@@ -306,6 +239,6 @@ def test_check_script_with_a_running_model(fake_ollama):
 
 
 def test_check_script_without_ollama():
-    result = _run_check(_closed_port_url())
+    result = _run_check(closed_port_url())
     assert result.returncode == 1
     assert "Fallback - no LLM" in result.stdout and "ollama pull llama3.2:3b" in result.stdout
