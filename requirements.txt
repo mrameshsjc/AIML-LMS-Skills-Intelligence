@@ -10,3 +10,6 @@ pydantic-settings>=2.4,<3.0   # reads settings from environment variables / .env
 # Phase 3: data processing
 pandas>=3.0,<4.0              # DataFrames: reading, inspecting and validating the LMS CSV files
 numpy>=1.26,<3.0              # numerical arrays (used by pandas; used directly from Phase 4)
+
+# Phase 4: charts
+matplotlib>=3.8,<4.0          # EDA charts saved as PNG (data_science/08_eda.py)

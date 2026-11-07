@@ -40,6 +40,9 @@ uploads/
 *.gguf
 *.safetensors
 
+# --- Generated reports and charts (re-create with the data_science scripts) ---
+reports/
+
 # --- OS ---
 .DS_Store
 Thumbs.db

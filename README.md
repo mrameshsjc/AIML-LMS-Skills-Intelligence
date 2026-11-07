@@ -5,7 +5,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | | |
 | --- | --- |
 | Project folder / Git repo | `AIML-LMS-Skills-Intelligence` |
-| Current phase | **Phase 3 – Pandas and data validation** (Phases 1–2 verified on Windows) |
+| Current phase | **Phase 4 – data cleaning, EDA, quality report, upload service** (Phases 1–3 on GitHub, CI green) |
 | Python | 3.11 |
 | LMS integration | Not in this project. The architecture is API-ready for it (later phase). |
 
@@ -13,7 +13,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 
 ---
 
-## 1. What is built so far (Phases 1–3)
+## 1. What is built so far (Phases 1–4)
 
 | Item | File(s) | Why it exists |
 | --- | --- | --- |
@@ -37,6 +37,11 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | **Phase 3:** learning scripts | `data_science/01_read_csv.py` … `06_validate_duplicates.py` | Pandas step by step, with explanations printed as they run |
 | **Phase 3:** practice data | `scripts/make_dirty_data.py` | A copy with 17 planted problems; the checks must find them all |
 | **Phase 3:** tests + guide | `tests/unit/test_data_validation.py`, `docs/DATA_PIPELINE_GUIDE.md` | 28 checks; a beginner's walkthrough of every script |
+| **Phase 4:** cleaning | `app/data_processing/cleaning.py`, `data_science/07_clean_data.py` | Fixes what is safe, quarantines the rest with reasons; dirty data → 0 errors |
+| **Phase 4:** EDA | `data_science/08_eda.py` | 7 Matplotlib charts with the key findings |
+| **Phase 4:** quality report | `app/data_processing/quality_report.py`, `data_science/15_data_quality_report.py` | PASS/WARN/FAIL per file, as Markdown + CSV |
+| **Phase 4:** upload service | `app/services/data_upload_service.py` | Checks an uploaded CSV: readable, which dataset, valid incl. references |
+| **Phase 4:** tests | `tests/unit/test_data_cleaning.py`, `test_upload_service.py` | 29 checks |
 
 The seven business APIs (`/skills/analyze`, `/roles/match`, `/trainings/recommend`, `/learning-path/{id}`, `/ai/chat`, `/ml/retrain`, `/rag/ingest`) are added in later phases.
 
@@ -49,10 +54,10 @@ AIML-LMS-Skills-Intelligence/
 ├── app/                          # the engine (Python package)
 │   ├── main.py                   # creates the FastAPI app – entry point        [Phase 1 ✓]
 │   ├── core/                     # config.py, logging_config.py                [Phase 1 ✓]
-│   ├── data_processing/          # schemas, loader, validators                 [Phase 3 ✓]
+│   ├── data_processing/          # schemas, loader, validators, cleaning, quality report  [Phases 3–4 ✓]
 │   ├── api/v1/                   # HTTP endpoints: health.py ✓, 7 business APIs (later)
 │   ├── schemas/                  # request/response models                     (later, 5+)
-│   ├── services/                 # business logic for API + dashboard          (later, 4+)
+│   ├── services/                 # data_upload_service.py ✓; business logic    [Phase 4 ✓, more from 5]
 │   ├── domain/                   # Employee, Skill, Course … data classes      (later, 5)
 │   ├── repositories/             # CSV and SQL data access                     (later, 5, 9)
 │   ├── database/                 # SQLAlchemy connection and tables            (later, 9)
@@ -61,7 +66,7 @@ AIML-LMS-Skills-Intelligence/
 │   ├── llm/                      # Ollama / hosted / fallback providers        (later, 11)
 │   └── security/                 # auth, roles, rate limits, audit             (later, 17)
 ├── dashboard/                    # Streamlit UI: pages/, components/           (later, 4, 15)
-├── data_science/                 # scripts 01–06 ✓ (read → validate); 07–15 later   [Phase 3 ✓]
+├── data_science/                 # scripts 01–08 ✓ and 15 ✓; 09–14 later       [Phases 3–4 ✓]
 ├── data/
 │   ├── sample/                   # 11 synthetic CSV files                      [Phase 2 ✓]
 │   ├── raw/  processed/  uploads/
@@ -78,7 +83,9 @@ AIML-LMS-Skills-Intelligence/
 │   ├── api/test_health.py        # 6 tests                                     [Phase 1 ✓]
 │   ├── unit/test_synthetic_data.py # 48 data checks                            [Phase 2 ✓]
 │   ├── unit/test_data_validation.py # 28 validation checks                     [Phase 3 ✓]
+│   ├── unit/test_data_cleaning.py, test_upload_service.py # 29 checks        [Phase 4 ✓]
 │   ├── unit/  integration/  security/
+├── reports/                      # generated charts and reports (not in Git)   [Phase 4]
 ├── deployment/                   # docker/, kubernetes/, cloud/                (later, 18–20)
 ├── docs/                         # guides, added per phase
 ├── .github/workflows/ci.yml      # GitHub Actions: lint, test, Docker build    [Phase 1 ✓]
@@ -172,7 +179,7 @@ AIML-LMS-Skills-Intelligence/
 ## 5. Tests and code quality
 
 ```powershell
-pytest -v              # expected: 82 passed (6 API + 48 data + 28 validation)
+pytest -v              # expected: 111 passed (6 API + 48 data + 28 validation + 29 cleaning/upload)
 ruff check .           # expected: All checks passed!
 ruff format --check .  # expected: N files already formatted
 pre-commit install     # one time: runs Ruff automatically before each commit
@@ -239,6 +246,26 @@ python data_science/05_validate_values.py --data data/raw/dirty
 
 The step-by-step explanation, the answer key and the expected results are in [`docs/DATA_PIPELINE_GUIDE.md`](docs/DATA_PIPELINE_GUIDE.md).
 
+## 5c. Cleaning, charts and quality report (Phase 4)
+
+Install the new library once (Matplotlib was added to `requirements.txt`):
+
+```powershell
+pip install -r requirements-dev.txt
+```
+
+Then clean the practice data, draw the charts and write the reports:
+
+```powershell
+python scripts/make_dirty_data.py
+python data_science/07_clean_data.py --data data/raw/dirty                  # 19 errors -> No problems found
+python data_science/08_eda.py                                                # 7 charts in reports/eda
+python data_science/15_data_quality_report.py --data data/raw/dirty --out reports/quality_dirty
+python data_science/15_data_quality_report.py --data data/processed --out reports/quality_processed
+```
+
+Cleaned files go to `data/processed/`, together with `cleaning_log.csv` (every change) and `rejected_rows.csv` (every row set aside, with its line and reason). Section 6 of [`docs/DATA_PIPELINE_GUIDE.md`](docs/DATA_PIPELINE_GUIDE.md) explains each step, the charts' findings and the upload service.
+
 ## 6. Run with Docker
 
 Docker Desktop must be running.
@@ -261,36 +288,57 @@ Then open http://127.0.0.1:8000/docs as before.
 
 ## 7. GitHub and CI/CD
 
-**First push** (create an empty repository named `AIML-LMS-Skills-Intelligence` on GitHub first, without a README):
+Repository: **https://github.com/mrameshsjc/AIML-LMS-Skills-Intelligence**
+
+### Branches
+
+| Branch | Holds | Updated by |
+| --- | --- | --- |
+| `main` | Stable, reviewed releases only | Pull request from `development` |
+| `development` | Day-to-day integrated work; all phases land here first | Pull requests from phase branches |
+| `phase-N-...` | One phase's work in progress, e.g. `phase-4-cleaning-eda` | Your commits |
+
+Flow: `phase-N-...` → pull request → `development` → (when a milestone is stable) pull request → `main`, plus a version tag.
+
+### First push (one time)
+
+Create an **empty** repository named `AIML-LMS-Skills-Intelligence` on GitHub (no README, .gitignore or licence), then:
 
 ```powershell
 git init
 git add .
-git commit -m "Phase 1: FastAPI skeleton, health endpoint, Docker, GitHub Actions"
+git status                       # .env, .venv and data/raw must NOT be listed
+git commit -m "Phases 1-3: FastAPI skeleton, synthetic LMS data, Pandas validation engine"
 git branch -M main
-git remote add origin https://github.com/<your-username>/AIML-LMS-Skills-Intelligence.git
+git remote add origin https://github.com/mrameshsjc/AIML-LMS-Skills-Intelligence.git
 git push -u origin main
+git checkout -b development
+git push -u origin development
 ```
 
-**Branching:** `main` holds approved, working code. Do each phase on its own branch and merge it with a pull request:
+### Each new phase
 
 ```powershell
-git checkout -b phase-2-synthetic-data
-# ...work, then:
+git checkout development
+git pull
+git checkout -b phase-4-cleaning-eda
+# ...work, test, then:
 git add .
-git commit -m "Phase 2: synthetic LMS datasets"
-git push -u origin phase-2-synthetic-data
-# On GitHub: open a Pull Request into main, wait for the green CI tick, then merge.
+git commit -m "Phase 4: data cleaning, EDA, quality report"
+git push -u origin phase-4-cleaning-eda
+# On GitHub: open a pull request into development, wait for the green CI tick, merge.
 ```
 
-**What CI does** (`.github/workflows/ci.yml`, on every push and pull request to `main` or `develop`):
+### What CI does
+
+`.github/workflows/ci.yml` runs on every push and pull request to `main` or `development`:
 
 1. Installs Python 3.11 and `requirements-dev.txt`.
 2. `ruff check` (lint) and `ruff format --check` (formatting).
 3. `pytest` (all tests).
 4. Builds the Docker image, starts it and calls `/api/v1/health`.
 
-See results in the repository's **Actions** tab. Never commit `.env`, passwords or keys; `.gitignore` already blocks `.env`.
+See the results in the repository's **Actions** tab. Never commit `.env`, passwords or keys; `.gitignore` already blocks `.env`.
 
 ## 8. Configuration reference
 
@@ -315,7 +363,7 @@ See results in the repository's **Actions** tab. Never commit `.env`, passwords 
 
 ## 10. Roadmap
 
-Phase 1 ✓ → 2 synthetic datasets ✓ → 3 data validation ✓ → 4 cleaning, EDA, upload page → 5 skills analysis API → 6 role matching → 7 recommendations → 8 ML training → 9 database → 10 learning path → 11 Ollama LLM → 12 embeddings + FAISS → 13 RAG + chat → 14 all seven APIs tested → 15 Streamlit dashboard → 16 MLflow retraining → 17 security → 18 Docker hardening → 19 public demo → 20 Kubernetes → 21 full CI/CD with Snyk → 22 submission package.
+Phase 1 ✓ → 2 synthetic datasets ✓ → 3 data validation ✓ → 4 cleaning, EDA, quality report, upload service ✓ → 5 skills analysis API → 6 role matching → 7 recommendations → 8 ML training → 9 database → 10 learning path → 11 Ollama LLM → 12 embeddings + FAISS → 13 RAG + chat → 14 all seven APIs tested → 15 Streamlit dashboard → 16 MLflow retraining → 17 security → 18 Docker hardening → 19 public demo → 20 Kubernetes → 21 full CI/CD with Snyk → 22 submission package.
 
 The full plan, API contracts and database design are in the project blueprint (Enterprise LMS AI Intelligence Engine – Analysis & Technical Blueprint).
 
