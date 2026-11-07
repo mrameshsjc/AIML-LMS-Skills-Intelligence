@@ -28,3 +28,6 @@ faiss-cpu>=1.9,<2.0           # FAISS vector search; without it the engine falls
 
 # Phase 13: document upload (API 7)
 python-multipart>=0.0.9,<1.0  # lets FastAPI read file uploads (multipart/form-data)
+
+# Phase 15: dashboard
+streamlit>=1.55,<2.0          # the web dashboard (streamlit run dashboard/Home.py)

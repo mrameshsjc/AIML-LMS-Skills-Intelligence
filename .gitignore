@@ -46,3 +46,6 @@ reports/
 # --- OS ---
 .DS_Store
 Thumbs.db
+
+# --- Streamlit secrets (never commit) ---
+.streamlit/secrets.toml

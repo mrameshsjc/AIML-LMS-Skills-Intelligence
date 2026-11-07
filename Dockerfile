@@ -31,11 +31,14 @@ COPY data/sample ./data/sample
 # (inside the container: python scripts/build_index.py)
 COPY documents ./documents
 COPY scripts ./scripts
+# Phase 15: the Streamlit dashboard (the compose service "dashboard" runs it from this image)
+COPY dashboard ./dashboard
+COPY .streamlit ./.streamlit
 
 # Run as a normal user, not root: if the app were ever compromised, the
 # attacker would have far fewer permissions inside the container.
 RUN useradd --create-home appuser \
-    && mkdir -p /app/data /app/vector_store \
+    && mkdir -p /app/data /app/vector_store /app/models \
     && chown -R appuser:appuser /app
 USER appuser
 

@@ -49,10 +49,9 @@ from app.services.learning_path import LearningPathService
 from app.services.training_recommendation import CompletionModel
 
 PERSONAL = re.compile(r"\b(i|me|my|mine|myself|i'm|im|am i)\b", re.IGNORECASE)
-# Words that ask about the employee's own LMS data (gaps, path, recommendations).
-MY_DATA = re.compile(
-    r"\b(recommend\w*|next|gaps?|learning path|path|progress|ready|level|skills?)\b", re.IGNORECASE
-)
+# Words that ask about the employee's own LMS data (gaps, path, recommendations). Not "skills" or "level":
+# "Which skills does an AI Engineer need?" is a question about the role, even when an employee asks it.
+MY_DATA = re.compile(r"\b(recommend\w*|next|gaps?|learning path|path|progress|ready)\b", re.IGNORECASE)
 COURSE_ID = re.compile(r"\bC-[A-Z0-9]+-\d{3}\b", re.IGNORECASE)
 ROLE_ID = re.compile(r"\bR\d{3}\b")
 CITATION = re.compile(r"\[S(\d+)\]")

@@ -9,10 +9,11 @@ How the engine is tested, what each kind of test proves, and how to run them. Al
             │  smoke test (running) │  scripts/api_smoke_test.py     a deployed server, real HTTP
             ├───────────────────────┤
             │  integration  (24)    │  tests/integration/            the APIs together, contracts
+            │  dashboard  (16)      │  tests/dashboard/              each Streamlit page (AppTest)
             ├───────────────────────┤
             │  API  (71)            │  tests/api/                    each endpoint through FastAPI
             ├───────────────────────┤
-            │  unit  (319)          │  tests/unit/                   functions and services alone
+            │  unit  (328)          │  tests/unit/                   functions and services alone
             └───────────────────────┘
 ```
 
@@ -23,12 +24,13 @@ Many fast tests at the bottom, fewer and broader ones at the top. A failing unit
 | Unit | `tests/unit/` | One function or service gives the right answer | The gap formula gives 37.5 for E1001; a PDF keeps its page numbers |
 | API | `tests/api/` | Each endpoint validates input, returns the documented shape and errors | `POST /ai/chat` with `employee_id: "1001"` gives 422 |
 | Integration | `tests/integration/` | The parts agree with each other; the contract is stable | API 4's step scores equal API 3's, for every employee |
+| Dashboard | `tests/dashboard/` | Each Streamlit page runs and shows the right numbers (AppTest, headless) | Skills page shows gap score 37.5 for E1001 |
 | Smoke | `scripts/api_smoke_test.py` | A running server works end to end | Docker container: every API answers, upload → list → delete works |
 
 ## 2. Running the tests
 
 ```powershell
-pytest                              # everything: about 414 tests
+pytest                              # everything: about 439 tests
 pytest -m "not slow"                # quick run while coding (skips the ~26 tests that start scripts or train models)
 pytest tests/unit/test_chat.py -v   # one file, with each test's name
 pytest -k "learning_path"           # tests whose name contains the text

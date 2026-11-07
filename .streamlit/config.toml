@@ -1,0 +1,11 @@
+# Streamlit settings for the dashboard (Phase 15). Read from the folder you start Streamlit in,
+# so run it from the project folder:  streamlit run dashboard/Home.py
+
+[theme]
+primaryColor = "#2a78d6"   # the same blue as the EDA and model charts
+
+[browser]
+gatherUsageStats = false   # do not send usage statistics to Streamlit
+
+[server]
+maxUploadSize = 10         # MB, the same limit as API 7 (RAG_MAX_UPLOAD_MB)
