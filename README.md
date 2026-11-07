@@ -5,7 +5,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | | |
 | --- | --- |
 | Project folder / Git repo | `AIML-LMS-Skills-Intelligence` |
-| Current phase | **Phase 9 – Database (SQLite)** (Phases 1–8 on GitHub, CI green) |
+| Current phase | **Phase 10 – API 4: Personalised Learning Path** (Phases 1–9 on GitHub, CI green) |
 | Python | 3.11 |
 | LMS integration | Not in this project. The architecture is API-ready for it (later phase). |
 
@@ -13,7 +13,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 
 ---
 
-## 1. What is built so far (Phases 1–9)
+## 1. What is built so far (Phases 1–10)
 
 | Item | File(s) | Why it exists |
 | --- | --- | --- |
@@ -58,8 +58,11 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | **Phase 9:** SQL repository | `app/repositories/sqlite_repository.py` | `DATA_SOURCE=database` makes the APIs read from SQLite, with identical answers |
 | **Phase 9:** learning script | `data_science/14_save_to_database.py` | Validate → migrate → load in one transaction → JOIN, GROUP BY and constraint examples |
 | **Phase 9:** tests + docs | `tests/unit/test_database.py`, `tests/api/test_database_source.py`, `docs/DATABASE_GUIDE.md` | 22 + 5 checks; database guide |
+| **Phase 10:** API 4 | `GET /api/v1/learning-path/{employee_id}` | The courses that close every gap, prerequisites first, with progress and the next action |
+| **Phase 10:** path engine | `app/services/learning_path.py` | Greedy course selection + topological sort; completed courses count as evidence |
+| **Phase 10:** tests + docs | `tests/unit/test_learning_path.py`, `tests/api/test_learning_path_api.py` | 15 + 5 checks (incl. all 1,300 employee × role paths); API and ML guide sections |
 
-APIs 1 (`/skills/analyze`), 2 (`/roles/match`) and 3 (`/trainings/recommend`) are live. The other four (`/learning-path/{id}`, `/ai/chat`, `/ml/retrain`, `/rag/ingest`) are added in later phases. Full reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
+APIs 1 (`/skills/analyze`), 2 (`/roles/match`), 3 (`/trainings/recommend`) and 4 (`/learning-path/{id}`) are live. The other three (`/ai/chat`, `/ml/retrain`, `/rag/ingest`) are added in later phases. Full reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
 
 ## 2. Folder structure
 
@@ -71,9 +74,9 @@ AIML-LMS-Skills-Intelligence/
 │   ├── main.py                   # creates the FastAPI app – entry point        [Phase 1 ✓]
 │   ├── core/                     # config.py, logging_config.py                [Phase 1 ✓]
 │   ├── data_processing/          # schemas, loader, validators, cleaning, quality report  [Phases 3–4 ✓]
-│   ├── api/v1/                   # health ✓, skills ✓, roles ✓, trainings ✓ (APIs 1–3); 4 more later  [Phase 7 ✓]
-│   ├── schemas/                  # request/response models: common, skills, roles, trainings  [Phase 7 ✓]
-│   ├── services/                 # upload, skill_analysis, role_matching/similarity, training_recommendation ✓  [Phases 4–7 ✓]
+│   ├── api/v1/                   # health ✓, skills ✓, roles ✓, trainings ✓, learning_path ✓ (APIs 1–4); 3 more later  [Phase 10 ✓]
+│   ├── schemas/                  # request/response models: common, skills, roles, trainings, learning_path  [Phase 10 ✓]
+│   ├── services/                 # upload, skill_analysis, role_matching/similarity, training_recommendation, learning_path ✓  [Phases 4–10 ✓]
 │   ├── domain/                   # Employee, Skill, JobRole … data classes     [Phase 5 ✓]
 │   ├── repositories/             # base interface ✓, CSV ✓, SQLite ✓           [Phases 5, 9 ✓]
 │   ├── database/                 # sqlite3 connection, migrations/*.sql, tables  [Phase 9 ✓]
@@ -104,7 +107,8 @@ AIML-LMS-Skills-Intelligence/
 │   ├── unit/test_role_matching.py, api/test_roles_api.py # 23 + 6 checks   [Phase 6 ✓]
 │   ├── unit/test_training_recommendation.py, api/test_trainings_api.py # 21 + 5  [Phase 7 ✓]
 │   ├── unit/test_completion_model.py # 16 checks (+1 API)                   [Phase 8 ✓]
-│   ├── unit/test_database.py, api/test_database_source.py # 22 + 5 checks   [Phase 9 ✓]
+│   ├── unit/test_database.py, api/test_database_source.py # 22 + 6 checks   [Phase 9 ✓]
+│   ├── unit/test_learning_path.py, api/test_learning_path_api.py # 15 + 5  [Phase 10 ✓]
 │   ├── unit/  integration/  security/
 ├── reports/                      # generated charts and reports (not in Git)   [Phase 4]
 ├── deployment/                   # docker/, kubernetes/, cloud/                (later, 18–20)
@@ -200,7 +204,7 @@ AIML-LMS-Skills-Intelligence/
 ## 5. Tests and code quality
 
 ```powershell
-pytest -v              # expected: 239 passed (31 API + 208 unit)
+pytest -v              # expected: 260 passed (37 API + 223 unit)
 ruff check .           # expected: All checks passed!
 ruff format --check .  # expected: N files already formatted
 pre-commit install     # one time: runs Ruff automatically before each commit
@@ -354,6 +358,18 @@ Expected: 11 tables loaded (for example `employee_skills 925`), `gap score = 100
 
 To make the API read from the database, set `DATA_SOURCE=database` in `.env` and restart uvicorn. APIs 1–3 give exactly the same answers as with the CSV files. The database file is not committed to Git. Run script 14 again after changing the CSV files. How it works: [`docs/DATABASE_GUIDE.md`](docs/DATABASE_GUIDE.md).
 
+## 5i. API 4: Personalised Learning Path (Phase 10)
+
+In Swagger UI: **4. Learning Path → GET /api/v1/learning-path/{employee_id} → Try it out** with `E1001`. Expected:
+
+1. `C-SQL-201` (21 h)
+2. `C-PY-201`
+3. `C-AWS-101`
+4. `C-AWS-201`, after step 3 (its prerequisite)
+5. `C-DOCKER-201` (optional skill, so last)
+
+Progress: match 62.5 % now and 100 % after 5 steps (90 hours). Next action: "Enrol in C-SQL-201 …". Try `target_role_id=R009`, or `include_optional=false`. How the path is built: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md) (API 4) and [`docs/ML_MODEL_GUIDE.md`](docs/ML_MODEL_GUIDE.md) section 6.
+
 ## 6. Run with Docker
 
 Docker Desktop must be running.
@@ -456,7 +472,7 @@ See the results in the repository's **Actions** tab. Never commit `.env`, passwo
 
 ## 10. Roadmap
 
-Phase 1 ✓ → 2 synthetic datasets ✓ → 3 data validation ✓ → 4 cleaning, EDA, quality report, upload service ✓ → 5 skills analysis API ✓ → 6 role matching API ✓ → 7 recommendations API ✓ → 8 ML completion model ✓ → 9 database (SQLite) ✓ → 10 learning path → 11 Ollama LLM → 12 embeddings + FAISS → 13 RAG + chat → 14 all seven APIs tested → 15 Streamlit dashboard → 16 MLflow retraining → 17 security → 18 Docker hardening → 19 public demo → 20 Kubernetes → 21 full CI/CD with Snyk → 22 submission package.
+Phase 1 ✓ → 2 synthetic datasets ✓ → 3 data validation ✓ → 4 cleaning, EDA, quality report, upload service ✓ → 5 skills analysis API ✓ → 6 role matching API ✓ → 7 recommendations API ✓ → 8 ML completion model ✓ → 9 database (SQLite) ✓ → 10 learning path API ✓ → 11 Ollama LLM → 12 embeddings + FAISS → 13 RAG + chat → 14 all seven APIs tested → 15 Streamlit dashboard → 16 MLflow retraining → 17 security → 18 Docker hardening → 19 public demo → 20 Kubernetes → 21 full CI/CD with Snyk → 22 submission package.
 
 The full plan, API contracts and database design are in the project blueprint (Enterprise LMS AI Intelligence Engine – Analysis & Technical Blueprint).
 

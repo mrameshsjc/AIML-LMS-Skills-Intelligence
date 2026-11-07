@@ -71,6 +71,12 @@ def test_api_3_from_the_database(database_source):
     assert ids == ["C-SQL-201", "C-PY-201", "C-AWS-101", "C-AWS-201", "C-DOCKER-201"]
 
 
+def test_api_4_from_the_database(database_source):
+    body = client.get("/api/v1/learning-path/E1001").json()
+    assert [s["course_id"] for s in body["path"]][:2] == ["C-SQL-201", "C-PY-201"]
+    assert body["progress"]["projected_match_percentage"] == 100.0
+
+
 def test_unknown_employee_from_the_database(database_source):
     response = client.post("/api/v1/skills/analyze", json={"employee_id": "E9999", "target_role_id": "R004"})
     assert response.status_code == 404

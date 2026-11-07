@@ -26,6 +26,7 @@ from app.ml.predict import CompletionPredictor
 from app.repositories.base import LmsRepository
 from app.repositories.csv_repository import CsvLmsRepository
 from app.repositories.sqlite_repository import SqliteLmsRepository
+from app.services.learning_path import LearningPathService
 from app.services.role_matching import RoleMatchingService
 from app.services.skill_analysis import SkillAnalysisService
 from app.services.training_recommendation import TrainingRecommendationService
@@ -86,3 +87,11 @@ def get_training_recommendation_service(repository: RepositoryDep) -> TrainingRe
 TrainingRecommendationServiceDep = Annotated[
     TrainingRecommendationService, Depends(get_training_recommendation_service)
 ]
+
+
+def get_learning_path_service(repository: RepositoryDep) -> LearningPathService:
+    # Uses the same completion model as API 3, so the two APIs show the same scores.
+    return LearningPathService(repository, completion_model=get_completion_predictor())
+
+
+LearningPathServiceDep = Annotated[LearningPathService, Depends(get_learning_path_service)]
