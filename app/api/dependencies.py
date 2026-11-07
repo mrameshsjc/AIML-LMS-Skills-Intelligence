@@ -8,8 +8,9 @@ WHAT IS A DEPENDENCY?
     is FastAPI's recommended way to say "a Type, provided by f".
 
 WHY
-    - One place decides WHERE data comes from (the CSV repository today,
-      the LMS database later). Routers never construct it themselves.
+    - One place decides WHERE data comes from: the CSV files or the SQLite
+      database (DATA_SOURCE setting), and later the LMS database. Routers
+      never construct it themselves.
     - Tests can swap in another repository:
         app.dependency_overrides[get_repository] = lambda: FakeRepository()
     - @lru_cache loads the data once, on the first request, and reuses it.
@@ -24,6 +25,7 @@ from app.core.config import get_settings
 from app.ml.predict import CompletionPredictor
 from app.repositories.base import LmsRepository
 from app.repositories.csv_repository import CsvLmsRepository
+from app.repositories.sqlite_repository import SqliteLmsRepository
 from app.services.role_matching import RoleMatchingService
 from app.services.skill_analysis import SkillAnalysisService
 from app.services.training_recommendation import TrainingRecommendationService
@@ -31,8 +33,11 @@ from app.services.training_recommendation import TrainingRecommendationService
 
 @lru_cache
 def get_repository() -> LmsRepository:
-    """The data source for every API request (folder from the DATA_DIR setting)."""
-    return CsvLmsRepository(get_settings().data_dir)
+    """The data source for every API request: CSV files (DATA_DIR) or the database (DATABASE_URL)."""
+    settings = get_settings()
+    if settings.data_source == "database":
+        return SqliteLmsRepository(settings.database_url)
+    return CsvLmsRepository(settings.data_dir)
 
 
 RepositoryDep = Annotated[LmsRepository, Depends(get_repository)]
@@ -67,6 +72,8 @@ def get_completion_predictor() -> CompletionPredictor | None:
     settings = get_settings()
     if not settings.use_completion_model:
         return None
+    if settings.data_source == "database":
+        return CompletionPredictor.from_database(settings.model_dir, settings.database_url)
     return CompletionPredictor.from_files(settings.model_dir, settings.data_dir)
 
 

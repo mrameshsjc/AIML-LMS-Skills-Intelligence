@@ -21,9 +21,12 @@ IF THERE IS NO MODEL
 
 from __future__ import annotations
 
+from contextlib import closing
 from pathlib import Path
 
 from app.data_processing.loader import load_all
+from app.database.connection import connect
+from app.database.tables import read_datasets
 from app.ml.features import FeatureBuilder
 from app.ml.model_registry import load_current
 
@@ -44,6 +47,17 @@ class CompletionPredictor:
             return None
         pipeline, metadata = loaded
         return cls(pipeline, metadata, FeatureBuilder(load_all(data_dir)))
+
+    @classmethod
+    def from_database(cls, models_dir: str | Path, database_url: str) -> CompletionPredictor | None:
+        """Same as from_files, but the features read the LMS data from the database (Phase 9)."""
+        loaded = load_current(models_dir)
+        if loaded is None:
+            return None
+        with closing(connect(database_url)) as conn:
+            datasets = read_datasets(conn)
+        pipeline, metadata = loaded
+        return cls(pipeline, metadata, FeatureBuilder(datasets))
 
     @property
     def version(self) -> int:

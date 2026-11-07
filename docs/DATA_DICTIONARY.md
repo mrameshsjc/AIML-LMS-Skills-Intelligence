@@ -4,6 +4,8 @@ This guide explains every file and column in `data/sample/`. All data is **synth
 
 Data is "as of" **31 October 2026**: no date in the files is later than that.
 
+**Database (Phase 9):** each file is also a SQLite table with the same name (without `.csv`) and the same columns. Dates are stored as ISO text, and True/False as 1/0. See [`DATABASE_GUIDE.md`](DATABASE_GUIDE.md).
+
 ## 1. The 11 files at a glance
 
 | File | One row means | Rows | Key (unique) |

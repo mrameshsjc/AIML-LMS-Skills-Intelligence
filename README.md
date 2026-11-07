@@ -5,7 +5,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | | |
 | --- | --- |
 | Project folder / Git repo | `AIML-LMS-Skills-Intelligence` |
-| Current phase | **Phase 8 – ML: course-completion model** (Phases 1–7 on GitHub, CI green) |
+| Current phase | **Phase 9 – Database (SQLite)** (Phases 1–8 on GitHub, CI green) |
 | Python | 3.11 |
 | LMS integration | Not in this project. The architecture is API-ready for it (later phase). |
 
@@ -13,7 +13,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 
 ---
 
-## 1. What is built so far (Phases 1–8)
+## 1. What is built so far (Phases 1–9)
 
 | Item | File(s) | Why it exists |
 | --- | --- | --- |
@@ -54,6 +54,10 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | **Phase 8:** ML scripts | `data_science/09_feature_engineering.py` … `13_predict.py` | Features → split → train/compare → evaluate → predict, step by step |
 | **Phase 8:** API 3 + model | `app/api/dependencies.py` | API 3 uses the model's completion probability when one is registered |
 | **Phase 8:** tests + docs | `tests/unit/test_completion_model.py`, `docs/ML_MODEL_GUIDE.md` section 5 | 16 + 1 checks; model guide |
+| **Phase 9:** database | `app/database/` (connection, migrate, tables, `migrations/0001_create_lms_tables.sql`) | 11 SQLite tables with keys, references and CHECK rules; versioned migrations |
+| **Phase 9:** SQL repository | `app/repositories/sqlite_repository.py` | `DATA_SOURCE=database` makes the APIs read from SQLite, with identical answers |
+| **Phase 9:** learning script | `data_science/14_save_to_database.py` | Validate → migrate → load in one transaction → JOIN, GROUP BY and constraint examples |
+| **Phase 9:** tests + docs | `tests/unit/test_database.py`, `tests/api/test_database_source.py`, `docs/DATABASE_GUIDE.md` | 22 + 5 checks; database guide |
 
 APIs 1 (`/skills/analyze`), 2 (`/roles/match`) and 3 (`/trainings/recommend`) are live. The other four (`/learning-path/{id}`, `/ai/chat`, `/ml/retrain`, `/rag/ingest`) are added in later phases. Full reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
 
@@ -71,22 +75,22 @@ AIML-LMS-Skills-Intelligence/
 │   ├── schemas/                  # request/response models: common, skills, roles, trainings  [Phase 7 ✓]
 │   ├── services/                 # upload, skill_analysis, role_matching/similarity, training_recommendation ✓  [Phases 4–7 ✓]
 │   ├── domain/                   # Employee, Skill, JobRole … data classes     [Phase 5 ✓]
-│   ├── repositories/             # base interface ✓, CSV ✓; SQL later          [Phase 5 ✓]
-│   ├── database/                 # SQLAlchemy connection and tables            (later, 9)
-│   ├── ml/                       # features, train, evaluate, predict, MLflow  (later, 8, 16)
+│   ├── repositories/             # base interface ✓, CSV ✓, SQLite ✓           [Phases 5, 9 ✓]
+│   ├── database/                 # sqlite3 connection, migrations/*.sql, tables  [Phase 9 ✓]
+│   ├── ml/                       # features, train, evaluate, registry, predict ✓; MLflow later  [Phase 8 ✓]
 │   ├── rag/                      # load, chunk, embed, FAISS, retrieve         (later, 12–13)
 │   ├── llm/                      # Ollama / hosted / fallback providers        (later, 11)
 │   └── security/                 # auth, roles, rate limits, audit             (later, 17)
 ├── dashboard/                    # Streamlit UI: pages/, components/           (later, 4, 15)
-├── data_science/                 # scripts 01–08 ✓ and 15 ✓; 09–14 later       [Phases 3–4 ✓]
+├── data_science/                 # scripts 01–15 ✓                             [Phases 3–4, 8–9 ✓]
 ├── data/
 │   ├── sample/                   # 11 synthetic CSV files                      [Phase 2 ✓]
 │   ├── raw/  processed/  uploads/
 ├── documents/                    # sample knowledge documents for RAG          (later, 13)
 ├── vector_store/                 # saved FAISS indexes (not in Git)            (later, 12)
-├── models/                       # trained model files (not in Git)            (later, 8)
+├── models/                       # trained model versions (not in Git)         [Phase 8 ✓]
 ├── notebooks/                    # optional exploration notebooks
-├── migrations/                   # Alembic database versions                   (later, 9)
+├── migrations/                   # reserved for Alembic (SQL migrations are in app/database/)
 ├── scripts/
 │   ├── verify_phase1.py          # checks setup, starts API, runs tests        [Phase 1 ✓]
 │   ├── generate_synthetic_data.py  # creates data/sample                       [Phase 2 ✓]
@@ -99,6 +103,8 @@ AIML-LMS-Skills-Intelligence/
 │   ├── unit/test_skill_analysis.py, api/test_skills_api.py # 21 + 8 checks  [Phase 5 ✓]
 │   ├── unit/test_role_matching.py, api/test_roles_api.py # 23 + 6 checks   [Phase 6 ✓]
 │   ├── unit/test_training_recommendation.py, api/test_trainings_api.py # 21 + 5  [Phase 7 ✓]
+│   ├── unit/test_completion_model.py # 16 checks (+1 API)                   [Phase 8 ✓]
+│   ├── unit/test_database.py, api/test_database_source.py # 22 + 5 checks   [Phase 9 ✓]
 │   ├── unit/  integration/  security/
 ├── reports/                      # generated charts and reports (not in Git)   [Phase 4]
 ├── deployment/                   # docker/, kubernetes/, cloud/                (later, 18–20)
@@ -194,7 +200,7 @@ AIML-LMS-Skills-Intelligence/
 ## 5. Tests and code quality
 
 ```powershell
-pytest -v              # expected: 212 passed (26 API + 186 unit)
+pytest -v              # expected: 239 passed (31 API + 208 unit)
 ruff check .           # expected: All checks passed!
 ruff format --check .  # expected: N files already formatted
 pre-commit install     # one time: runs Ruff automatically before each commit
@@ -338,6 +344,16 @@ python data_science/13_predict.py
 
 Restart uvicorn, then call API 3 again for E1001: the same five courses in the same order, now with a `completion_probability` (C-SQL-201: 0.59, score 0.94), and a note that the model was trained on synthetic data. Without a trained model, API 3 works exactly as in Phase 7. Model files are not committed to Git, and the Docker image does not contain one. How it works: [`docs/ML_MODEL_GUIDE.md`](docs/ML_MODEL_GUIDE.md) section 5.
 
+## 5h. Database (Phase 9)
+
+```powershell
+python data_science/14_save_to_database.py   # validates, creates data/lms_ai.db, loads 11 tables, runs SQL examples
+```
+
+Expected: 11 tables loaded (for example `employee_skills 925`), `gap score = 100 x 6 / 16 = 37.5` computed in SQL, and three bad inserts refused by the database.
+
+To make the API read from the database, set `DATA_SOURCE=database` in `.env` and restart uvicorn. APIs 1–3 give exactly the same answers as with the CSV files. The database file is not committed to Git. Run script 14 again after changing the CSV files. How it works: [`docs/DATABASE_GUIDE.md`](docs/DATABASE_GUIDE.md).
+
 ## 6. Run with Docker
 
 Docker Desktop must be running.
@@ -421,9 +437,10 @@ See the results in the repository's **Actions** tab. Never commit `.env`, passwo
 | `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING` or `ERROR` |
 | `API_V1_PREFIX` | `/api/v1` | URL prefix for all v1 endpoints |
 | `DATA_DIR` | `data/sample` | Folder with the 11 LMS CSV files the API serves (e.g. `data/processed`) |
+| `DATA_SOURCE` | `csv` | `csv` (files in `DATA_DIR`) or `database` (`DATABASE_URL`; create it with script 14) |
 | `MODEL_DIR` | `models` | Folder of the model registry (Phase 8) |
 | `USE_COMPLETION_MODEL` | `true` | `false` makes API 3 ignore any trained model |
-| `DATABASE_URL` | `sqlite:///./data/lms_ai.db` | Used from Phase 9; MySQL supported later |
+| `DATABASE_URL` | `sqlite:///./data/lms_ai.db` | SQLite file used when `DATA_SOURCE=database`. Only `sqlite:///` URLs in this version; MySQL later |
 
 ## 9. Troubleshooting
 
@@ -435,10 +452,11 @@ See the results in the repository's **Actions** tab. Never commit `.env`, passwo
 | `Address already in use` on port 8000 | `uvicorn app.main:app --reload --port 8001` |
 | `ValidationError` at start-up | A value in `.env` is not allowed, e.g. `APP_ENV=dev`; use a value from section 8 |
 | `docker compose` rejects `env_file` | Update Docker Desktop (Compose 2.24 or newer) |
+| `Database file not found` / `has no LMS data` | Run `python data_science/14_save_to_database.py`, or set `DATA_SOURCE=csv` |
 
 ## 10. Roadmap
 
-Phase 1 ✓ → 2 synthetic datasets ✓ → 3 data validation ✓ → 4 cleaning, EDA, quality report, upload service ✓ → 5 skills analysis API ✓ → 6 role matching API ✓ → 7 recommendations API ✓ → 8 ML completion model ✓ → 9 database → 10 learning path → 11 Ollama LLM → 12 embeddings + FAISS → 13 RAG + chat → 14 all seven APIs tested → 15 Streamlit dashboard → 16 MLflow retraining → 17 security → 18 Docker hardening → 19 public demo → 20 Kubernetes → 21 full CI/CD with Snyk → 22 submission package.
+Phase 1 ✓ → 2 synthetic datasets ✓ → 3 data validation ✓ → 4 cleaning, EDA, quality report, upload service ✓ → 5 skills analysis API ✓ → 6 role matching API ✓ → 7 recommendations API ✓ → 8 ML completion model ✓ → 9 database (SQLite) ✓ → 10 learning path → 11 Ollama LLM → 12 embeddings + FAISS → 13 RAG + chat → 14 all seven APIs tested → 15 Streamlit dashboard → 16 MLflow retraining → 17 security → 18 Docker hardening → 19 public demo → 20 Kubernetes → 21 full CI/CD with Snyk → 22 submission package.
 
 The full plan, API contracts and database design are in the project blueprint (Enterprise LMS AI Intelligence Engine – Analysis & Technical Blueprint).
 

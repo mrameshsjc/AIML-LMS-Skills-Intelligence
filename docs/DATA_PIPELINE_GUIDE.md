@@ -306,12 +306,31 @@ Shows E1001's probability for 7 courses (C-AWS-101 0.80, C-MLOPS-201 0.44), then
 - Roll back: `python -c "from app.ml.model_registry import set_current; set_current(1)"`, then restart.
 - Switch the model off: set `USE_COMPLETION_MODEL=false` in `.env`.
 
+## 6b. Phase 9: save to the database
+
+```powershell
+python data_science/14_save_to_database.py                        # data/sample -> data/lms_ai.db
+python data_science/14_save_to_database.py --data data/processed   # the cleaned data instead
+```
+
+### 14 – Save to the database
+1. **Validate** the folder (the checks from scripts 03–06). On errors it stops, and no database is created. Try `--data data/raw/dirty` to see this.
+2. **Migrate:** run the numbered SQL files in `app/database/migrations/` that this database has not run yet. The first run creates the 11 tables; later runs print "nothing".
+3. **Load** all tables in one transaction, replacing the old contents: 42 skills, 925 employee skills, 554 enrolments, and so on.
+4. **Query:**
+   - a `LEFT JOIN` rebuilds E1001's gaps for Data Engineer and the gap score 37.5;
+   - a `GROUP BY` gives completion rates per difficulty (79 % / 65 % / 53 %), the same as Pandas in script 09;
+   - three bad inserts (unknown employee, level 7, duplicate key) are refused by the database's constraints.
+
+Then set `DATA_SOURCE=database` in `.env` and restart uvicorn to serve the APIs from the database. Details: [`DATABASE_GUIDE.md`](DATABASE_GUIDE.md).
+
 ## 7. Adding or changing a rule
 
 1. Edit `app/data_processing/schemas.py`. For example, change `max_value` of `duration_hours`, or add a value to `allowed`.
 2. For a rule across several columns, add a `BusinessRule` to `BUSINESS_RULES` in `validators.py`.
 3. Run `pytest tests/unit -v`. The clean data must still give no issues, and every planted defect must still be found.
 4. If a new rule should catch a new kind of problem, add a defect to `DEFECTS` in `scripts/make_dirty_data.py` so the tests prove it works.
+5. The database has its own copy of the column rules (Phase 9). If the rule should also be enforced there, add a new migration such as `app/database/migrations/0002_....sql`; never edit `0001`. `test_tables_match_the_dataset_schemas` fails if a column is added in one place but not the other.
 
 ## 8. Tests
 
@@ -320,6 +339,7 @@ pytest tests/unit/test_data_validation.py -v   # Phase 3: 28 tests
 pytest tests/unit/test_data_cleaning.py -v     # Phase 4: cleaning, report, scripts 07/08/15
 pytest tests/unit/test_upload_service.py -v    # Phase 4: upload service
 pytest tests/unit/test_completion_model.py -v  # Phase 8: features, leakage, split, model, registry
+pytest tests/unit/test_database.py -v          # Phase 9: migrations, constraints, round trip, same answers as CSV
 ```
 The Phase 3 tests check two promises:
 - **No false alarms:** clean data gives zero issues.
