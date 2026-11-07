@@ -69,6 +69,11 @@ class Settings(BaseSettings):
     # breaking existing clients (such as the future LMS integration).
     api_v1_prefix: str = "/api/v1"
 
+    # --- Data (Phase 5) ------------------------------------------------------
+    # Folder with the 11 LMS CSV files the API serves. data/sample is the
+    # synthetic data; data/processed is the output of the cleaning script.
+    data_dir: str = "data/sample"
+
     # --- Database (used from Phase 9) --------------------------------------
     # SQLite is a single file and needs no server, which is ideal for the
     # first local version. Switching to MySQL later is only a URL change,

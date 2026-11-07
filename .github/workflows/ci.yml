@@ -57,3 +57,10 @@ jobs:
             sleep 2
           done
           echo "Health check failed"; docker logs api; exit 1
+
+      - name: Smoke test - skills analysis API
+        run: |
+          curl -fsS -X POST http://127.0.0.1:8000/api/v1/skills/analyze \
+            -H "Content-Type: application/json" \
+            -d '{"employee_id": "E1001", "target_role_id": "R004"}' | tee response.json
+          grep -q '"gap_score":37.5' response.json && echo && echo "Skills analysis smoke test passed"

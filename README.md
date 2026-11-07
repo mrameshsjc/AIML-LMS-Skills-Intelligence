@@ -5,7 +5,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | | |
 | --- | --- |
 | Project folder / Git repo | `AIML-LMS-Skills-Intelligence` |
-| Current phase | **Phase 4 – data cleaning, EDA, quality report, upload service** (Phases 1–3 on GitHub, CI green) |
+| Current phase | **Phase 5 – API 1: Skills Analysis** (Phases 1–4 on GitHub, CI green) |
 | Python | 3.11 |
 | LMS integration | Not in this project. The architecture is API-ready for it (later phase). |
 
@@ -13,7 +13,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 
 ---
 
-## 1. What is built so far (Phases 1–4)
+## 1. What is built so far (Phases 1–5)
 
 | Item | File(s) | Why it exists |
 | --- | --- | --- |
@@ -42,8 +42,11 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | **Phase 4:** quality report | `app/data_processing/quality_report.py`, `data_science/15_data_quality_report.py` | PASS/WARN/FAIL per file, as Markdown + CSV |
 | **Phase 4:** upload service | `app/services/data_upload_service.py` | Checks an uploaded CSV: readable, which dataset, valid incl. references |
 | **Phase 4:** tests | `tests/unit/test_data_cleaning.py`, `test_upload_service.py` | 29 checks |
+| **Phase 5:** API 1 | `POST /api/v1/skills/analyze` | Gaps, gap score, match %, explained suggestions, what-if levels |
+| **Phase 5:** layers | `app/domain`, `app/repositories`, `app/services/skill_analysis.py`, `app/schemas`, `app/api` | Data source swappable; logic reusable by dashboard and Phase 6 |
+| **Phase 5:** tests + docs | `tests/unit/test_skill_analysis.py`, `tests/api/test_skills_api.py`, `docs/API_DOCUMENTATION.md` | 21 + 8 checks; full endpoint reference |
 
-The seven business APIs (`/skills/analyze`, `/roles/match`, `/trainings/recommend`, `/learning-path/{id}`, `/ai/chat`, `/ml/retrain`, `/rag/ingest`) are added in later phases.
+API 1 (`/skills/analyze`) is live. The other six (`/roles/match`, `/trainings/recommend`, `/learning-path/{id}`, `/ai/chat`, `/ml/retrain`, `/rag/ingest`) are added in later phases. Full reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
 
 ## 2. Folder structure
 
@@ -55,11 +58,11 @@ AIML-LMS-Skills-Intelligence/
 │   ├── main.py                   # creates the FastAPI app – entry point        [Phase 1 ✓]
 │   ├── core/                     # config.py, logging_config.py                [Phase 1 ✓]
 │   ├── data_processing/          # schemas, loader, validators, cleaning, quality report  [Phases 3–4 ✓]
-│   ├── api/v1/                   # HTTP endpoints: health.py ✓, 7 business APIs (later)
-│   ├── schemas/                  # request/response models                     (later, 5+)
-│   ├── services/                 # data_upload_service.py ✓; business logic    [Phase 4 ✓, more from 5]
-│   ├── domain/                   # Employee, Skill, Course … data classes      (later, 5)
-│   ├── repositories/             # CSV and SQL data access                     (later, 5, 9)
+│   ├── api/v1/                   # health.py ✓, skills.py ✓ (API 1); 6 more later   [Phase 5 ✓]
+│   ├── schemas/                  # request/response models: common, skills     [Phase 5 ✓]
+│   ├── services/                 # data_upload_service ✓, skill_analysis ✓     [Phases 4–5 ✓]
+│   ├── domain/                   # Employee, Skill, JobRole … data classes     [Phase 5 ✓]
+│   ├── repositories/             # base interface ✓, CSV ✓; SQL later          [Phase 5 ✓]
 │   ├── database/                 # SQLAlchemy connection and tables            (later, 9)
 │   ├── ml/                       # features, train, evaluate, predict, MLflow  (later, 8, 16)
 │   ├── rag/                      # load, chunk, embed, FAISS, retrieve         (later, 12–13)
@@ -84,6 +87,7 @@ AIML-LMS-Skills-Intelligence/
 │   ├── unit/test_synthetic_data.py # 48 data checks                            [Phase 2 ✓]
 │   ├── unit/test_data_validation.py # 28 validation checks                     [Phase 3 ✓]
 │   ├── unit/test_data_cleaning.py, test_upload_service.py # 29 checks        [Phase 4 ✓]
+│   ├── unit/test_skill_analysis.py, api/test_skills_api.py # 21 + 8 checks  [Phase 5 ✓]
 │   ├── unit/  integration/  security/
 ├── reports/                      # generated charts and reports (not in Git)   [Phase 4]
 ├── deployment/                   # docker/, kubernetes/, cloud/                (later, 18–20)
@@ -179,7 +183,7 @@ AIML-LMS-Skills-Intelligence/
 ## 5. Tests and code quality
 
 ```powershell
-pytest -v              # expected: 111 passed (6 API + 48 data + 28 validation + 29 cleaning/upload)
+pytest -v              # expected: 140 passed (14 API + 126 unit)
 ruff check .           # expected: All checks passed!
 ruff format --check .  # expected: N files already formatted
 pre-commit install     # one time: runs Ruff automatically before each commit
@@ -266,6 +270,24 @@ python data_science/15_data_quality_report.py --data data/processed --out report
 
 Cleaned files go to `data/processed/`, together with `cleaning_log.csv` (every change) and `rejected_rows.csv` (every row set aside, with its line and reason). Section 6 of [`docs/DATA_PIPELINE_GUIDE.md`](docs/DATA_PIPELINE_GUIDE.md) explains each step, the charts' findings and the upload service.
 
+## 5d. API 1: Skills Analysis (Phase 5)
+
+Start the server and open Swagger UI:
+
+```powershell
+uvicorn app.main:app --reload
+```
+
+Open http://127.0.0.1:8000/docs → **1. Skills Analysis → POST /api/v1/skills/analyze** → *Try it out*. Use the first example (`E1001`, `R004`) and click *Execute*. Expected: `"gap_score": 37.5`, `"match_percentage": 62.5`, and suggestions starting with *"Raise AWS (mandatory) from level 1 to 3."*
+
+Or from PowerShell:
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/skills/analyze -ContentType "application/json" -Body '{"employee_id": "E1001", "target_role_id": "R004"}'
+```
+
+The API serves the CSV files in `DATA_DIR` (default `data/sample`). Every field, the formulas, the errors and a worked example are in [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
+
 ## 6. Run with Docker
 
 Docker Desktop must be running.
@@ -348,6 +370,7 @@ See the results in the repository's **Actions** tab. Never commit `.env`, passwo
 | `APP_PROFILE` | `local` | `local`, `compose` or `public-demo` |
 | `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING` or `ERROR` |
 | `API_V1_PREFIX` | `/api/v1` | URL prefix for all v1 endpoints |
+| `DATA_DIR` | `data/sample` | Folder with the 11 LMS CSV files the API serves (e.g. `data/processed`) |
 | `DATABASE_URL` | `sqlite:///./data/lms_ai.db` | Used from Phase 9; MySQL supported later |
 
 ## 9. Troubleshooting
@@ -363,7 +386,7 @@ See the results in the repository's **Actions** tab. Never commit `.env`, passwo
 
 ## 10. Roadmap
 
-Phase 1 ✓ → 2 synthetic datasets ✓ → 3 data validation ✓ → 4 cleaning, EDA, quality report, upload service ✓ → 5 skills analysis API → 6 role matching → 7 recommendations → 8 ML training → 9 database → 10 learning path → 11 Ollama LLM → 12 embeddings + FAISS → 13 RAG + chat → 14 all seven APIs tested → 15 Streamlit dashboard → 16 MLflow retraining → 17 security → 18 Docker hardening → 19 public demo → 20 Kubernetes → 21 full CI/CD with Snyk → 22 submission package.
+Phase 1 ✓ → 2 synthetic datasets ✓ → 3 data validation ✓ → 4 cleaning, EDA, quality report, upload service ✓ → 5 skills analysis API ✓ → 6 role matching → 7 recommendations → 8 ML training → 9 database → 10 learning path → 11 Ollama LLM → 12 embeddings + FAISS → 13 RAG + chat → 14 all seven APIs tested → 15 Streamlit dashboard → 16 MLflow retraining → 17 security → 18 Docker hardening → 19 public demo → 20 Kubernetes → 21 full CI/CD with Snyk → 22 submission package.
 
 The full plan, API contracts and database design are in the project blueprint (Enterprise LMS AI Intelligence Engine – Analysis & Technical Blueprint).
 

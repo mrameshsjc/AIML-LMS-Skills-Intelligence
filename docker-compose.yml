@@ -21,7 +21,8 @@ services:
     environment:
       APP_PROFILE: compose   # tells the app it runs inside Docker Compose
     volumes:
-      - lms_data:/app/data   # keeps database/index files when the container is recreated
+      - lms_data:/app/data/uploads   # keeps uploaded files when the container is recreated
+      # (data/sample is inside the image; later phases add volumes for the database and indexes)
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=4).status == 200 else 1)"]
       interval: 30s

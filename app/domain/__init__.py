@@ -1,1 +1,1 @@
-"""Plain data classes returned by every repository (Phase 5 onward)."""
+"""Domain models shared by all services (Phase 5)."""
