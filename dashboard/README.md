@@ -1,6 +1,6 @@
 # dashboard – Streamlit user interface
 
-**Filled in:** Phase 15 (Data Upload page from Phase 4).
+**Filled in:** Phase 15. The CSV upload logic already exists in `app/services/data_upload_service.py` (Phase 4); the page only displays its result.
 
 The dashboard imports the same `app/services` as the API, so numbers always match Swagger.
 

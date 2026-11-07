@@ -10,7 +10,7 @@ Rules for this folder:
 
 | Planned file | Phase | Job |
 | --- | --- | --- |
-| `data_upload_service.py` | 4 | Upload, preview and validate CSV files |
+| `data_upload_service.py` | 4 – **done** | Upload, preview and validate CSV files |
 | `skill_analysis.py` | 5 | Per-skill gaps and gap score |
 | `role_matching.py` | 6 | Weighted match % for every role |
 | `training_recommendation.py` | 7 | Ranked, explained course recommendations |

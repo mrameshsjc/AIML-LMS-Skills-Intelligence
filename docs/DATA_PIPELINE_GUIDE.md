@@ -2,7 +2,9 @@
 
 This guide walks through the data pipeline one script at a time. It is written for someone new to Pandas: run each script, read its output, then read the explanation here.
 
-**Phase 3 covers scripts 01–06**: reading, inspecting and validating the data. Cleaning, EDA, features and modelling (scripts 07–15) follow in Phases 4 and 8.
+- **Phase 3:** scripts 01–06, reading, inspecting and validating the data.
+- **Phase 4:** scripts 07 (cleaning), 08 (exploratory charts) and 15 (data-quality report), plus the CSV upload service.
+- **Phase 8:** scripts 09–13, features and modelling.
 
 ## 1. Where the pipeline fits
 
@@ -26,6 +28,9 @@ The rule: **never feed unchecked data into the engine.** A wrong level, a missin
 | `app/data_processing/loader.py` | Reads CSV files into DataFrames, as raw text or with proper types | Scripts, API, dashboard |
 | `app/data_processing/validators.py` | The checks. Each returns a list of `Issue`s | Scripts 03–06, tests, the upload page (Phase 4) |
 | `data_science/01…06_*.py` | Short learning scripts that call the code above and explain the results | You |
+| `app/data_processing/cleaning.py` | Fixes what is safe, quarantines the rest, logs everything | Script 07, later the upload flow |
+| `app/data_processing/quality_report.py` | One PASS/WARN/FAIL summary of every check | Script 15 |
+| `app/services/data_upload_service.py` | Checks an uploaded CSV: readable? which dataset? valid? | Dashboard and API |
 | `scripts/make_dirty_data.py` | Makes a broken copy of the data for practice | You, tests |
 
 The rules live in `app/`, not in the scripts. That way the upload page and the API (later phases) apply exactly the same checks.
@@ -164,22 +169,134 @@ Expected totals on the dirty data:
 
 Some defects produce more than one finding. For example, copying an employee row repeats the row, its ID and its email.
 
-`data/raw/` is git-ignored, so regenerate the dirty copy whenever you like. Phase 4 adds `07_clean_data.py`, which fixes these problems.
+`data/raw/` is git-ignored, so regenerate the dirty copy whenever you like. Section 6 shows how `07_clean_data.py` fixes these problems.
 
-## 6. Adding or changing a rule
+## 6. Phase 4: clean, explore, report
+
+### 07 – Clean the data
+```powershell
+python scripts/make_dirty_data.py
+python data_science/07_clean_data.py --data data/raw/dirty
+```
+**The golden rule:** only fix a value when the right answer is clear; otherwise set the row aside (**quarantine**) with a reason. Guessing a skill level would put invented data into the recommendations.
+
+| Fixed automatically | Quarantined (needs a person) |
+| --- | --- |
+| Renamed column `seniority_level` → `seniority` | Empty or out-of-range skill level (0, 7) |
+| Extra column `legacy_code` dropped | Employee with an empty email |
+| `Complete` → `Completed`; letter case | Completed before enrolled |
+| `31/12/2020` → `2020-12-31` | Unknown IDs (SK999, C-XYZ-101) |
+| Score 120 → 100 (capped) | The second copy of a repeated key |
+| Empty course duration → median for that difficulty | Rows linked to a quarantined row (the cascade) |
+| Empty course title → `Untitled course (C-…)`, flagged for review | |
+| Swapped `level_from` / `level_to` | |
+| Exact duplicate rows dropped | |
+
+What you will see on the dirty data:
+1. **Before:** `19 error(s), 2 warning(s)`.
+2. **What was fixed:** 10 changes. Every one is written to `data/processed/cleaning_log.csv`.
+3. **What was quarantined:** 69 rows, grouped by reason. Each row is saved in `data/processed/rejected_rows.csv` with its original line number and full content.
+4. **After:** the cleaned files are validated again, and the result is `No problems found.`
+
+**Why 51 extra rows disappear (the cascade).** Three employees have no email, so they are quarantined. Their 30 skill rows, 2 career goals and 19 enrolments would then point to employees that no longer exist, so those rows are quarantined too. The cleaner repeats the reference check until nothing changes. Fix the three emails at the source and re-run, and all those rows come back.
+
+**Changing a policy.** All decisions sit at the top of `app/data_processing/cleaning.py`:
+
+| Setting | Controls |
+| --- | --- |
+| `COLUMN_ALIASES` | Known alternative column names |
+| `VALUE_TYPOS` | Known misspellings |
+| `DATE_INPUT_FORMATS` | Accepted date formats |
+| `CAP_OUT_OF_RANGE` | Which numbers may be capped instead of quarantined |
+| `FILL_MISSING` | Which empty values may be filled, and how |
+| `NEWEST_BY` | Which copy of a repeated key to keep |
+
+For example, if your LMS treats email as optional, set `required=False` for `email` in `schemas.py`. Those 3 employees and their 51 linked rows are then kept. Also update planted defect D05 in `scripts/make_dirty_data.py`, because the tests expect an empty email to be an error.
+
+Cleaning data that is already clean changes nothing: `python data_science/07_clean_data.py` on `data/sample` writes byte-identical files. A test checks this.
+
+### 08 – Exploratory Data Analysis (charts)
+```powershell
+python data_science/08_eda.py
+```
+It saves 7 charts to `reports/eda/`; open them in PyCharm or File Explorer. New Pandas tools in this script:
+
+| Tool | Used for |
+| --- | --- |
+| `merge()` | Joining two tables on a shared column, like SQL JOIN or Excel VLOOKUP |
+| `pd.cut()` | Putting numbers into bands, e.g. score bands |
+| `groupby().agg()` | Several summaries per group |
+
+| Chart | Finding on the sample data |
+| --- | --- |
+| 01 Employees per department | Engineering is the largest (36 of 100) |
+| 02 Skill levels | 47% of recorded skills are level 3 or above |
+| 03 Most common skills | Python (77 employees), then SQL (73) |
+| 04 How enrolments end | 67% of finished enrolments are completed |
+| 05 Completion vs level jump | **74%** when a course fits the learner's level, **41%** when it starts 2+ levels higher |
+| 06 Gap to own role | Senior Software Developers have the largest average gap (8.0 levels) |
+| 07 Scores | Median 79 |
+
+Chart 05 is the pattern the ML model in Phase 8 will learn. Chart 06 is a preview of the Skills Analysis API in Phase 5. **Remember:** the data is synthetic and was generated with these rules. The charts show the method working, not facts about real people.
+
+Each chart has a single series, so there is no legend; the title states the finding. The colours come from the project's validated palette.
+
+### 15 – Data quality report
+```powershell
+python data_science/15_data_quality_report.py --data data/raw/dirty --out reports/quality_dirty
+python data_science/15_data_quality_report.py --data data/processed --out reports/quality_processed
+```
+It runs every check and writes `data_quality_report.md` (open it in PyCharm's Markdown preview) and `data_quality_issues.csv`.
+
+| Status | Meaning |
+| --- | --- |
+| PASS | No errors and no warnings |
+| WARN | Warnings only |
+| FAIL | At least one error |
+
+On the dirty data, 6 files FAIL. After cleaning, every file passes.
+
+### The CSV upload service
+`app/services/data_upload_service.py` is what the dashboard's upload page (and later an API) will call. You can try it from Python now:
+
+```powershell
+python -c "from app.services.data_upload_service import validate_upload; r = validate_upload(open('data/sample/courses.csv','rb').read(), 'my_export.csv'); print(r.dataset, r.detected_by, r.status)"
+```
+Expected output: `courses.csv columns valid`.
+
+| Question | How it is answered |
+| --- | --- |
+| Can we read it? | `.csv` only, at most 10 MB, UTF-8 text (Excel's "CSV UTF-8" is fine), at least one data row |
+| Which dataset is it? | From the file name, or else from the column headers (at least 60% must match) |
+| Is it valid? | Schema, empty values, ranges, rules and duplicates, **plus references to the current versions of the other files** |
+
+For example, a new `skills.csv` without SQL is reported as invalid, because 84 rows in three other files still use SQL.
+
+A file that cannot be read at all raises an `UploadError` with a plain-language message, such as "The file is not UTF-8 text. In Excel, save it as 'CSV UTF-8'." `save_upload()` stores accepted files in `data/uploads/` and refuses invalid ones.
+
+## 7. Adding or changing a rule
 
 1. Edit `app/data_processing/schemas.py`. For example, change `max_value` of `duration_hours`, or add a value to `allowed`.
 2. For a rule across several columns, add a `BusinessRule` to `BUSINESS_RULES` in `validators.py`.
 3. Run `pytest tests/unit -v`. The clean data must still give no issues, and every planted defect must still be found.
 4. If a new rule should catch a new kind of problem, add a defect to `DEFECTS` in `scripts/make_dirty_data.py` so the tests prove it works.
 
-## 7. Tests for this phase
+## 8. Tests
 
 ```powershell
-pytest tests/unit/test_data_validation.py -v
+pytest tests/unit/test_data_validation.py -v   # Phase 3: 28 tests
+pytest tests/unit/test_data_cleaning.py -v     # Phase 4: cleaning, report, scripts 07/08/15
+pytest tests/unit/test_upload_service.py -v    # Phase 4: upload service
 ```
-The 28 tests check two promises:
+The Phase 3 tests check two promises:
 - **No false alarms:** clean data gives zero issues.
 - **No misses:** all 17 planted defects are found.
 
 They also check each rule on small hand-made DataFrames, and run every script on clean data (exit 0) and on dirty data (exit 1).
+
+The Phase 4 tests check that:
+- cleaning the dirty data gives files that pass every check;
+- cleaning clean data changes nothing;
+- every quarantined row keeps its line and reason;
+- the cascade removes the right rows;
+- the upload service accepts good files and explains bad ones.

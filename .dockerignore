@@ -16,5 +16,6 @@ models
 vector_store
 mlruns
 tests
+reports
 docs
 *.md

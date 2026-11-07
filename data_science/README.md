@@ -7,7 +7,7 @@ Numbered scripts you run in order to learn and check the data. Each has a beginn
 | Script | Phase |
 | --- | --- |
 | `01_read_csv.py` … `06_validate_duplicates.py` | 3 – read, inspect, schema, nulls, values, duplicates (**done**) |
-| `07_clean_data.py`, `08_eda.py`, `15_data_quality_report.py` | 4 – clean, explore, report |
+| `07_clean_data.py`, `08_eda.py`, `15_data_quality_report.py` | 4 – clean, explore, report (**done**) |
 | `09_feature_engineering.py` … `13_predict.py` | 8 – features, split, train, evaluate, predict |
 | `14_save_to_database.py` | 9 – load clean data into SQLite/MySQL |
 
