@@ -34,7 +34,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api.v1 import health, learning_path, roles, skills, trainings
+from app.api.v1 import ai_chat, health, learning_path, rag, roles, skills, trainings
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.core.logging_config import request_id_var, setup_logging
@@ -51,9 +51,9 @@ training recommendations, personalised learning paths and an LLM + RAG assistant
 | 2 | `POST /api/v1/roles/match` | **live** (Phase 6) |
 | 3 | `POST /api/v1/trainings/recommend` | **live** (Phase 7) |
 | 4 | `GET /api/v1/learning-path/{employee_id}` | **live** (Phase 10) |
-| 5 | `POST /api/v1/ai/chat` | Phase 13 |
+| 5 | `POST /api/v1/ai/chat` | **live** (Phase 13) |
 | 6 | `POST /api/v1/ml/retrain` | Phase 16 |
-| 7 | `POST /api/v1/rag/ingest` | Phase 13 |
+| 7 | `POST /api/v1/rag/ingest` | **live** (Phase 13) |
 
 All data is synthetic. Try `POST /api/v1/skills/analyze` with
 `{"employee_id": "E1001", "target_role_id": "R004"}`.
@@ -170,13 +170,15 @@ def create_app() -> FastAPI:
 
     # ------------------------------------------------------------------
     # Routers: each business area is plugged in here, under /api/v1.
-    # Later phases add: ai_chat, ml_training and rag.
+    # Phase 16 adds ml_training (API 6).
     # ------------------------------------------------------------------
     app.include_router(health.router, prefix=settings.api_v1_prefix)
     app.include_router(skills.router, prefix=settings.api_v1_prefix)
     app.include_router(roles.router, prefix=settings.api_v1_prefix)
     app.include_router(trainings.router, prefix=settings.api_v1_prefix)
     app.include_router(learning_path.router, prefix=settings.api_v1_prefix)
+    app.include_router(ai_chat.router, prefix=settings.api_v1_prefix)
+    app.include_router(rag.router, prefix=settings.api_v1_prefix)
 
     @app.get("/", include_in_schema=False)
     def root() -> dict:

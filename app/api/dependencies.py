@@ -16,7 +16,7 @@ WHY
     - @lru_cache loads the data once, on the first request, and reuses it.
 """
 
-from functools import lru_cache
+from functools import lru_cache, partial
 from typing import Annotated
 
 from fastapi import Depends
@@ -25,12 +25,15 @@ from app.core.config import get_settings
 from app.llm.base import LLMProvider
 from app.llm.factory import build_provider
 from app.ml.predict import CompletionPredictor
-from app.rag.factory import tenant_folder
-from app.rag.index import read_manifest
+from app.rag.factory import choose_embedder, load_index, min_score, tenant_folder
+from app.rag.index import KnowledgeIndex, read_manifest
+from app.rag.vector_store import choose_backend
 from app.repositories.base import LmsRepository
 from app.repositories.csv_repository import CsvLmsRepository
 from app.repositories.sqlite_repository import SqliteLmsRepository
+from app.services.chat_service import ChatService
 from app.services.explanation_service import ExplanationService
+from app.services.ingestion_service import IngestionService
 from app.services.learning_path import LearningPathService
 from app.services.role_matching import RoleMatchingService
 from app.services.skill_analysis import SkillAnalysisService
@@ -121,3 +124,49 @@ ExplanationServiceDep = Annotated[ExplanationService, Depends(get_explanation_se
 def get_index_manifest() -> dict | None:
     """What the knowledge index for RAG_TENANT contains (None if it has not been built)."""
     return read_manifest(tenant_folder(get_settings()))
+
+
+@lru_cache
+def get_knowledge_index() -> KnowledgeIndex | None:
+    """The document index, loaded once (None if it has not been built yet).
+
+    Uploads and deletions (API 7) clear this cache, so the next question uses the new index.
+    After running scripts/build_index.py by hand, restart the server.
+    """
+    settings = get_settings()
+    if read_manifest(tenant_folder(settings)) is None:
+        return None
+    return load_index(settings)
+
+
+def get_chat_service(repository: RepositoryDep, llm: LLMProviderDep) -> ChatService:
+    settings = get_settings()
+    return ChatService(
+        repository,
+        llm,
+        index_loader=get_knowledge_index,
+        min_score=partial(min_score, settings),
+        top_k=settings.rag_top_k,
+        completion_model=get_completion_predictor(),
+    )
+
+
+ChatServiceDep = Annotated[ChatService, Depends(get_chat_service)]
+
+
+def get_ingestion_service() -> IngestionService:
+    settings = get_settings()
+    return IngestionService(
+        settings.documents_dir,
+        settings.rag_upload_dir,
+        tenant_folder(settings),
+        choose_embedder=partial(choose_embedder, settings),
+        backend=choose_backend(settings.vector_backend),
+        chunk_size=settings.rag_chunk_size,
+        overlap=settings.rag_chunk_overlap,
+        max_bytes=int(settings.rag_max_upload_mb * 1024 * 1024),
+        on_change=get_knowledge_index.cache_clear,
+    )
+
+
+IngestionServiceDep = Annotated[IngestionService, Depends(get_ingestion_service)]

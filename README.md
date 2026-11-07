@@ -5,7 +5,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | | |
 | --- | --- |
 | Project folder / Git repo | `AIML-LMS-Skills-Intelligence` |
-| Current phase | **Phase 12 – Document search: embeddings + FAISS** (Phases 1–11 on GitHub, CI green) |
+| Current phase | **Phase 13 – RAG assistant (API 5) and document ingestion (API 7)** (Phases 1–12 on GitHub, CI green) |
 | Python | 3.11 |
 | LMS integration | Not in this project. The architecture is API-ready for it (later phase). |
 
@@ -13,7 +13,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 
 ---
 
-## 1. What is built so far (Phases 1–12)
+## 1. What is built so far (Phases 1–13)
 
 | Item | File(s) | Why it exists |
 | --- | --- | --- |
@@ -67,8 +67,11 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | **Phase 12:** documents | `documents/` (8 samples: Markdown, PDF, Word), `scripts/generate_documents.py` | Policies, FAQ, guides, plus a course catalogue and role profiles generated from the data |
 | **Phase 12:** RAG search | `app/rag/` (loader, chunking, embeddings, vector store, index) | Ollama `nomic-embed-text` or TF-IDF embeddings; FAISS or NumPy search; one index per tenant |
 | **Phase 12:** scripts + tests + docs | `scripts/build_index.py`, `scripts/search_documents.py`, `GET /api/v1/health/rag`, `tests/unit/test_rag.py` | 36 + 2 checks; LLM guide section 10 |
+| **Phase 13:** API 5 | `POST /api/v1/ai/chat`, `app/services/chat_service.py`, `scripts/ask.py` | Answers from LMS data + cited documents; says when it does not know; conversations |
+| **Phase 13:** API 7 | `POST /api/v1/rag/ingest`, `GET`/`DELETE /api/v1/rag/documents`, `app/services/ingestion_service.py` | Upload PDF/DOCX/TXT/CSV/MD; updates, duplicate detection, deletion, rollback |
+| **Phase 13:** tests + docs | `tests/unit/test_chat.py`, `test_ingestion.py`, `tests/api/test_chat_api.py`, `test_rag_api.py` | 19 + 14 + 3 unit, 8 API checks; LLM guide section 11, API docs |
 
-APIs 1 (`/skills/analyze`), 2 (`/roles/match`), 3 (`/trainings/recommend`) and 4 (`/learning-path/{id}`) are live. The other three (`/ai/chat`, `/ml/retrain`, `/rag/ingest`) are added in later phases. Full reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
+APIs 1 (`/skills/analyze`), 2 (`/roles/match`), 3 (`/trainings/recommend`), 4 (`/learning-path/{id}`), 5 (`/ai/chat`) and 7 (`/rag/ingest`) are live. API 6 (`/ml/retrain`) comes in Phase 16. Full reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
 
 ## 2. Folder structure
 
@@ -87,7 +90,7 @@ AIML-LMS-Skills-Intelligence/
 │   ├── repositories/             # base interface ✓, CSV ✓, SQLite ✓           [Phases 5, 9 ✓]
 │   ├── database/                 # sqlite3 connection, migrations/*.sql, tables  [Phase 9 ✓]
 │   ├── ml/                       # features, train, evaluate, registry, predict ✓; MLflow later  [Phase 8 ✓]
-│   ├── rag/                      # load, chunk, embed, FAISS/NumPy store, search ✓; chat later  [Phase 12 ✓]
+│   ├── rag/                      # load, chunk, embed, FAISS/NumPy store, search ✓  [Phases 12–13 ✓]
 │   ├── llm/                      # Ollama + fallback providers, prompts, guardrails ✓  [Phase 11 ✓]
 │   └── security/                 # auth, roles, rate limits, audit             (later, 17)
 ├── dashboard/                    # Streamlit UI: pages/, components/           (later, 4, 15)
@@ -116,7 +119,8 @@ AIML-LMS-Skills-Intelligence/
 │   ├── unit/test_database.py, api/test_database_source.py # 22 + 6 checks   [Phase 9 ✓]
 │   ├── unit/test_learning_path.py, api/test_learning_path_api.py # 15 + 5  [Phase 10 ✓]
 │   ├── unit/test_llm.py, api/test_llm_api.py # 24 + 4 checks (fake Ollama)  [Phase 11 ✓]
-│   ├── unit/test_rag.py, api/test_rag_api.py # 36 + 2 checks               [Phase 12 ✓]
+│   ├── unit/test_rag.py, api/test_rag_api.py # 39 + 4 checks               [Phases 12–13 ✓]
+│   ├── unit/test_chat.py, test_ingestion.py, api/test_chat_api.py # 19 + 14 + 6  [Phase 13 ✓]
 │   ├── unit/  integration/  security/
 ├── reports/                      # generated charts and reports (not in Git)   [Phase 4]
 ├── deployment/                   # docker/, kubernetes/, cloud/                (later, 18–20)
@@ -212,7 +216,7 @@ AIML-LMS-Skills-Intelligence/
 ## 5. Tests and code quality
 
 ```powershell
-pytest -v              # expected: 326 passed (43 API + 283 unit)
+pytest -v              # expected: 370 passed (51 API + 319 unit)
 ruff check .           # expected: All checks passed!
 ruff format --check .  # expected: N files already formatted
 pre-commit install     # one time: runs Ruff automatically before each commit
@@ -407,6 +411,21 @@ python scripts/search_documents.py "How many times can I retake a course?"
 
 Each result shows a score, the source file, the section and (for PDFs) the page. **Health → GET /api/v1/health/rag** in Swagger shows what the index contains. Guide: [`docs/LLM_RAG_GUIDE.md`](docs/LLM_RAG_GUIDE.md) section 10.
 
+## 5l. AI assistant and document uploads (Phase 13)
+
+```powershell
+pip install -r requirements.txt     # adds python-multipart (file uploads)
+python scripts/build_index.py
+python scripts/ask.py "What are my current skill gaps?" --employee E1001
+python scripts/ask.py "How many learning hours do I have per year?"
+```
+
+In Swagger UI:
+- **5. AI Assistant → POST /api/v1/ai/chat**: try the examples. Each answer lists `intents` (what was looked up), `facts`, `sources` [S1]… and `grounding_warnings`.
+- **7. Knowledge Documents → POST /api/v1/rag/ingest**: upload a `.pdf`, `.docx`, `.txt`, `.csv` or `.md`. The next question can use it at once. `GET /api/v1/rag/documents` lists what is indexed; `DELETE` removes an upload.
+
+Without Ollama, a labelled fallback lists the facts and passages instead of writing an answer. Guide: [`docs/LLM_RAG_GUIDE.md`](docs/LLM_RAG_GUIDE.md) section 11; reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md) (APIs 5 and 7).
+
 ## 6. Run with Docker
 
 Docker Desktop must be running.
@@ -502,6 +521,8 @@ See the results in the repository's **Actions** tab. Never commit `.env`, passwo
 | `EMBEDDING_PROVIDER` / `OLLAMA_EMBED_MODEL` | `auto` / `nomic-embed-text` | Ollama embeddings when installed, else TF-IDF; or force `ollama` / `tfidf` |
 | `VECTOR_BACKEND` | `auto` | FAISS if installed, else NumPy; or force `faiss` / `numpy` |
 | `RAG_CHUNK_SIZE` / `RAG_CHUNK_OVERLAP` / `RAG_TOP_K` | `800` / `120` / `4` | Chunk size and overlap (characters), results per search |
+| `RAG_UPLOAD_DIR` / `RAG_MAX_UPLOAD_MB` | `data/uploads/documents` / `10` | Where API 7 stores uploads; largest upload |
+| `RAG_MIN_SCORE` | empty | Minimum passage similarity for the assistant (empty = TF-IDF 0.08, Ollama 0.45) |
 
 ## 9. Troubleshooting
 
@@ -516,10 +537,11 @@ See the results in the repository's **Actions** tab. Never commit `.env`, passwo
 | `Database file not found` / `has no LMS data` | Run `python data_science/14_save_to_database.py`, or set `DATA_SOURCE=csv` |
 | Explanations say "Fallback - no LLM" | Ollama is not running or the model is missing: `python scripts/check_llm.py` tells you which |
 | `No knowledge index in ...` | `python scripts/build_index.py`, then restart uvicorn |
+| The assistant says it has no information | Check the passage scores with `scripts/search_documents.py`; see `RAG_MIN_SCORE` in the LLM guide |
 
 ## 10. Roadmap
 
-Phase 1 ✓ → 2 synthetic datasets ✓ → 3 data validation ✓ → 4 cleaning, EDA, quality report, upload service ✓ → 5 skills analysis API ✓ → 6 role matching API ✓ → 7 recommendations API ✓ → 8 ML completion model ✓ → 9 database (SQLite) ✓ → 10 learning path API ✓ → 11 Ollama LLM ✓ → 12 embeddings + FAISS ✓ → 13 RAG + chat → 14 all seven APIs tested → 15 Streamlit dashboard → 16 MLflow retraining → 17 security → 18 Docker hardening → 19 public demo → 20 Kubernetes → 21 full CI/CD with Snyk → 22 submission package.
+Phase 1 ✓ → 2 synthetic datasets ✓ → 3 data validation ✓ → 4 cleaning, EDA, quality report, upload service ✓ → 5 skills analysis API ✓ → 6 role matching API ✓ → 7 recommendations API ✓ → 8 ML completion model ✓ → 9 database (SQLite) ✓ → 10 learning path API ✓ → 11 Ollama LLM ✓ → 12 embeddings + FAISS ✓ → 13 RAG + chat ✓ → 14 all seven APIs tested → 15 Streamlit dashboard → 16 MLflow retraining → 17 security → 18 Docker hardening → 19 public demo → 20 Kubernetes → 21 full CI/CD with Snyk → 22 submission package.
 
 The full plan, API contracts and database design are in the project blueprint (Enterprise LMS AI Intelligence Engine – Analysis & Technical Blueprint).
 

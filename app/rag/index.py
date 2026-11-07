@@ -88,13 +88,29 @@ def build_index(
     backend: type[VectorStore],
     chunk_size: int = 800,
     overlap: int = 120,
+    upload_dir: str | Path | None = None,
 ) -> IndexReport:
+    """Index the approved documents (documents_dir) plus uploaded ones (upload_dir, Phase 13)."""
     start = time.perf_counter()
-    documents, warnings = load_folder(resolve_folder(documents_dir))
+    documents, paths, origins, hashes, warnings = [], {}, {}, {}, []
+    folders = [(resolve_folder(documents_dir), "base")]
+    if upload_dir is not None and resolve_folder(upload_dir).is_dir():
+        folders.append((resolve_folder(upload_dir), "uploaded"))
+    for folder, origin in folders:
+        found, skipped = load_folder(folder)
+        warnings += skipped
+        for d in found:
+            digest = hashlib.sha256((folder / d.source).read_bytes()).hexdigest()
+            if d.source in paths:
+                warnings.append(f"{d.source}: skipped, a document with this name is already indexed.")
+            elif digest in hashes.values():
+                same = next(name for name, h in hashes.items() if h == digest)
+                warnings.append(f"{d.source}: skipped, same content as {same}.")
+            else:
+                documents.append(d)
+                paths[d.source], origins[d.source], hashes[d.source] = folder / d.source, origin, digest
     if not documents:
-        raise IndexNotReadyError(
-            f"No documents found in {resolve_folder(documents_dir)} (.md, .txt, .pdf, .docx)."
-        )
+        raise IndexNotReadyError(f"No documents found in {folders[0][0]} (.md, .txt, .pdf, .docx, .csv).")
     chunks: list[Chunk] = [c for d in documents for c in chunk_document(d, chunk_size, overlap)]
     texts = [c.text_for_embedding for c in chunks]
 
@@ -111,7 +127,6 @@ def build_index(
     with (temp / CHUNKS).open("w", encoding="utf-8", newline="\n") as f:
         for c in chunks:
             f.write(json.dumps(asdict(c), ensure_ascii=False) + "\n")
-    sources = resolve_folder(documents_dir)
     manifest = {
         "version": INDEX_VERSION,
         "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
@@ -126,7 +141,8 @@ def build_index(
                 "title": d.title,
                 "pages": len(d.pages),
                 "chunks": sum(1 for c in chunks if c.source == d.source),
-                "sha256": hashlib.sha256((sources / d.source).read_bytes()).hexdigest(),
+                "sha256": hashes[d.source],
+                "origin": origins[d.source],  # base (approved folder) or uploaded (API 7)
             }
             for d in documents
         ],

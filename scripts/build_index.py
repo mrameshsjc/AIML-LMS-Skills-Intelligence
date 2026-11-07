@@ -59,6 +59,7 @@ report = build_index(
     backend,
     settings.rag_chunk_size,
     settings.rag_chunk_overlap,
+    upload_dir=settings.rag_upload_dir,
 )
 print(f"\nIndexed {report.documents} documents as {report.chunks} chunks in {report.seconds:.1f} s")
 print(f"Saved to {report.folder}")

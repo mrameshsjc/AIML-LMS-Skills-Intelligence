@@ -9,6 +9,6 @@ Routers only: receive the request, call a service, return the response. No busin
 | `roles.py` | `POST /api/v1/roles/match` | 6 – **done** |
 | `trainings.py` | `POST /api/v1/trainings/recommend` | 7 – **done** |
 | `learning_path.py` | `GET /api/v1/learning-path/{employee_id}` | 10 – **done** |
-| `ai_chat.py` | `POST /api/v1/ai/chat` | 13 |
-| `rag.py` | `POST /api/v1/rag/ingest` | 13 |
+| `ai_chat.py` | `POST /api/v1/ai/chat` | 13 – **done** |
+| `rag.py` | `POST /api/v1/rag/ingest`, `GET` / `DELETE /api/v1/rag/documents` | 13 – **done** |
 | `ml_training.py` | `POST /api/v1/ml/retrain` | 16 |

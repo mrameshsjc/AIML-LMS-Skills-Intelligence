@@ -8,6 +8,9 @@ SUPPORTED FILES
                  word/document.xml, so Python's built-in zipfile is enough.
                  Headings (style "Heading 1", "Title") become Markdown "#"
                  lines, so chunking can use them as section titles.
+    .csv         each row becomes one sentence-like line, "column: value; ...",
+                 so a table (e.g. a list of internal trainings) can be searched
+                 (Phase 13). The first row must hold the column names.
 
     Other files are skipped and reported. Scanned PDFs (images of text) have
     no text to extract; they would need OCR, which is out of scope.
@@ -19,13 +22,14 @@ WHY KEEP PAGE NUMBERS
 
 from __future__ import annotations
 
+import csv
 import re
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from xml.etree import ElementTree
 
-SUPPORTED = {".md", ".txt", ".pdf", ".docx"}
+SUPPORTED = {".md", ".txt", ".pdf", ".docx", ".csv"}
 _W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
 
@@ -50,12 +54,16 @@ def load_document(path: str | Path) -> Document:
     path = Path(path)
     suffix = path.suffix.lower()
     if suffix not in SUPPORTED:
-        raise DocumentError(f"{path.name}: unsupported file type '{suffix}' (use .md, .txt, .pdf or .docx).")
+        raise DocumentError(
+            f"{path.name}: unsupported file type '{suffix}' (use .md, .txt, .pdf, .docx or .csv)."
+        )
     try:
         if suffix in (".md", ".txt"):
             pages = [Page(path.read_text(encoding="utf-8"))]
         elif suffix == ".pdf":
             pages = _pdf_pages(path)
+        elif suffix == ".csv":
+            pages = [Page(_csv_text(path))]
         else:
             pages = [Page(_docx_text(path))]
     except UnicodeDecodeError as error:
@@ -92,6 +100,21 @@ def _pdf_pages(path: Path) -> list[Page]:
         return [Page(page.extract_text() or "", number) for number, page in enumerate(reader.pages, start=1)]
     except PdfReadError as error:
         raise DocumentError(f"{path.name}: not a valid PDF ({error}).") from error
+
+
+def _csv_text(path: Path) -> str:
+    with path.open(encoding="utf-8-sig", newline="") as f:  # utf-8-sig: Excel's "CSV UTF-8" adds a BOM
+        rows = list(csv.reader(f))
+    if len(rows) < 2:
+        return ""
+    header = [h.strip() for h in rows[0]]
+    title = path.stem.replace("_", " ").title()
+    lines = [f"# {title}"]
+    for row in rows[1:]:
+        cells = [f"{h}: {v.strip()}" for h, v in zip(header, row, strict=False) if v.strip()]
+        if cells:
+            lines.append("; ".join(cells) + ".")
+    return "\n\n".join(lines)
 
 
 def _docx_text(path: Path) -> str:

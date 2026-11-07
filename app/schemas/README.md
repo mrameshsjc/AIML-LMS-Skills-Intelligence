@@ -10,7 +10,7 @@ Pydantic models that describe exactly what each endpoint accepts and returns. Fa
 | `roles.py` | `POST /api/v1/roles/match` (**done**) |
 | `trainings.py` | `POST /api/v1/trainings/recommend` (**done**) |
 | `learning_path.py` | `GET /api/v1/learning-path/{employee_id}` (**done**) |
-| `chat.py` | `POST /api/v1/ai/chat` |
+| `chat.py` | `POST /api/v1/ai/chat` (**done**) |
 | `ml.py` | `POST /api/v1/ml/retrain` |
-| `rag.py` | `POST /api/v1/rag/ingest` |
+| `rag.py` | `POST /api/v1/rag/ingest`, `GET /api/v1/rag/documents` (**done**) |
 | `common.py` | shared error format and role reference (**done**) |
