@@ -24,7 +24,10 @@ from fastapi import Depends
 from app.core.config import get_settings
 from app.llm.base import LLMProvider
 from app.llm.factory import build_provider
+from app.ml.model_registry import MODEL_NAME
 from app.ml.predict import CompletionPredictor
+from app.ml.retraining import RetrainingService
+from app.ml.tracking import choose_tracker
 from app.rag.factory import choose_embedder, load_index, min_score, tenant_folder
 from app.rag.index import KnowledgeIndex, read_manifest
 from app.rag.vector_store import choose_backend
@@ -170,3 +173,24 @@ def get_ingestion_service() -> IngestionService:
 
 
 IngestionServiceDep = Annotated[IngestionService, Depends(get_ingestion_service)]
+
+
+def get_retraining_service() -> RetrainingService:
+    settings = get_settings()
+    return RetrainingService(
+        settings.data_dir,
+        settings.model_dir,
+        tracker_factory=partial(
+            choose_tracker,
+            settings.mlflow_enabled,
+            settings.mlflow_tracking_uri,
+            settings.mlflow_experiment,
+            MODEL_NAME,
+        ),
+        min_roc_auc=settings.ml_min_roc_auc,
+        max_regression=settings.ml_max_regression,
+        min_rows=settings.ml_min_training_rows,
+    )
+
+
+RetrainingServiceDep = Annotated[RetrainingService, Depends(get_retraining_service)]

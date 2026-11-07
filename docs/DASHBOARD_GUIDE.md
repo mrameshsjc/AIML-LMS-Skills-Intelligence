@@ -25,7 +25,7 @@ With Docker: `docker compose up -d --build` starts the API (port 8000) and the d
 | **Learning path** | The courses in order, status, which step comes after which, course progress %, the next action; **Explain** asks the LLM | API 4 |
 | **AI assistant** | Chat: answers with sources [S1]…, what was looked up ("understood as"), grounding warnings; example questions; conversation memory | API 5 |
 | **Document management** *(admin)* | Index status, documents with origin and chunks, upload and ingest, delete uploads, rebuild the index | API 7 |
-| **Model management** *(admin)* | Current version and test metrics vs baseline, the algorithm comparison, feature importance, training history, rollback, retraining | Phase 8 registry |
+| **Model management** *(admin)* | Current version and test metrics vs baseline, the algorithm comparison, feature importance, versions with gate status, retraining runs, rollback, **controlled retraining** with the quality-gate result | API 6 workflow |
 
 **The selected employee is remembered** across pages (sidebar), starting with E1001, the worked example from the requirements.
 

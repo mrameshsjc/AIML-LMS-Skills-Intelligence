@@ -12,7 +12,7 @@ The engine exposes seven business endpoints under `/api/v1`. They are stable con
 | 3 | `POST /api/v1/trainings/recommend` | **Live (Phase 7)** |
 | 4 | `GET /api/v1/learning-path/{employee_id}` | **Live (Phase 10)** |
 | 5 | `POST /api/v1/ai/chat` | **Live (Phase 13)** |
-| 6 | `POST /api/v1/ml/retrain` | Phase 16 |
+| 6 | `POST /api/v1/ml/retrain` (+ `GET /api/v1/ml/status`) | **Live (Phase 16)**, admin key |
 | 7 | `POST /api/v1/rag/ingest` (+ `GET`, `DELETE /api/v1/rag/documents`) | **Live (Phase 13)** |
 
 **Try it:** start the server with `uvicorn app.main:app --reload` and open **http://127.0.0.1:8000/docs**. Every endpoint has a description, request examples, response examples and error examples there.
@@ -33,6 +33,9 @@ Every error has the same shape, so a client needs only one piece of error-handli
 | 422 | `VALIDATION_ERROR` | A field has the wrong format. `details` lists every bad field |
 | 422 | `UNKNOWN_SKILL`, `INVALID_LEVEL` | A what-if skill does not exist, or a level is outside 0–5 |
 | 422 | `INVALID_ROLE_ID` | An entry in `role_ids` is not like `R004` |
+| 401 | `ADMIN_AUTH_REQUIRED` | API 6: the `X-Admin-Key` header is missing or wrong |
+| 403 | `ADMIN_ACTIONS_DISABLED` | API 6: no `ADMIN_API_KEY` is configured on the server, so admin actions are off |
+| 409 | `RETRAINING_IN_PROGRESS` | API 6: another retraining run is still running |
 | 409 | `DOCUMENT_EXISTS`, `DUPLICATE_DOCUMENT`, `DOCUMENT_IS_APPROVED` | API 7: the name is taken (send `overwrite=true`), the same content exists under another name, or an approved document would be changed |
 | 413 | `FILE_TOO_LARGE` | API 7: the upload exceeds `RAG_MAX_UPLOAD_MB` |
 | 422 | `UNSUPPORTED_FILE_TYPE`, `EMPTY_FILE`, `INVALID_DOCUMENT` | API 7: not .pdf/.docx/.txt/.csv/.md, empty, or no readable text |
@@ -454,3 +457,56 @@ curl.exe -F "file=@internal_trainings.csv" -F "overwrite=true" http://127.0.0.1:
 In Swagger UI: **7. Knowledge Documents → POST /api/v1/rag/ingest → Try it out → Choose file**.
 
 **Security:** Phase 17 restricts API 7 to administrators. RAG ingestion is separate from ML retraining (API 6) and does not change the language model.
+
+## API 6 – ML model retraining
+
+`POST /api/v1/ml/retrain` — **administrators only** · `GET /api/v1/ml/status` — open
+
+Runs the controlled retraining workflow: validate the data → features → train → evaluate → compare with the current model → quality gate → register → promote if approved → MLflow. Details: [`ML_MODEL_GUIDE.md`](ML_MODEL_GUIDE.md) section 7.
+
+### Authentication
+Send the administrator key in a header: `X-Admin-Key: <ADMIN_API_KEY>`. Set the key in `.env` and restart the server:
+
+```powershell
+python -c "import secrets; print(secrets.token_urlsafe(32))"     # copy the output into .env as ADMIN_API_KEY=...
+```
+
+| Situation | Response |
+| --- | --- |
+| No `ADMIN_API_KEY` on the server | 403 `ADMIN_ACTIONS_DISABLED` |
+| Header missing or wrong | 401 `ADMIN_AUTH_REQUIRED` |
+| Correct key | 200 with the report |
+
+### Request
+
+| Field | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `reason` | text, ≤ 500 characters | `""` | Kept in the retraining history |
+| `promote` | bool | `true` | `false` registers the new version but keeps the current one |
+
+### Response (200)
+
+| Field | Meaning |
+| --- | --- |
+| `status` | `promoted`, `registered_not_promoted`, `rejected_by_quality_gate` or `rejected_invalid_data` |
+| `gate_passed`, `quality_gate` | Each check: `minimum_quality`, `better_than_chance`, `no_regression`, with `passed` and a readable `detail` |
+| `previous_version`, `new_version`, `current_version` | Before the run, saved by the run (`null` if stopped before training), in use after the run |
+| `data_validation` | `errors`, `warnings`, the first `issues` |
+| `training` | `rows` (total/train/test), the winning `algorithm`, the `cross_validation` table |
+| `new_metrics`, `current_metrics` | The new model's test metrics, and the current model's on the **same** test rows |
+| `mlflow` | `enabled`, `run_id`, `registered_version`, `tracking_uri` |
+| `requested_by`, `reason`, `started_at`, `duration_seconds`, `notes` | Audit trail and explanations |
+
+After `promoted`, API 3 uses the new model from the next request.
+
+`GET /api/v1/ml/status` returns the `current_version`, every saved version (with `status` approved/rejected and test ROC AUC), the latest `recent_runs`, the quality-gate settings, the MLflow setting, and whether admin actions are enabled.
+
+### Try it from PowerShell
+```powershell
+$headers = @{ "X-Admin-Key" = "<your ADMIN_API_KEY>" }
+$body = @{ reason = "New training history" } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/ml/retrain -Headers $headers -ContentType "application/json" -Body $body
+Invoke-RestMethod -Uri http://127.0.0.1:8000/api/v1/ml/status
+python scripts/retrain.py --reason "New training history"       # the same workflow from the command line
+```
+In Swagger UI: **6. ML Model Management → POST /api/v1/ml/retrain → Try it out**, and enter the key in the `x-admin-key` field.

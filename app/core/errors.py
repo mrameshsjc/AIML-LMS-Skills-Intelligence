@@ -54,3 +54,15 @@ class PayloadTooLargeError(AppError):
     """An uploaded file is bigger than allowed (HTTP 413)."""
 
     status_code = 413
+
+
+class UnauthorizedError(AppError):
+    """The request needs credentials that were missing or wrong (HTTP 401)."""
+
+    status_code = 401
+
+
+class ForbiddenError(AppError):
+    """The action is not allowed (HTTP 403)."""
+
+    status_code = 403

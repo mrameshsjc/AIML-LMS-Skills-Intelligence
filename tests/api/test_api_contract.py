@@ -47,7 +47,7 @@ def test_published_endpoint_matches_the_contract(
         assert request_model.__name__ in body
     names = {p["name"]: p.get("required", False) for p in operation.get("parameters", [])}
     for p in params:
-        if p["in"] in ("path", "query"):
+        if p["in"] in ("path", "query", "header"):
             assert names.get(p["name"]) == p["required"], (path, p["name"])
         else:  # form fields of a file upload
             form = _schema(spec, operation["requestBody"]["content"]["multipart/form-data"]["schema"]["$ref"])

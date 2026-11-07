@@ -318,6 +318,7 @@ def model_versions_table(cards: list[dict], current: int | None) -> pd.DataFrame
             {
                 "Version": card["version"],
                 "Current": card["version"] == current,
+                "Status": card.get("status", "approved"),
                 "Algorithm": card.get("algorithm", ""),
                 "Trained at": card.get("trained_at", ""),
                 "Test ROC AUC": metrics.get("roc_auc"),
@@ -331,6 +332,7 @@ def model_versions_table(cards: list[dict], current: int | None) -> pd.DataFrame
         columns=[
             "Version",
             "Current",
+            "Status",
             "Algorithm",
             "Trained at",
             "Test ROC AUC",
