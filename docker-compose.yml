@@ -5,8 +5,8 @@
 #   Logs:    docker compose logs -f api
 #   Stop:    docker compose down
 #
-# Phase 1 has one service (the API). Later phases add: dashboard (Streamlit),
-# mlflow and, optionally, ollama and mysql - all on the same network.
+# Services: api (FastAPI, port 8000) and dashboard (Streamlit, port 8501, Phase 15).
+# Later phases add mlflow and, optionally, ollama and mysql - all on the same network.
 
 services:
   api:
@@ -28,6 +28,7 @@ services:
     volumes:
       - lms_data:/app/data/uploads   # keeps uploaded files when the container is recreated
       - lms_index:/app/vector_store  # keeps the knowledge index (Phase 12)
+      - lms_models:/app/models       # trained model versions (shared with the dashboard)
       # (data/sample is inside the image; later phases add volumes for the database and indexes)
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=4).status == 200 else 1)"]
@@ -37,6 +38,29 @@ services:
       retries: 3
     restart: unless-stopped
 
+  dashboard:
+    image: aiml-lms-skills-intelligence:dev   # the same image as the api: same code, same services
+    container_name: aiml-lms-skills-dashboard
+    command: ["streamlit", "run", "dashboard/Home.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
+    ports:
+      - "8501:8501"          # open http://127.0.0.1:8501
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      APP_PROFILE: compose
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:                 # the same volumes as the api, so both see the same index, uploads and models
+      - lms_data:/app/data/uploads
+      - lms_index:/app/vector_store
+      - lms_models:/app/models
+    depends_on:
+      - api
+    restart: unless-stopped
+
 volumes:
   lms_data:                  # named volume managed by Docker (survives `docker compose down`)
   lms_index:                 # the knowledge index built by scripts/build_index.py
+  lms_models:                # completion model versions

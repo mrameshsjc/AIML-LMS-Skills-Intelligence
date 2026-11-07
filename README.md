@@ -5,7 +5,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | | |
 | --- | --- |
 | Project folder / Git repo | `AIML-LMS-Skills-Intelligence` |
-| Current phase | **Phase 14 – All APIs tested together** (Phases 1–13 on GitHub, CI green) |
+| Current phase | **Phase 15 – Streamlit dashboard** (Phases 1–14 on GitHub, CI green) |
 | Python | 3.11 |
 | LMS integration | Not in this project. The architecture is API-ready for it (later phase). |
 
@@ -13,7 +13,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 
 ---
 
-## 1. What is built so far (Phases 1–14)
+## 1. What is built so far (Phases 1–15)
 
 | Item | File(s) | Why it exists |
 | --- | --- | --- |
@@ -74,6 +74,9 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | **Phase 14:** API contract | `app/schemas/contract.py`, `docs/api_contract.json`, `scripts/update_api_contract.py`, `tests/api/test_api_contract.py` | Request/response shapes cannot change by accident; every error has the shared format |
 | **Phase 14:** smoke test + CI | `scripts/api_smoke_test.py`, `.github/workflows/ci.yml` | Every API over real HTTP against a running server (and the CI container); coverage report |
 | **Phase 14:** guide | `docs/TESTING_GUIDE.md`, `@pytest.mark.slow` | Test layers, test doubles, contract workflow; `pytest -m "not slow"` for quick runs |
+| **Phase 15:** dashboard | `dashboard/Home.py` + 8 pages, `.streamlit/config.toml` | Home, data upload, skills, roles, recommendations, learning path, AI assistant, documents, models |
+| **Phase 15:** same services | `dashboard/components/` (data.py, ui.py) | Pages use the API's own services, so the numbers always match Swagger |
+| **Phase 15:** tests + docs | `tests/unit/test_dashboard_data.py`, `tests/dashboard/test_pages.py`, `docs/DASHBOARD_GUIDE.md` | 9 helper tests + 16 AppTest page tests; dashboard guide; `dashboard` service in Docker Compose |
 
 APIs 1 (`/skills/analyze`), 2 (`/roles/match`), 3 (`/trainings/recommend`), 4 (`/learning-path/{id}`), 5 (`/ai/chat`) and 7 (`/rag/ingest`) are live. API 6 (`/ml/retrain`) comes in Phase 16. Full reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
 
@@ -97,7 +100,7 @@ AIML-LMS-Skills-Intelligence/
 │   ├── rag/                      # load, chunk, embed, FAISS/NumPy store, search ✓  [Phases 12–13 ✓]
 │   ├── llm/                      # Ollama + fallback providers, prompts, guardrails ✓  [Phase 11 ✓]
 │   └── security/                 # auth, roles, rate limits, audit             (later, 17)
-├── dashboard/                    # Streamlit UI: pages/, components/           (later, 4, 15)
+├── dashboard/                    # Streamlit UI: Home.py, pages/ (8), components/  [Phase 15 ✓]
 ├── data_science/                 # scripts 01–15 ✓                             [Phases 3–4, 8–9 ✓]
 ├── data/
 │   ├── sample/                   # 11 synthetic CSV files                      [Phase 2 ✓]
@@ -127,6 +130,7 @@ AIML-LMS-Skills-Intelligence/
 │   ├── unit/test_chat.py, test_ingestion.py, api/test_chat_api.py # 19 + 14 + 6  [Phase 13 ✓]
 │   ├── integration/              # business flow, HTTP journey, API contract (24)  [Phase 14 ✓]
 │   ├── api/test_api_contract.py  # OpenAPI = contract; error format of every endpoint (20)  [Phase 14 ✓]
+│   ├── dashboard/test_pages.py   # every Streamlit page with AppTest (16)          [Phase 15 ✓]
 │   ├── unit/  integration/  security/
 ├── reports/                      # generated charts and reports (not in Git)   [Phase 4]
 ├── deployment/                   # docker/, kubernetes/, cloud/                (later, 18–20)
@@ -222,7 +226,7 @@ AIML-LMS-Skills-Intelligence/
 ## 5. Tests and code quality
 
 ```powershell
-pytest -v              # expected: 414 passed (319 unit + 71 API + 24 integration)
+pytest -v              # expected: 439 passed (328 unit + 71 API + 24 integration + 16 dashboard)
 pytest -m "not slow"   # quick run (skips tests that start scripts or train models)
 ruff check .           # expected: All checks passed!
 ruff format --check .  # expected: N files already formatted
@@ -447,6 +451,15 @@ python scripts/api_smoke_test.py         # every API over real HTTP: PASS / WARN
 
 Guide: [`docs/TESTING_GUIDE.md`](docs/TESTING_GUIDE.md).
 
+## 5n. Dashboard (Phase 15)
+
+```powershell
+pip install -r requirements.txt     # adds streamlit
+streamlit run dashboard/Home.py      # opens http://localhost:8501
+```
+
+Nine pages: **Home** (totals, completion, gaps, top recommendations), **Data upload**, **Skills analysis**, **Role matching**, **Recommendations**, **Learning path** (with an LLM explanation), **AI assistant** (chat with sources), **Document management** and **Model management** (admin). The selected employee is remembered across pages; E1001 is the default. The dashboard uses the same services as the API, so it does not need uvicorn running. Guide: [`docs/DASHBOARD_GUIDE.md`](docs/DASHBOARD_GUIDE.md).
+
 ## 6. Run with Docker
 
 Docker Desktop must be running.
@@ -458,13 +471,15 @@ docker compose logs -f api     # follow logs (Ctrl+C to stop following)
 docker compose down            # stop and remove the container (data volume is kept)
 ```
 
-Then open http://127.0.0.1:8000/docs as before.
+Then open http://127.0.0.1:8000/docs (API) and http://127.0.0.1:8501 (dashboard). Both containers use the same image and share the data, index and model volumes.
+
+Inside Docker, build the document index once: `docker compose exec api python scripts/build_index.py`.
 
 | Docker term | Meaning here |
 | --- | --- |
 | Image | The packaged app (Python 3.11 + libraries + code), built from `Dockerfile` |
 | Container | A running copy of the image |
-| Volume `lms_data` | Storage that survives container restarts (database and index files in later phases) |
+| Volumes `lms_data`, `lms_index`, `lms_models` | Uploads, the document index and model versions; they survive container restarts and are shared by both containers |
 | Health check | Docker calls `/api/v1/health` every 30 s and shows `healthy` or `unhealthy` |
 
 ## 7. GitHub and CI/CD
@@ -560,10 +575,11 @@ See the results in the repository's **Actions** tab. Never commit `.env`, passwo
 | `No knowledge index in ...` | `python scripts/build_index.py`, then restart uvicorn |
 | The assistant says it has no information | Check the passage scores with `scripts/search_documents.py`; see `RAG_MIN_SCORE` in the LLM guide |
 | A contract test fails | Unintended: fix the code. Intended API change: `python scripts/update_api_contract.py`, review and commit `docs/api_contract.json` |
+| Dashboard: `No module named 'app'` | Start it from the project folder: `streamlit run dashboard/Home.py` |
 
 ## 10. Roadmap
 
-Phase 1 ✓ → 2 synthetic datasets ✓ → 3 data validation ✓ → 4 cleaning, EDA, quality report, upload service ✓ → 5 skills analysis API ✓ → 6 role matching API ✓ → 7 recommendations API ✓ → 8 ML completion model ✓ → 9 database (SQLite) ✓ → 10 learning path API ✓ → 11 Ollama LLM ✓ → 12 embeddings + FAISS ✓ → 13 RAG + chat ✓ → 14 all APIs tested together ✓ → 15 Streamlit dashboard → 16 MLflow retraining → 17 security → 18 Docker hardening → 19 public demo → 20 Kubernetes → 21 full CI/CD with Snyk → 22 submission package.
+Phase 1 ✓ → 2 synthetic datasets ✓ → 3 data validation ✓ → 4 cleaning, EDA, quality report, upload service ✓ → 5 skills analysis API ✓ → 6 role matching API ✓ → 7 recommendations API ✓ → 8 ML completion model ✓ → 9 database (SQLite) ✓ → 10 learning path API ✓ → 11 Ollama LLM ✓ → 12 embeddings + FAISS ✓ → 13 RAG + chat ✓ → 14 all APIs tested together ✓ → 15 Streamlit dashboard ✓ → 16 MLflow retraining → 17 security → 18 Docker hardening → 19 public demo → 20 Kubernetes → 21 full CI/CD with Snyk → 22 submission package.
 
 The full plan, API contracts and database design are in the project blueprint (Enterprise LMS AI Intelligence Engine – Analysis & Technical Blueprint).
 

@@ -76,3 +76,18 @@ def load_current(models_dir: str | Path = "models") -> tuple[object, dict] | Non
     pipeline = joblib.load(folder / f"{MODEL_NAME}_v{version}.joblib")
     card = json.loads((folder / f"{MODEL_NAME}_v{version}.json").read_text(encoding="utf-8"))
     return pipeline, card
+
+
+def current_version(models_dir: str | Path = "models") -> int | None:
+    """The version the API uses, or None if no model is registered."""
+    pointer = _pointer(resolve_folder(models_dir))
+    return json.loads(pointer.read_text(encoding="utf-8"))["current_version"] if pointer.exists() else None
+
+
+def list_cards(models_dir: str | Path = "models") -> list[dict]:
+    """Every saved version's model card (oldest first) - for the dashboard's model page."""
+    folder = resolve_folder(models_dir)
+    return [
+        json.loads((folder / f"{MODEL_NAME}_v{v}.json").read_text(encoding="utf-8"))
+        for v in list_versions(folder)
+    ]

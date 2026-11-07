@@ -84,6 +84,15 @@ def test_role_requirements_without_employee(repo, index):
     )
 
 
+def test_role_question_stays_about_the_role_when_an_employee_asks(repo, index):
+    """Found by the dashboard test: the assistant page sends employee_id with every question."""
+    chat, _ = make(repo, index)
+    answer = chat.ask("Which skills are required for an AI Engineer?", "E1001")
+    assert answer.intents[0] == "role_requirements" and "my_learning_path" not in answer.intents
+    assert any("Prompt Engineering level 3" in f for f in answer.facts)
+    assert "my_learning_path" in chat.ask("Which courses are recommended next?", "E1001").intents
+
+
 def test_longest_role_name_wins(repo):
     chat, _ = make(repo)
     facts = chat.ask("What does a Senior Software Developer need?").facts
