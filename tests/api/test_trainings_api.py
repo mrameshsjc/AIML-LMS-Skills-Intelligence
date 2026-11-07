@@ -54,3 +54,25 @@ def test_endpoint_is_documented_in_swagger():
     operation = client.get("/openapi.json").json()["paths"][URL]["post"]
     assert operation["summary"].startswith("Recommend courses")
     assert {"200", "404", "422"} <= set(operation["responses"])
+
+
+def test_recommendations_with_a_trained_model(tmp_path):
+    """Train a model into a temp folder and give it to the API via a dependency override."""
+    from app.api.dependencies import get_training_recommendation_service
+    from app.ml.predict import CompletionPredictor
+    from app.ml.train import run_training
+    from app.repositories.csv_repository import CsvLmsRepository
+    from app.services.training_recommendation import TrainingRecommendationService
+
+    run_training(models_dir=tmp_path)
+    predictor = CompletionPredictor.from_files(tmp_path)
+    service = TrainingRecommendationService(CsvLmsRepository(), completion_model=predictor)
+    app.dependency_overrides[get_training_recommendation_service] = lambda: service
+    try:
+        body = client.post(URL, json={"employee_id": "E1001"}).json()
+    finally:
+        app.dependency_overrides.clear()
+    top = body["recommendations"][0]
+    assert 0 < top["components"]["completion_probability"] < 1
+    assert body["weights_used"]["completion_probability"] == 0.15
+    assert any("SYNTHETIC" in n for n in body["notes"])

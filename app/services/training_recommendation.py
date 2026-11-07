@@ -194,8 +194,14 @@ class TrainingRecommendationService:
             )
         if self.completion_model is None:
             notes.append(
-                "Completion probability is not available yet (ML model arrives in Phase 8); "
+                "No completion model is loaded (train one with data_science/11_train_model.py); "
                 "its 15% weight is shared proportionally among the other three parts."
+            )
+        else:
+            version = getattr(self.completion_model, "version", None)
+            notes.append(
+                f"completion_probability comes from the ML model{f' version {version}' if version else ''}, "
+                "trained on SYNTHETIC data: it shows the method, not real-world accuracy."
             )
         if uncovered:
             notes.append(f"No available course closes the gap in: {', '.join(uncovered)}.")

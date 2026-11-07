@@ -144,7 +144,7 @@ def test_completion_model_hook_uses_all_four_weights(repo):
     assert top.score == pytest.approx(
         0.50 + 0.20 + 0.15 + 0.15 * 0.5, abs=0.006
     )  # 0.925, shown to 2 decimals
-    assert not any("not available yet" in n for n in result.notes)
+    assert not any("No completion model" in n for n in result.notes)
 
 
 class NoAwsCoursesRepository(CsvLmsRepository):

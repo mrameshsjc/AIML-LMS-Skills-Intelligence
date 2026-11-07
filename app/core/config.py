@@ -74,6 +74,12 @@ class Settings(BaseSettings):
     # synthetic data; data/processed is the output of the cleaning script.
     data_dir: str = "data/sample"
 
+    # --- Machine learning (Phase 8) ---------------------------------------------
+    # Folder of the model registry, and whether API 3 should use the
+    # completion model when one has been trained (python data_science/11_train_model.py).
+    model_dir: str = "models"
+    use_completion_model: bool = True
+
     # --- Database (used from Phase 9) --------------------------------------
     # SQLite is a single file and needs no server, which is ideal for the
     # first local version. Switching to MySQL later is only a URL change,

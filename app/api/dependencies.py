@@ -21,6 +21,7 @@ from typing import Annotated
 from fastapi import Depends
 
 from app.core.config import get_settings
+from app.ml.predict import CompletionPredictor
 from app.repositories.base import LmsRepository
 from app.repositories.csv_repository import CsvLmsRepository
 from app.services.role_matching import RoleMatchingService
@@ -57,9 +58,22 @@ def get_role_matching_service(repository: RepositoryDep) -> RoleMatchingService:
 RoleMatchingServiceDep = Annotated[RoleMatchingService, Depends(get_role_matching_service)]
 
 
+@lru_cache
+def get_completion_predictor() -> CompletionPredictor | None:
+    """The registered completion model, or None (no model trained, or switched off in settings).
+
+    Loaded once. After training a new model, restart the server to pick it up.
+    """
+    settings = get_settings()
+    if not settings.use_completion_model:
+        return None
+    return CompletionPredictor.from_files(settings.model_dir, settings.data_dir)
+
+
 def get_training_recommendation_service(repository: RepositoryDep) -> TrainingRecommendationService:
-    # completion_model is added in Phase 8; until then the score uses the other three parts.
-    return TrainingRecommendationService(repository)
+    # With a trained model, completion_probability is filled in; without one, the
+    # score is built from the other three parts (the response says so).
+    return TrainingRecommendationService(repository, completion_model=get_completion_predictor())
 
 
 TrainingRecommendationServiceDep = Annotated[
