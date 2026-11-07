@@ -1,11 +1,11 @@
-# app/repositories – where data is read and written
+# app/repositories – where data is read
 
-**Filled in:** Phase 5 (CSV) and Phase 9 (SQL).
+**Filled in:** Phase 5 (CSV) and Phase 9 (SQLite).
 
-| Planned file | Purpose |
+| File | Purpose |
 | --- | --- |
-| `base.py` | Interfaces (abstract classes) the services depend on (**done**) |
-| `csv_repository.py` | Reads the CSV files in `DATA_DIR` (**done**) |
-| `sql_repository.py` | Reads and writes SQLite or MySQL through SQLAlchemy |
+| `base.py` | `LmsRepository`: the interface (abstract class) the services depend on |
+| `csv_repository.py` | Reads the CSV files in `DATA_DIR` once into memory (default data source) |
+| `sqlite_repository.py` | Answers the same questions with SQL from the database at `DATABASE_URL` (`DATA_SOURCE=database`) |
 
-Why: swapping the data source later (for example, the real LMS database) means adding one new repository, not rewriting the business logic.
+Tests prove both repositories give identical answers. Why it matters: swapping the data source (for example, the real LMS database later) means adding one new repository, not rewriting the business logic.

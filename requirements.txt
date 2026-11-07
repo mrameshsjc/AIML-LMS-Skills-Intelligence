@@ -19,3 +19,5 @@ scikit-learn>=1.5,<2.0        # TF-IDF + cosine similarity for related roles; ML
 
 # Phase 8: saving trained models
 joblib>=1.4,<2.0              # saves/loads scikit-learn pipelines (models/completion_model_vN.joblib)
+
+# Phase 9: database - uses Python's built-in sqlite3 module, nothing to install.
