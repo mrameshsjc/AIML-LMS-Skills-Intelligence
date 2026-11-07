@@ -42,3 +42,15 @@ class ServiceUnavailableError(AppError):
     """A component the request needs is not available right now, e.g. the LLM (HTTP 503)."""
 
     status_code = 503
+
+
+class ConflictError(AppError):
+    """The request conflicts with what exists, e.g. a document with that name (HTTP 409)."""
+
+    status_code = 409
+
+
+class PayloadTooLargeError(AppError):
+    """An uploaded file is bigger than allowed (HTTP 413)."""
+
+    status_code = 413

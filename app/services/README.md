@@ -16,6 +16,6 @@ Rules for this folder:
 | `training_recommendation.py` | 7 – **done** | Ranked, explained course recommendations |
 | `learning_path.py` | 10 – **done** | Course selection, prerequisite order, progress and next action |
 | `explanation_service.py` | 11 – **done** | Learning path → facts → LLM → grounded, checked explanation |
-| `chat_service.py` | 13 | Builds the RAG answer for the assistant |
-| `ingestion_service.py` | 13 | Document upload → chunks → vectors |
+| `chat_service.py` | 13 – **done** | Rules pick engine facts; document search adds cited passages; LLM answers (API 5) |
+| `ingestion_service.py` | 13 – **done** | Upload, update, duplicate check, delete, rebuild with rollback (API 7) |
 | `retraining_service.py` | 16 | Controlled ML retraining workflow |

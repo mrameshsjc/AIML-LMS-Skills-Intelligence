@@ -46,3 +46,13 @@ def tenant_folder(settings: Settings) -> Path:
 
 def load_index(settings: Settings) -> KnowledgeIndex:
     return KnowledgeIndex.load(tenant_folder(settings), ollama_embedder(settings))
+
+
+DEFAULT_MIN_SCORE = {"tfidf": 0.08, "ollama": 0.45}
+
+
+def min_score(settings: Settings, index: KnowledgeIndex) -> float:
+    """Passages below this similarity are not relevant enough to use (RAG_MIN_SCORE, else by embedder)."""
+    if settings.rag_min_score is not None:
+        return settings.rag_min_score
+    return DEFAULT_MIN_SCORE.get(index.manifest["embedder"]["name"], 0.3)

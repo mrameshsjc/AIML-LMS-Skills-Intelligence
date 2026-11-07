@@ -83,3 +83,10 @@ jobs:
         run: |
           curl -fsS http://127.0.0.1:8000/api/v1/learning-path/E1001 | tee path.json
           grep -q '"projected_match_percentage":100.0' path.json && echo && echo "Learning path smoke test passed"
+
+      - name: Smoke test - AI assistant API (no LLM in CI, so the labelled fallback answers)
+        run: |
+          curl -fsS -X POST http://127.0.0.1:8000/api/v1/ai/chat \
+            -H "Content-Type: application/json" \
+            -d '{"question": "Which skills are required for an AI Engineer?"}' | tee chat.json
+          grep -q '"role_requirements"' chat.json && echo && echo "AI assistant smoke test passed"

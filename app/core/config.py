@@ -109,6 +109,13 @@ class Settings(BaseSettings):
     rag_chunk_size: int = Field(default=800, ge=200, le=4000)  # characters per chunk
     rag_chunk_overlap: int = Field(default=120, ge=0, le=1000)
     rag_top_k: int = Field(default=4, ge=1, le=20)  # chunks returned per search
+    # Phase 13: the assistant and document uploads
+    rag_upload_dir: str = (
+        "data/uploads/documents"  # uploaded documents (API 7); the approved folder stays read-only
+    )
+    rag_max_upload_mb: float = Field(default=10, gt=0, le=100)
+    # Passages scoring below this are ignored. Empty = by embedder: TF-IDF 0.08, Ollama embeddings 0.45.
+    rag_min_score: float | None = Field(default=None, ge=0, le=1)
 
     # --- Database (Phase 9) -------------------------------------------------
     # SQLite is a single file and needs no server, which is ideal for the

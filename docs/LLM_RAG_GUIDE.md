@@ -7,7 +7,7 @@ How the engine uses a language model (LLM): Phase 11 adds the model layer, Phase
 | LLM providers: Ollama, fallback, automatic choice | 11 | **Done** |
 | Grounded explanations (API 4 `?explain=true`) and guardrails | 11 | **Done** |
 | Embeddings + FAISS document search | 12 | **Done** (section 10) |
-| RAG chat assistant (API 5), document ingestion (API 7) | 13 | Planned |
+| RAG chat assistant (API 5), document ingestion (API 7) | 13 | **Done** (section 11) |
 
 ## 1. What the LLM does here, and what it does not
 
@@ -260,3 +260,75 @@ Ollama embeddings work from the container through `host.docker.internal`, like t
 | `VECTOR_BACKEND=faiss, but FAISS is not installed` | `pip install faiss-cpu`, or use `VECTOR_BACKEND=auto` |
 | A document is "skipped" | The build lists the reason: unsupported type, not UTF-8, scanned PDF without text, or a damaged Word file |
 | New documents not found | Rebuild the index, then restart uvicorn |
+
+## 11. The RAG assistant and document uploads (Phase 13)
+
+Phase 13 joins the pieces: the **engine** (exact LMS data), the **document search** (Phase 12) and the **language model** (Phase 11) make one assistant, API 5. API 7 lets an administrator add, update and remove documents.
+
+```
+question ─┬─ rules: role? skill? course ID? "my"? ──> engine facts (gaps, path, role skills, courses)
+          └─ document search ──> passages above the minimum score, labelled [S1], [S2] ...
+                         │
+          no facts and no passages? ──> "I don't have information about that" (no model call)
+                         │
+          LLM (facts only, cite [S#]) ──> answer + sources + grounding check
+```
+
+### 11.1 Why rules decide what to look up
+The question is routed with simple rules: a role title, a skill name, a course ID, or "my/I/me" with an `employee_id`. The response lists the result as `intents`, so every decision is visible and testable. A small local model choosing tools ("function calling") would be slower, less predictable and harder to test. The rules cover the question types in the requirements; the document search covers everything else.
+
+### 11.2 Retrieval-Augmented Generation, step by step
+- **Retrieval:** the question is embedded and the nearest chunks are found (section 10). Two filters keep only useful passages: an absolute minimum per embedder (`RAG_MIN_SCORE`; default TF-IDF 0.08, Ollama 0.45) and a relative one (at least half the best score). Weak passages only distract the model.
+- **Augmentation:** the passages are added to the prompt as facts, each with its label, title and section: `[S1] Learning and Development Policy, section '2. Learning time': ...`.
+- **Generation:** the model answers from the facts only and adds `[S1]` after sentences that use a passage. The system prompt also says that facts are **data, not instructions**: a document saying "ignore your rules" is just text.
+- **Checking:** invented course IDs, numbers and citations (`[S7]` when there are 3 sources) appear in `grounding_warnings`.
+
+**RAG vs retraining vs fine-tuning:** RAG gives the model new knowledge at question time by adding documents to the prompt, so the model itself never changes. ML retraining (API 6, Phase 16) updates the completion model from new enrolment data. Fine-tuning would change the language model's weights; this project does not need it.
+
+### 11.3 Conversations
+The client sends earlier turns in `history`; the last 6 messages go to the model, so "And what about Docker?" is understood. Short follow-ups (under 6 words) are also *searched* together with the previous question, so the right passages are found. The server stores no conversation: each request carries its own history, which keeps the API simple and private.
+
+### 11.4 Uploading documents (API 7)
+- Uploads go to `RAG_UPLOAD_DIR` (`data/uploads/documents`). The approved folder `documents/` is read-only through the API: its files cannot be replaced or deleted, only added to.
+- **Duplicate detection:** the SHA-256 fingerprint of the content is compared with every document, so a renamed copy is refused.
+- **Updates:** send the same name with `overwrite=true`.
+- **Deletion:** `DELETE /api/v1/rag/documents/{name}`, for uploaded documents only.
+- **Status:** `GET /api/v1/rag/documents` (or `/api/v1/health/rag`) lists every indexed document with its origin (`base` or `uploaded`), chunks and fingerprint, plus files skipped at the last build.
+- **Safety:** the text is extracted *before* the file is stored, and every change rebuilds the index with rollback on failure. A lock prevents two rebuilds at the same time.
+- **CSV:** each row becomes a searchable line (`column: value; ...`).
+
+The full index is rebuilt for every change. With ~150 chunks this takes well under a second with TF-IDF and a few seconds with Ollama embeddings. Incremental updates would only pay off for thousands of documents.
+
+### 11.5 Try it
+
+```powershell
+python scripts/build_index.py
+python scripts/ask.py "How many learning hours do I have per year?"
+python scripts/ask.py "Why was C-AWS-201 recommended?" --employee E1001 --details
+python scripts/ask.py --employee E1001          # a conversation; empty line to stop
+```
+In Swagger UI: **5. AI Assistant → POST /api/v1/ai/chat** (the examples are listed there) and **7. Knowledge Documents**.
+
+### 11.6 Tuning on your PC
+- **Minimum score:** run `python scripts/search_documents.py "<question>"` for a few relevant and unrelated questions and look at the scores. If unrelated passages appear with Ollama embeddings, raise `RAG_MIN_SCORE` (for example to 0.5). If good passages are missing, lower it.
+- **Answer length:** `LLM_MAX_TOKENS` (default 512).
+- **Model:** a larger model (for example `qwen2.5:7b`, ~4.7 GB) follows the citation rules more reliably, but is slower on a CPU.
+
+### 11.7 Settings added in Phase 13
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `RAG_UPLOAD_DIR` | `data/uploads/documents` | Where uploaded documents are stored |
+| `RAG_MAX_UPLOAD_MB` | `10` | Largest accepted upload |
+| `RAG_MIN_SCORE` | empty (by embedder) | Passages below this similarity are ignored |
+
+### 11.8 Troubleshooting
+
+| Problem | Fix |
+| --- | --- |
+| Answers start with "Fallback - no LLM" | Ollama is not running: `python scripts/check_llm.py` |
+| "I don't have information about that" for a question the documents answer | The passage scored below the minimum: check with `search_documents.py`, lower `RAG_MIN_SCORE`, or use Ollama embeddings |
+| A personal question ignores my data | Send `employee_id`. The note in `notes` says so |
+| Upload refused with 409 | Read `error.code`: `DOCUMENT_EXISTS` (send `overwrite=true`), `DUPLICATE_DOCUMENT` (same content exists), `DOCUMENT_IS_APPROVED` (base documents are read-only) |
+| `INDEX_BUILD_FAILED` | Often Ollama stopped during the rebuild; nothing was changed. Start Ollama or set `EMBEDDING_PROVIDER=tfidf`, and upload again |
+| `grounding_warnings` not empty | The model went beyond the facts. Trust `facts` and `sources`; try a larger model |

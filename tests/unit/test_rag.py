@@ -354,3 +354,31 @@ def test_build_and_search_scripts(tmp_path):
 def test_search_script_without_an_index(tmp_path):
     result = _run("search_documents.py", "anything", store=tmp_path)
     assert result.returncode == 1 and "build_index.py" in result.stderr
+
+
+# --- Phase 13 additions ------------------------------------------------------------------------------
+
+
+def test_csv_with_only_a_header_has_no_text(tmp_path):
+    (tmp_path / "empty.csv").write_text("training,hours\n")
+    with pytest.raises(DocumentError, match="no text"):
+        load_document(tmp_path / "empty.csv")
+
+
+def test_csv_with_excel_bom(tmp_path):
+    (tmp_path / "list.csv").write_bytes("﻿training,hours\nKafka,12\n".encode())
+    text = load_document(tmp_path / "list.csv").pages[0].text
+    assert "training: Kafka; hours: 12." in text
+
+
+def test_build_with_uploads_skips_name_clashes_and_duplicates(tmp_path):
+    uploads = tmp_path / "uploads"
+    uploads.mkdir()
+    (uploads / "faq.md").write_text("# Another FAQ\n\nDifferent text.")  # same name as a base document
+    (uploads / "copy_of_policy.md").write_bytes((DOCS / "learning_policy.md").read_bytes())  # same content
+    (uploads / "extra.md").write_text("# Extra\n\nA genuinely new document.")
+    report = build_index(DOCS, tmp_path / "default", TfidfEmbedder(), NumpyVectorStore, upload_dir=uploads)
+    docs = {d["source"]: d["origin"] for d in read_manifest(tmp_path / "default")["documents"]}
+    assert docs["extra.md"] == "uploaded" and docs["faq.md"] == "base" and "copy_of_policy.md" not in docs
+    assert any("already indexed" in w for w in report.warnings)
+    assert any("same content as learning_policy.md" in w for w in report.warnings)

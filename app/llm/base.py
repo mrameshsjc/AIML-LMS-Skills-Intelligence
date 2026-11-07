@@ -37,6 +37,8 @@ class LLMRequest:
     context: list[str] = field(default_factory=list)
     temperature: float | None = None  # None = use the configured default
     max_tokens: int | None = None
+    # Earlier turns of a conversation (Phase 13): [("user", "..."), ("assistant", "..."), ...]
+    history: list[tuple[str, str]] = field(default_factory=list)
 
 
 @dataclass(frozen=True)

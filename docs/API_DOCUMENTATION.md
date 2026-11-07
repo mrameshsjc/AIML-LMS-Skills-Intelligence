@@ -6,13 +6,14 @@ The engine exposes seven business endpoints under `/api/v1`. They are stable con
 | --- | --- | --- |
 | – | `GET /api/v1/health` | Live (Phase 1) |
 | – | `GET /api/v1/health/llm` | Live (Phase 11): is Ollama running, is the model installed? |
+| – | `GET /api/v1/health/rag` | Live (Phase 12): is the document index built, what does it contain? |
 | 1 | `POST /api/v1/skills/analyze` | **Live (Phase 5)** |
 | 2 | `POST /api/v1/roles/match` | **Live (Phase 6)** |
 | 3 | `POST /api/v1/trainings/recommend` | **Live (Phase 7)** |
 | 4 | `GET /api/v1/learning-path/{employee_id}` | **Live (Phase 10)** |
-| 5 | `POST /api/v1/ai/chat` | Phase 13 |
+| 5 | `POST /api/v1/ai/chat` | **Live (Phase 13)** |
 | 6 | `POST /api/v1/ml/retrain` | Phase 16 |
-| 7 | `POST /api/v1/rag/ingest` | Phase 13 |
+| 7 | `POST /api/v1/rag/ingest` (+ `GET`, `DELETE /api/v1/rag/documents`) | **Live (Phase 13)** |
 
 **Try it:** start the server with `uvicorn app.main:app --reload` and open **http://127.0.0.1:8000/docs**. Every endpoint has a description, request examples, response examples and error examples there.
 
@@ -32,7 +33,11 @@ Every error has the same shape, so a client needs only one piece of error-handli
 | 422 | `VALIDATION_ERROR` | A field has the wrong format. `details` lists every bad field |
 | 422 | `UNKNOWN_SKILL`, `INVALID_LEVEL` | A what-if skill does not exist, or a level is outside 0–5 |
 | 422 | `INVALID_ROLE_ID` | An entry in `role_ids` is not like `R004` |
-| 503 | `LLM_UNAVAILABLE` | `explain=true` with `LLM_PROVIDER=ollama` while Ollama is down (with `auto`, the fallback answers instead) |
+| 409 | `DOCUMENT_EXISTS`, `DUPLICATE_DOCUMENT`, `DOCUMENT_IS_APPROVED` | API 7: the name is taken (send `overwrite=true`), the same content exists under another name, or an approved document would be changed |
+| 413 | `FILE_TOO_LARGE` | API 7: the upload exceeds `RAG_MAX_UPLOAD_MB` |
+| 422 | `UNSUPPORTED_FILE_TYPE`, `EMPTY_FILE`, `INVALID_DOCUMENT` | API 7: not .pdf/.docx/.txt/.csv/.md, empty, or no readable text |
+| 503 | `INDEX_BUILD_FAILED` | API 7: the index could not be rebuilt (the change is rolled back) |
+| 503 | `LLM_UNAVAILABLE` | API 4 `explain=true` or API 5 with `LLM_PROVIDER=ollama` while Ollama is down (with `auto`, the fallback answers instead) |
 | 500 | `INTERNAL_ERROR` | Unexpected. The details are in the server log, findable by `request_id` |
 
 Every response carries an `X-Request-ID` header. Send your own `X-Request-ID` (as the LMS will later) and it is reused, so one ID follows a request across systems.
@@ -336,3 +341,116 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v1/learning-path/E1001?explain
 
 ### How it works inside
 `app/api/v1/learning_path.py` (HTTP only) → `LearningPathService.build()` in `app/services/learning_path.py`, which reuses `TrainingRecommendationService` for gaps, scores and the shared prerequisite rule. The algorithm is explained in [`ML_MODEL_GUIDE.md`](ML_MODEL_GUIDE.md) section 6.
+
+## API 5 – LMS AI assistant
+
+`POST /api/v1/ai/chat`
+
+Answers questions about skills, roles, courses, learning paths and the learning policies. Answers come from **LMS data** and **approved documents**, with sources, and the assistant says when it does not know.
+
+### Request
+
+| Field | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `question` | text, 2–1000 characters | – | The question |
+| `employee_id` | `E` + 4 digits | none | Needed for questions about your own gaps, path and recommendations |
+| `history` | list of `{role: user\|assistant, content}`, up to 20 | `[]` | Earlier turns; the last 6 are given to the model |
+
+```json
+{"question": "Why was C-AWS-201 recommended?", "employee_id": "E1001"}
+```
+
+### How a question is answered
+1. **Understand** with simple, visible rules (returned as `intents`):
+
+| Found in the question | Intent | Facts added |
+| --- | --- | --- |
+| "my", "I", "me" (or, with an `employee_id`, words like *recommended*, *next*, *gaps*, *path*) | `my_learning_path` | The learning path (API 4): gaps, steps, progress, next action. Toward the role named in the question, if any. "Why" questions also get each step's reason |
+| A job role title or ID ("AI Engineer", "R007") | `role_requirements` | Mandatory and optional skills with levels |
+| A skill name ("Python") | `skill_courses` | Courses that raise it (above your level when `employee_id` is given) |
+| A course ID ("C-SQL-201") | `course_details` | Level, hours, skills, prerequisites, your status |
+| – | `documents` | Passages from the document search, labelled `[S1]`, `[S2]` … |
+
+2. **Retrieve** document passages. A passage is kept if its score is at least the minimum for the embedder (`RAG_MIN_SCORE`; default TF-IDF 0.08, Ollama 0.45) **and** at least half the best passage's score.
+3. **Refuse** when there are no facts and no relevant passages: *"I don't have information about that…"* (`provider: none`, no model is called).
+4. **Answer:** the language model writes the answer from the facts only and cites `[S1]` etc. A short follow-up ("And a second attempt?") is searched together with the previous question.
+5. **Check:** `grounding_warnings` lists course IDs, numbers or `[S#]` citations that are not in the facts.
+
+### Response (200)
+
+| Field | Meaning |
+| --- | --- |
+| `answer` | The answer (from the fallback: the facts and passages as a labelled list) |
+| `provider`, `model`, `is_fallback` | `ollama` + model, `fallback`, or `none` (nothing found) |
+| `intents` | What the question was understood to need (table above) |
+| `sources` | `label`, `source`, `title`, `section`, `page`, `score`, `excerpt` (≤ 300 characters) |
+| `facts` | The LMS data given to the model |
+| `grounding_warnings`, `notes`, `duration_ms` | Checks, explanations (for example, why the fallback was used), time taken |
+
+### Examples (requirements' questions)
+
+| Question | `employee_id` | Intents | Answer is based on |
+| --- | --- | --- | --- |
+| What skills do I need to become a Data Engineer? | E1001 | my_learning_path, documents | Path toward Data Engineer + role profile |
+| Which courses should I complete next? | E1001 | my_learning_path, documents | Path steps and next action |
+| Why was C-AWS-201 recommended? | E1001 | my_learning_path, course_details, documents | The step's reason (AWS 1 → 3, after C-AWS-101) |
+| What are my current skill gaps? | E1001 | my_learning_path, documents | The gaps |
+| Which skills are required for an AI Engineer? | – | role_requirements, documents | Python 4, LLM Applications 4, Prompt Engineering 3 (mandatory) |
+| Explain my learning path. | E1001 | my_learning_path, documents | The path |
+| What training should I complete to improve my Python skills? | E1001 | my_learning_path, skill_courses, documents | Python level 3; C-PY-201, C-PY-301 |
+| How many learning hours do I have per year? | – | documents | [S1] faq.md, [S2] learning_policy.md: 40 hours |
+| What is the capital of France? | – | – | "I don't have information about that…" |
+
+### Try it from PowerShell
+```powershell
+$body = @{ question = "What are my current skill gaps?"; employee_id = "E1001" } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/ai/chat -ContentType "application/json" -Body $body
+python scripts/ask.py "Which skills are required for an AI Engineer?"     # the same, from the command line
+python scripts/ask.py --employee E1001                                    # a conversation
+```
+
+## API 7 – Knowledge document ingestion
+
+| Method and path | Purpose |
+| --- | --- |
+| `POST /api/v1/rag/ingest` | Upload a document (multipart form: `file`, optional `overwrite`) |
+| `GET /api/v1/rag/documents` | List indexed documents with origin, pages, chunks, fingerprint, and skipped files |
+| `DELETE /api/v1/rag/documents/{source}` | Delete an uploaded document |
+
+### What happens on upload
+1. **Name:** only the file name is kept; unsafe characters become `_` (`../../app/main.md` → `main.md`).
+2. **Checks:** `.pdf`, `.docx`, `.txt`, `.csv` or `.md`; not empty; at most `RAG_MAX_UPLOAD_MB` (default 10).
+3. **Conflicts:**
+   - an approved base document (in `documents/`) can never be replaced or deleted through the API: 409 `DOCUMENT_IS_APPROVED`;
+   - an uploaded name that already exists needs `overwrite=true` (a **document update**): 409 `DOCUMENT_EXISTS`;
+   - the same content under another name: 409 `DUPLICATE_DOCUMENT` (**duplicate detection** by SHA-256).
+4. **Text extraction** happens first: a damaged or scanned file is refused (422 `INVALID_DOCUMENT`) before anything is stored.
+5. **Store and rebuild:** the file goes to `RAG_UPLOAD_DIR` (default `data/uploads/documents`, kept on the Docker data volume) and the index is rebuilt: clean → chunk → embed → FAISS. If the rebuild fails, the change is rolled back (503 `INDEX_BUILD_FAILED`).
+6. The API reloads the index at once: the next question can use the new document.
+
+**CSV files:** each row becomes a line such as `training: Kafka Essentials; provider: External Partner; hours: 12.`, so tables can be searched.
+
+### Response (200, for upload and delete)
+
+| Field | Meaning |
+| --- | --- |
+| `status` | `added`, `updated` or `deleted` |
+| `source`, `title`, `pages`, `chunks`, `sha256` | The document and its fingerprint |
+| `index` | `documents`, `chunks`, `embedder`, `embedding_model`, `backend`, `seconds` after the rebuild |
+| `notes` | The rebuild summary and any skipped files |
+
+### Try it from PowerShell 7
+```powershell
+"training,provider,hours`nKafka Essentials,External Partner,12" | Set-Content internal_trainings.csv
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/rag/ingest -Form @{ file = Get-Item internal_trainings.csv }
+Invoke-RestMethod -Uri http://127.0.0.1:8000/api/v1/rag/documents
+Invoke-RestMethod -Method Delete -Uri http://127.0.0.1:8000/api/v1/rag/documents/internal_trainings.csv
+```
+With Windows PowerShell 5.1 (no `-Form`), use the `curl.exe` built into Windows:
+```powershell
+curl.exe -F "file=@internal_trainings.csv" http://127.0.0.1:8000/api/v1/rag/ingest
+curl.exe -F "file=@internal_trainings.csv" -F "overwrite=true" http://127.0.0.1:8000/api/v1/rag/ingest
+```
+In Swagger UI: **7. Knowledge Documents → POST /api/v1/rag/ingest → Try it out → Choose file**.
+
+**Security:** Phase 17 restricts API 7 to administrators. RAG ingestion is separate from ML retraining (API 6) and does not change the language model.

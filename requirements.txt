@@ -25,3 +25,6 @@ joblib>=1.4,<2.0              # saves/loads scikit-learn pipelines (models/compl
 # Phase 12: knowledge documents and search
 pypdf>=5.0,<7.0               # reads text from PDF documents (Word .docx is read with the built-in zipfile)
 faiss-cpu>=1.9,<2.0           # FAISS vector search; without it the engine falls back to exact NumPy search
+
+# Phase 13: document upload (API 7)
+python-multipart>=0.0.9,<1.0  # lets FastAPI read file uploads (multipart/form-data)
