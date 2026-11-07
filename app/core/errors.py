@@ -36,3 +36,9 @@ class InvalidInputError(AppError):
     """The request is well-formed but its content cannot be used (HTTP 422)."""
 
     status_code = 422
+
+
+class ServiceUnavailableError(AppError):
+    """A component the request needs is not available right now, e.g. the LLM (HTTP 503)."""
+
+    status_code = 503

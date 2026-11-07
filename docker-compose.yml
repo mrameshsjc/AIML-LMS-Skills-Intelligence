@@ -20,6 +20,11 @@ services:
         required: false      # still starts if .env does not exist yet
     environment:
       APP_PROFILE: compose   # tells the app it runs inside Docker Compose
+      # Inside a container, "localhost" is the container itself. Ollama runs on your PC,
+      # which containers reach as host.docker.internal (Phase 11).
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # makes that name work on Linux too (Docker Desktop has it already)
     volumes:
       - lms_data:/app/data/uploads   # keeps uploaded files when the container is recreated
       # (data/sample is inside the image; later phases add volumes for the database and indexes)
