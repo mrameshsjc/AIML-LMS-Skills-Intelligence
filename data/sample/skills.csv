@@ -1,0 +1,43 @@
+skill_id,skill_name,category,description
+SK001,Python,Programming,"General-purpose language for data, automation and AI."
+SK002,Java,Programming,Object-oriented language for enterprise applications.
+SK003,JavaScript,Programming,Language for web front ends and Node.js services.
+SK004,SQL,Programming,Querying and managing data in relational databases.
+SK005,Scala,Programming,JVM language often used with Apache Spark.
+SK006,R,Programming,Language for statistics and data analysis.
+SK007,Data Modeling,Data Engineering,"Designing tables, keys and relationships."
+SK008,ETL and Data Pipelines,Data Engineering,"Extracting, transforming and loading data."
+SK009,Apache Spark,Data Engineering,Distributed processing of large datasets.
+SK010,Workflow Orchestration,Data Engineering,"Scheduling pipelines, e.g. Apache Airflow."
+SK011,Data Streaming,Data Engineering,"Real-time event streaming, e.g. Apache Kafka."
+SK012,Data Warehousing,Data Engineering,Designing and loading analytical warehouses.
+SK013,Statistics,Data Analytics,Descriptive and inferential statistics.
+SK014,Data Visualization,Data Analytics,Choosing and building clear charts.
+SK015,BI Reporting,Data Analytics,Dashboards in BI tools such as Power BI or Tableau.
+SK016,Advanced Excel,Data Analytics,"Formulas, pivot tables and data models in Excel."
+SK017,AWS,Cloud & DevOps,Amazon Web Services cloud platform.
+SK018,Azure,Cloud & DevOps,Microsoft Azure cloud platform.
+SK019,Google Cloud,Cloud & DevOps,Google Cloud Platform.
+SK020,Docker,Cloud & DevOps,Packaging applications as containers.
+SK021,Kubernetes,Cloud & DevOps,Running and scaling containers in clusters.
+SK022,CI/CD,Cloud & DevOps,"Automated build, test and deployment pipelines."
+SK023,Linux,Cloud & DevOps,Linux command line and system administration.
+SK024,Infrastructure as Code,Cloud & DevOps,"Provisioning infrastructure with code, e.g. Terraform."
+SK025,Git,Software Engineering,Version control with branches and pull requests.
+SK026,System Design,Software Engineering,"Designing scalable, reliable software systems."
+SK027,REST API Design,Software Engineering,Designing and building HTTP APIs.
+SK028,Software Testing,Software Engineering,"Test design, test levels and defect management."
+SK029,Test Automation,Software Engineering,Automated UI and API tests.
+SK030,Security Fundamentals,Software Engineering,"Secure coding, identity and data protection."
+SK031,Machine Learning,AI & ML,Supervised and unsupervised learning with Scikit-learn.
+SK032,Deep Learning,AI & ML,"Neural networks for vision, text and tabular data."
+SK033,Natural Language Processing,AI & ML,Processing and understanding text.
+SK034,MLOps,AI & ML,"Deploying, monitoring and retraining ML models."
+SK035,LLM Applications,AI & ML,"Building applications on large language models, incl. RAG."
+SK036,Prompt Engineering,AI & ML,Writing effective instructions for LLMs.
+SK037,Agile Practices,Professional,"Scrum, Kanban and iterative delivery."
+SK038,Communication,Professional,Clear written and verbal communication.
+SK039,Project Management,Professional,"Planning, tracking and delivering projects."
+SK040,Stakeholder Management,Professional,Aligning and managing stakeholders.
+SK041,Leadership,Professional,"Leading, coaching and developing people."
+SK042,Requirements Analysis,Professional,Eliciting and documenting requirements.

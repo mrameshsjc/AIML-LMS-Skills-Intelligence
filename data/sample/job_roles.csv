@@ -1,0 +1,14 @@
+role_id,role_title,department,job_family,seniority,description
+R001,Software Developer,Engineering,Software Engineering,Mid,Mid-level Software Developer in the Engineering department.
+R002,Senior Software Developer,Engineering,Software Engineering,Senior,Senior-level Senior Software Developer in the Engineering department.
+R003,Data Analyst,Data & Analytics,Data,Mid,Mid-level Data Analyst in the Data & Analytics department.
+R004,Data Engineer,Data & Analytics,Data,Mid,Mid-level Data Engineer in the Data & Analytics department.
+R005,Data Scientist,Data & Analytics,Data,Mid,Mid-level Data Scientist in the Data & Analytics department.
+R006,Machine Learning Engineer,AI & ML,AI & ML,Mid,Mid-level Machine Learning Engineer in the AI & ML department.
+R007,AI Engineer,AI & ML,AI & ML,Mid,Mid-level AI Engineer in the AI & ML department.
+R008,DevOps Engineer,Cloud & Infrastructure,Cloud & DevOps,Mid,Mid-level DevOps Engineer in the Cloud & Infrastructure department.
+R009,Cloud Architect,Cloud & Infrastructure,Cloud & DevOps,Senior,Senior-level Cloud Architect in the Cloud & Infrastructure department.
+R010,QA Engineer,Quality Assurance,Quality Engineering,Mid,Mid-level QA Engineer in the Quality Assurance department.
+R011,Business Analyst,Product & Business,Business,Mid,Mid-level Business Analyst in the Product & Business department.
+R012,Project Manager,PMO,Management,Senior,Senior-level Project Manager in the PMO department.
+R013,Engineering Manager,Engineering,Management,Senior,Senior-level Engineering Manager in the Engineering department.

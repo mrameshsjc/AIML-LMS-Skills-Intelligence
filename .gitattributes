@@ -1,0 +1,5 @@
+# Normalise line endings so files look the same on Windows and Linux.
+* text=auto
+*.csv text eol=lf
+*.py text eol=lf
+*.sh text eol=lf

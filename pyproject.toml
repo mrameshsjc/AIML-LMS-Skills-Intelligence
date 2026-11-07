@@ -1,0 +1,25 @@
+# Central configuration for Python tools (not a packaging file for now).
+
+[project]
+name = "aiml-lms-skills-intelligence"
+version = "0.1.0"
+description = "Standalone AI/ML engine for LMS skills-gap analysis, role matching, training recommendations and an LLM + RAG assistant."
+requires-python = ">=3.11"
+
+[tool.ruff]
+# Ruff checks style and common bugs. 110 characters keeps lines readable
+# without forcing awkward wrapping of long comments.
+line-length = 110
+target-version = "py311"
+extend-exclude = [".venv", "data"]
+
+[tool.ruff.lint]
+# E/W = style errors, F = real bugs (unused imports, undefined names),
+# I = import order, B = likely bugs, UP = modern Python syntax.
+select = ["E", "W", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Lets tests import the `app` package from the project root.
+pythonpath = ["."]
+addopts = "-ra"

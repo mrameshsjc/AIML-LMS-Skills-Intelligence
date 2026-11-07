@@ -1,0 +1,59 @@
+# GitHub Actions: runs automatically on every push and pull request.
+# A red X on GitHub means a step failed; click it to read the log.
+#
+# Stages: checkout -> Python 3.11 -> install -> lint -> format check -> tests -> Docker build
+# Later phases add: Snyk security scan, image publish, deploy and smoke test.
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    name: Lint and test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip          # reuses downloaded packages between runs
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint (ruff check)
+        run: ruff check .
+
+      - name: Formatting (ruff format --check)
+        run: ruff format --check .
+
+      - name: Tests (pytest)
+        run: pytest -v
+
+  docker:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+    needs: test               # only builds if lint and tests passed
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t aiml-lms-skills-intelligence:ci .
+
+      - name: Start container and check health
+        run: |
+          docker run -d --name api -p 8000:8000 aiml-lms-skills-intelligence:ci
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:8000/api/v1/health; then echo; echo "Health check passed"; exit 0; fi
+            sleep 2
+          done
+          echo "Health check failed"; docker logs api; exit 1

@@ -1,0 +1,101 @@
+employee_id,first_name,last_name,email,department,current_role_id,manager_id,hire_date,location,employment_status
+E1001,Arjun,Krishnan,arjun.krishnan@example.com,Engineering,R001,E1064,2021-06-14,Chennai,Active
+E1002,Sofia,Joshi,sofia.joshi@example.com,AI & ML,R006,E1036,2022-04-16,Chennai,Active
+E1003,Divya,Iyer,divya.iyer@example.com,Cloud & Infrastructure,R008,E1008,2025-11-26,Bengaluru,Active
+E1004,Omar,Sharma,omar.sharma@example.com,Engineering,R002,E1036,2016-02-21,Coimbatore,Active
+E1005,Sofia,Nair,sofia.nair@example.com,Quality Assurance,R010,E1082,2020-10-26,Bengaluru,Active
+E1006,Akash,Singh,akash.singh@example.com,Engineering,R001,E1061,2020-02-02,Chennai,Active
+E1007,Rahul,Rao,rahul.rao@example.com,Engineering,R001,E1061,2023-08-25,Bengaluru,Active
+E1008,Deepak,Subramanian,deepak.subramanian@example.com,Engineering,R013,,2020-09-30,Coimbatore,Active
+E1009,Suresh,Varghese,suresh.varghese@example.com,Engineering,R001,E1064,2024-05-27,Bengaluru,Active
+E1010,Manoj,Menon,manoj.menon@example.com,Engineering,R002,E1036,2020-12-20,Bengaluru,Active
+E1011,Suresh,Kumar,suresh.kumar@example.com,Data & Analytics,R004,E1082,2018-01-04,Hyderabad,Active
+E1012,Suresh,Pillai,suresh.pillai@example.com,AI & ML,R007,E1061,2018-12-28,Bengaluru,Active
+E1013,Deepak,Patel,deepak.patel@example.com,Engineering,R001,E1082,2025-10-12,Chennai,Active
+E1014,Yusuf,Pillai,yusuf.pillai@example.com,AI & ML,R006,E1082,2018-03-28,Pune,Active
+E1015,Rahul,Singh,rahul.singh@example.com,Cloud & Infrastructure,R009,E1061,2020-12-01,Bengaluru,Active
+E1016,Lakshmi,Kumar,lakshmi.kumar@example.com,Engineering,R001,E1061,2023-05-27,Bengaluru,Active
+E1017,Shalini,Krishnan,shalini.krishnan@example.com,Data & Analytics,R004,E1008,2019-02-15,Chennai,Active
+E1018,Naveen,Subramanian,naveen.subramanian@example.com,Data & Analytics,R004,E1008,2023-03-12,Coimbatore,Active
+E1019,Shalini,Mathew,shalini.mathew@example.com,Quality Assurance,R010,E1039,2019-09-18,Chennai,Active
+E1020,Divya,Gupta,divya.gupta@example.com,Engineering,R002,E1036,2014-01-01,Coimbatore,Active
+E1021,Meera,Sharma,meera.sharma@example.com,Engineering,R002,E1061,2013-03-20,Coimbatore,Active
+E1022,Swathi,Subramanian,swathi.subramanian@example.com,Data & Analytics,R004,E1082,2024-03-03,Hyderabad,Active
+E1023,Swathi,Varghese,swathi.varghese@example.com,Data & Analytics,R003,E1036,2021-09-25,Chennai,Active
+E1024,Sanjay,Bose,sanjay.bose@example.com,AI & ML,R006,E1039,2018-02-17,Hyderabad,Active
+E1025,Akash,Joshi,akash.joshi@example.com,Engineering,R001,E1082,2016-01-07,Coimbatore,Active
+E1026,Omar,Rao,omar.rao@example.com,Data & Analytics,R005,E1064,2020-01-31,Pune,Active
+E1027,Arjun,Krishnan,arjun.krishnan2@example.com,Data & Analytics,R004,E1039,2022-12-27,Hyderabad,Active
+E1028,Divya,Singh,divya.singh@example.com,Engineering,R001,E1061,2021-09-08,Hyderabad,Active
+E1029,Suresh,Krishnan,suresh.krishnan@example.com,Data & Analytics,R004,E1064,2020-07-06,Hyderabad,Active
+E1030,Sofia,Nair,sofia.nair2@example.com,Cloud & Infrastructure,R008,E1064,2018-02-24,Pune,Active
+E1031,Sanjay,Menon,sanjay.menon@example.com,Cloud & Infrastructure,R008,E1039,2022-11-26,Coimbatore,Active
+E1032,Pooja,Patel,pooja.patel@example.com,Engineering,R001,E1061,2022-02-22,Chennai,Active
+E1033,Pooja,Singh,pooja.singh@example.com,AI & ML,R007,E1082,2018-05-10,Pune,Active
+E1034,Fatima,Varghese,fatima.varghese@example.com,Data & Analytics,R005,E1064,2023-05-05,Hyderabad,Active
+E1035,Vidya,Das,vidya.das@example.com,Quality Assurance,R010,E1039,2020-12-16,Bengaluru,Active
+E1036,Daniel,Fernandes,daniel.fernandes@example.com,Engineering,R013,,2020-11-25,Bengaluru,Active
+E1037,Bhavana,Singh,bhavana.singh@example.com,Data & Analytics,R003,E1039,2021-10-12,Coimbatore,Active
+E1038,Priya,Iyer,priya.iyer@example.com,AI & ML,R006,E1082,2025-03-06,Bengaluru,Active
+E1039,Pooja,Pillai,pooja.pillai@example.com,Engineering,R013,,2014-03-26,Bengaluru,Active
+E1040,Aditi,Sharma,aditi.sharma@example.com,Engineering,R001,E1061,2018-09-29,Pune,Active
+E1041,Sneha,Iyer,sneha.iyer@example.com,Product & Business,R011,E1079,2021-02-08,Pune,Active
+E1042,Kevin,Rao,kevin.rao@example.com,Engineering,R002,E1039,2020-01-21,Pune,Active
+E1043,Zara,Patel,zara.patel@example.com,Quality Assurance,R010,E1039,2018-09-26,Bengaluru,Active
+E1044,Aarav,Reddy,aarav.reddy@example.com,Engineering,R001,E1036,2024-09-23,Pune,Active
+E1045,Lakshmi,Menon,lakshmi.menon@example.com,PMO,R012,,2019-10-21,Coimbatore,Active
+E1046,Vidya,Sharma,vidya.sharma@example.com,Product & Business,R011,E1045,2022-04-02,Bengaluru,Active
+E1047,Divya,Das,divya.das@example.com,Data & Analytics,R005,E1082,2017-06-30,Pune,Active
+E1048,Grace,Mathew,grace.mathew@example.com,Engineering,R002,E1036,2018-09-04,Hyderabad,Active
+E1049,Vikram,Varghese,vikram.varghese@example.com,Product & Business,R011,E1079,2025-02-20,Coimbatore,Active
+E1050,Swathi,Mathew,swathi.mathew@example.com,PMO,R012,,2016-12-31,Bengaluru,Active
+E1051,Yusuf,Das,yusuf.das@example.com,Data & Analytics,R003,E1008,2018-11-27,Bengaluru,Active
+E1052,Naveen,Khan,naveen.khan@example.com,Engineering,R001,E1082,2021-06-07,Bengaluru,Active
+E1053,Naveen,Das,naveen.das@example.com,Data & Analytics,R003,E1064,2016-11-13,Hyderabad,Active
+E1054,Manoj,Gupta,manoj.gupta@example.com,Cloud & Infrastructure,R008,E1082,2019-10-07,Hyderabad,Active
+E1055,Omar,Iyer,omar.iyer@example.com,Engineering,R001,E1036,2017-07-20,Bengaluru,Active
+E1056,Lakshmi,Patel,lakshmi.patel@example.com,Data & Analytics,R003,E1036,2023-10-13,Bengaluru,Active
+E1057,Kavya,Iyer,kavya.iyer@example.com,Data & Analytics,R004,E1036,2020-08-26,Pune,Active
+E1058,Priya,Mathew,priya.mathew@example.com,Data & Analytics,R003,E1082,2021-03-23,Pune,Active
+E1059,Ananya,Rao,ananya.rao@example.com,Engineering,R001,E1061,2025-05-04,Pune,Active
+E1060,Sanjay,Bose,sanjay.bose2@example.com,Engineering,R001,E1039,2023-10-19,Chennai,Active
+E1061,Kevin,Patel,kevin.patel@example.com,Engineering,R013,,2017-05-07,Chennai,Active
+E1062,Rahul,Singh,rahul.singh2@example.com,Data & Analytics,R005,E1082,2024-06-13,Pune,Active
+E1063,Suresh,Mathew,suresh.mathew@example.com,AI & ML,R007,E1064,2024-05-19,Coimbatore,Active
+E1064,Rohan,Pillai,rohan.pillai@example.com,Engineering,R013,,2017-06-22,Bengaluru,Active
+E1065,Naveen,Joshi,naveen.joshi@example.com,AI & ML,R006,E1064,2021-06-12,Chennai,Active
+E1066,Sanjay,Krishnan,sanjay.krishnan@example.com,Data & Analytics,R003,E1064,2023-07-02,Pune,Active
+E1067,Ishaan,Das,ishaan.das@example.com,Engineering,R001,E1039,2017-06-06,Coimbatore,Active
+E1068,Omar,Kumar,omar.kumar@example.com,Data & Analytics,R005,E1008,2020-06-01,Coimbatore,Active
+E1069,Kevin,Kumar,kevin.kumar@example.com,Cloud & Infrastructure,R009,E1036,2012-12-09,Pune,Active
+E1070,Ganesh,Das,ganesh.das@example.com,Product & Business,R011,E1079,2018-01-14,Chennai,Active
+E1071,Meera,Patel,meera.patel@example.com,Quality Assurance,R010,E1036,2019-09-02,Bengaluru,Active
+E1072,Vidya,Krishnan,vidya.krishnan@example.com,Engineering,R002,E1039,2015-10-14,Pune,Active
+E1073,Naveen,Joshi,naveen.joshi2@example.com,Data & Analytics,R003,E1036,2018-10-30,Chennai,Active
+E1074,Yusuf,Kumar,yusuf.kumar@example.com,Data & Analytics,R004,E1039,2024-05-26,Coimbatore,Active
+E1075,Ananya,Subramanian,ananya.subramanian@example.com,Cloud & Infrastructure,R008,E1008,2018-07-07,Chennai,Active
+E1076,Akash,Kumar,akash.kumar@example.com,Quality Assurance,R010,E1082,2018-10-09,Bengaluru,Active
+E1077,Aditi,Varghese,aditi.varghese@example.com,Quality Assurance,R010,E1064,2017-09-16,Bengaluru,Active
+E1078,Ganesh,Fernandes,ganesh.fernandes@example.com,Data & Analytics,R005,E1036,2023-07-05,Chennai,Active
+E1079,Kevin,Rao,kevin.rao2@example.com,PMO,R012,,2017-03-19,Hyderabad,Active
+E1080,Revathi,Menon,revathi.menon@example.com,Engineering,R001,E1039,2022-10-17,Coimbatore,Active
+E1081,Divya,Menon,divya.menon@example.com,Product & Business,R011,E1045,2019-06-28,Chennai,Active
+E1082,Fatima,Kumar,fatima.kumar@example.com,Engineering,R013,,2015-07-01,Coimbatore,Active
+E1083,Sanjay,Patel,sanjay.patel@example.com,Data & Analytics,R003,E1008,2024-01-07,Bengaluru,Active
+E1084,Arjun,Bose,arjun.bose@example.com,Cloud & Infrastructure,R009,E1064,2019-09-29,Bengaluru,Active
+E1085,Deepak,Singh,deepak.singh@example.com,Engineering,R001,E1039,2025-07-14,Coimbatore,Active
+E1086,Divya,Bose,divya.bose@example.com,Data & Analytics,R005,E1082,2024-10-10,Chennai,Active
+E1087,Rahul,Mathew,rahul.mathew@example.com,Data & Analytics,R003,E1036,2020-10-20,Hyderabad,Active
+E1088,Arjun,Khan,arjun.khan@example.com,Product & Business,R011,E1089,2023-04-06,Hyderabad,Active
+E1089,Aarav,Joshi,aarav.joshi@example.com,PMO,R012,,2017-06-30,Chennai,Active
+E1090,Swathi,Subramanian,swathi.subramanian2@example.com,Quality Assurance,R010,E1008,2023-02-16,Pune,Active
+E1091,Harini,Joshi,harini.joshi@example.com,Engineering,R001,E1008,2017-12-22,Coimbatore,Active
+E1092,Naveen,Varghese,naveen.varghese@example.com,Engineering,R002,E1064,2018-01-13,Pune,Active
+E1093,Vidya,Joshi,vidya.joshi@example.com,Engineering,R001,E1039,2025-04-05,Coimbatore,Active
+E1094,Naveen,Krishnan,naveen.krishnan@example.com,Cloud & Infrastructure,R008,E1061,2025-07-20,Bengaluru,Active
+E1095,Bhavana,Gupta,bhavana.gupta@example.com,Engineering,R001,E1061,2025-11-20,Pune,Active
+E1096,Manoj,Das,manoj.das@example.com,Engineering,R001,E1061,2022-05-23,Coimbatore,Active
+E1097,Sanjay,Krishnan,sanjay.krishnan2@example.com,Cloud & Infrastructure,R008,E1039,2016-04-27,Pune,Active
+E1098,Prakash,Menon,prakash.menon@example.com,Cloud & Infrastructure,R008,E1036,2021-06-20,Bengaluru,Active
+E1099,Rahul,Gupta,rahul.gupta@example.com,AI & ML,R007,E1008,2019-10-26,Hyderabad,Active
+E1100,Rohan,Gupta,rohan.gupta@example.com,Quality Assurance,R010,E1039,2022-03-26,Chennai,Active

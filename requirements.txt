@@ -1,0 +1,12 @@
+# Runtime dependencies: what the application needs to run.
+# Ranges allow bug-fix updates but block major versions that could break the code.
+# Each later phase adds its own libraries here (pandas, scikit-learn, faiss-cpu, ...).
+
+fastapi>=0.115,<1.0           # web framework that builds the API and Swagger UI
+uvicorn[standard]>=0.30,<1.0  # server that runs the FastAPI app
+pydantic>=2.7,<3.0            # data validation (used by FastAPI and our schemas)
+pydantic-settings>=2.4,<3.0   # reads settings from environment variables / .env
+
+# Phase 3: data processing
+pandas>=3.0,<4.0              # DataFrames: reading, inspecting and validating the LMS CSV files
+numpy>=1.26,<3.0              # numerical arrays (used by pandas; used directly from Phase 4)

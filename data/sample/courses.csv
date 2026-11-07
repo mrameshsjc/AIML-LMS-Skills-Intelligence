@@ -1,0 +1,81 @@
+course_id,course_title,description,difficulty,duration_hours,delivery_mode,provider,is_active
+C-PY-101,Python Programming Fundamentals,Beginner course that raises Python from level 0 to level 2.,Beginner,9,Online,External Partner,True
+C-PY-201,Python for Practitioners,Intermediate course that raises Python from level 2 to level 4.,Intermediate,19,Online,Internal Academy,True
+C-PY-301,Advanced Python,Advanced course that raises Python from level 4 to level 5.,Advanced,27,Online,Vendor Certification,True
+C-JAVA-101,Java Fundamentals,Beginner course that raises Java from level 0 to level 2.,Beginner,8,Online,Internal Academy,True
+C-JAVA-201,Java for Practitioners,Intermediate course that raises Java from level 2 to level 4.,Intermediate,19,Online,Internal Academy,True
+C-JS-101,JavaScript Fundamentals,Beginner course that raises JavaScript from level 0 to level 2.,Beginner,16,Online,Vendor Certification,True
+C-JS-201,JavaScript for Practitioners,Intermediate course that raises JavaScript from level 2 to level 4.,Intermediate,19,Classroom,External Partner,True
+C-SQL-101,SQL Fundamentals,Beginner course that raises SQL from level 0 to level 2.,Beginner,8,Online,Vendor Certification,True
+C-SQL-201,SQL for Data Engineering,Intermediate course that raises SQL from level 2 to level 4.,Intermediate,21,Blended,Internal Academy,True
+C-SQL-301,Advanced SQL,Advanced course that raises SQL from level 4 to level 5.,Advanced,30,Blended,Internal Academy,True
+C-SCALA-150,Scala Essentials,Intermediate course that raises Scala from level 0 to level 3.,Intermediate,13,Classroom,Internal Academy,True
+C-R-150,R Essentials,Intermediate course that raises R from level 0 to level 3.,Intermediate,17,Blended,External Partner,True
+C-DM-101,Data Modeling Fundamentals,Beginner course that raises Data Modeling from level 0 to level 2.,Beginner,8,Classroom,Internal Academy,True
+C-DM-201,Data Modeling for Practitioners,Intermediate course that raises Data Modeling from level 2 to level 4.,Intermediate,22,Online,External Partner,True
+C-ETL-101,ETL and Data Pipelines Fundamentals,Beginner course that raises ETL and Data Pipelines from level 0 to level 2.,Beginner,13,Online,Internal Academy,True
+C-ETL-201,ETL and Data Pipelines for Practitioners,Intermediate course that raises ETL and Data Pipelines from level 2 to level 4.,Intermediate,16,Online,External Partner,True
+C-SPARK-101,Apache Spark Fundamentals,Beginner course that raises Apache Spark from level 0 to level 2.,Beginner,9,Online,Internal Academy,True
+C-SPARK-201,Apache Spark for Practitioners,Intermediate course that raises Apache Spark from level 2 to level 4.,Intermediate,22,Blended,Vendor Certification,True
+C-SPARK-301,Advanced Apache Spark,Advanced course that raises Apache Spark from level 4 to level 5.,Advanced,35,Online,External Partner,True
+C-AIRFLOW-150,Workflow Orchestration Essentials,Intermediate course that raises Workflow Orchestration from level 0 to level 3.,Intermediate,17,Online,External Partner,True
+C-KAFKA-150,Data Streaming Essentials,Intermediate course that raises Data Streaming from level 0 to level 3.,Intermediate,13,Online,Internal Academy,True
+C-DWH-101,Data Warehousing Fundamentals,Beginner course that raises Data Warehousing from level 0 to level 2.,Beginner,10,Classroom,Vendor Certification,True
+C-DWH-201,Data Warehousing for Practitioners,Intermediate course that raises Data Warehousing from level 2 to level 4.,Intermediate,20,Online,External Partner,True
+C-STATS-101,Statistics Fundamentals,Beginner course that raises Statistics from level 0 to level 2.,Beginner,8,Online,Internal Academy,True
+C-STATS-201,Statistics for Practitioners,Intermediate course that raises Statistics from level 2 to level 4.,Intermediate,21,Classroom,External Partner,True
+C-VIZ-101,Data Visualization Fundamentals,Beginner course that raises Data Visualization from level 0 to level 2.,Beginner,9,Online,External Partner,True
+C-VIZ-201,Data Visualization for Practitioners,Intermediate course that raises Data Visualization from level 2 to level 4.,Intermediate,19,Classroom,Vendor Certification,True
+C-BI-150,BI Reporting Essentials,Intermediate course that raises BI Reporting from level 0 to level 3.,Intermediate,19,Online,External Partner,True
+C-EXCEL-150,Advanced Excel Essentials,Intermediate course that raises Advanced Excel from level 0 to level 3.,Intermediate,14,Online,External Partner,True
+C-AWS-101,AWS Cloud Foundations,Beginner course that raises AWS from level 0 to level 2.,Beginner,14,Classroom,External Partner,True
+C-AWS-201,AWS for Data and Application Workloads,Intermediate course that raises AWS from level 2 to level 4.,Intermediate,19,Online,Vendor Certification,True
+C-AWS-301,Advanced AWS,Advanced course that raises AWS from level 4 to level 5.,Advanced,26,Online,Internal Academy,True
+C-AZURE-101,Azure Fundamentals,Beginner course that raises Azure from level 0 to level 2.,Beginner,10,Online,Vendor Certification,True
+C-AZURE-201,Azure for Practitioners,Intermediate course that raises Azure from level 2 to level 4.,Intermediate,17,Classroom,Vendor Certification,True
+C-GCP-150,Google Cloud Essentials,Intermediate course that raises Google Cloud from level 0 to level 3.,Intermediate,19,Blended,Internal Academy,True
+C-DOCKER-101,Docker Fundamentals,Beginner course that raises Docker from level 0 to level 2.,Beginner,9,Blended,External Partner,True
+C-DOCKER-201,Docker in Production,Intermediate course that raises Docker from level 2 to level 4.,Intermediate,17,Blended,Vendor Certification,True
+C-DOCKER-301,Advanced Docker,Advanced course that raises Docker from level 4 to level 5.,Advanced,29,Classroom,Internal Academy,True
+C-K8S-101,Kubernetes Fundamentals,Beginner course that raises Kubernetes from level 0 to level 2.,Beginner,12,Online,Internal Academy,True
+C-K8S-201,Kubernetes for Practitioners,Intermediate course that raises Kubernetes from level 2 to level 4.,Intermediate,20,Online,Internal Academy,True
+C-K8S-301,Advanced Kubernetes,Advanced course that raises Kubernetes from level 4 to level 5.,Advanced,35,Online,Internal Academy,True
+C-CICD-101,CI/CD Fundamentals,Beginner course that raises CI/CD from level 0 to level 2.,Beginner,13,Classroom,Internal Academy,True
+C-CICD-201,CI/CD for Practitioners,Intermediate course that raises CI/CD from level 2 to level 4.,Intermediate,17,Blended,External Partner,True
+C-LINUX-101,Linux Fundamentals,Beginner course that raises Linux from level 0 to level 2.,Beginner,11,Online,Internal Academy,True
+C-LINUX-201,Linux for Practitioners,Intermediate course that raises Linux from level 2 to level 4.,Intermediate,17,Online,Vendor Certification,True
+C-IAC-150,Infrastructure as Code Essentials,Intermediate course that raises Infrastructure as Code from level 0 to level 3.,Intermediate,13,Online,Internal Academy,True
+C-GIT-101,Git Fundamentals,Beginner course that raises Git from level 0 to level 2.,Beginner,15,Online,External Partner,True
+C-GIT-201,Git for Practitioners,Intermediate course that raises Git from level 2 to level 4.,Intermediate,24,Classroom,Internal Academy,True
+C-SD-101,System Design Fundamentals,Beginner course that raises System Design from level 0 to level 2.,Beginner,16,Online,External Partner,True
+C-SD-201,System Design for Practitioners,Intermediate course that raises System Design from level 2 to level 4.,Intermediate,22,Blended,Vendor Certification,True
+C-API-101,REST API Design Fundamentals,Beginner course that raises REST API Design from level 0 to level 2.,Beginner,16,Classroom,Internal Academy,True
+C-API-201,REST API Design for Practitioners,Intermediate course that raises REST API Design from level 2 to level 4.,Intermediate,19,Online,Internal Academy,True
+C-TEST-101,Software Testing Fundamentals,Beginner course that raises Software Testing from level 0 to level 2.,Beginner,13,Online,Internal Academy,True
+C-TEST-201,Software Testing for Practitioners,Intermediate course that raises Software Testing from level 2 to level 4.,Intermediate,19,Online,Internal Academy,True
+C-AUTO-101,Test Automation Fundamentals,Beginner course that raises Test Automation from level 0 to level 2.,Beginner,8,Online,Internal Academy,True
+C-AUTO-201,Test Automation for Practitioners,Intermediate course that raises Test Automation from level 2 to level 4.,Intermediate,16,Blended,Internal Academy,True
+C-SEC-101,Security Fundamentals Fundamentals,Beginner course that raises Security Fundamentals from level 0 to level 2.,Beginner,16,Online,External Partner,True
+C-SEC-201,Security Fundamentals for Practitioners,Intermediate course that raises Security Fundamentals from level 2 to level 4.,Intermediate,23,Online,Internal Academy,True
+C-ML-101,Introduction to Machine Learning,Beginner course that raises Machine Learning from level 0 to level 2.,Beginner,15,Online,Vendor Certification,True
+C-ML-201,Machine Learning for Practitioners,Intermediate course that raises Machine Learning from level 2 to level 4.,Intermediate,22,Online,Internal Academy,True
+C-ML-301,Advanced Machine Learning,Advanced course that raises Machine Learning from level 4 to level 5.,Advanced,27,Classroom,External Partner,True
+C-DL-101,Deep Learning Fundamentals,Beginner course that raises Deep Learning from level 0 to level 2.,Beginner,14,Classroom,Vendor Certification,True
+C-DL-201,Deep Learning for Practitioners,Intermediate course that raises Deep Learning from level 2 to level 4.,Intermediate,16,Online,Internal Academy,True
+C-DL-301,Advanced Deep Learning,Advanced course that raises Deep Learning from level 4 to level 5.,Advanced,36,Blended,Internal Academy,True
+C-NLP-101,Natural Language Processing Fundamentals,Beginner course that raises Natural Language Processing from level 0 to level 2.,Beginner,11,Online,Internal Academy,True
+C-NLP-201,Natural Language Processing for Practitioners,Intermediate course that raises Natural Language Processing from level 2 to level 4.,Intermediate,24,Classroom,Internal Academy,True
+C-MLOPS-101,MLOps Fundamentals,Beginner course that raises MLOps from level 0 to level 2.,Beginner,14,Online,External Partner,True
+C-MLOPS-201,MLOps for Practitioners,Intermediate course that raises MLOps from level 2 to level 4.,Intermediate,23,Online,Internal Academy,True
+C-LLM-101,LLM Applications Fundamentals,Beginner course that raises LLM Applications from level 0 to level 2.,Beginner,15,Online,Internal Academy,True
+C-LLM-201,LLM Applications for Practitioners,Intermediate course that raises LLM Applications from level 2 to level 4.,Intermediate,24,Online,Internal Academy,True
+C-PROMPT-101,Prompt Engineering Fundamentals,Beginner course that raises Prompt Engineering from level 0 to level 2.,Beginner,11,Online,Vendor Certification,True
+C-PROMPT-201,Prompt Engineering for Practitioners,Intermediate course that raises Prompt Engineering from level 2 to level 4.,Intermediate,23,Classroom,Internal Academy,True
+C-AGILE-150,Agile Practices Essentials,Intermediate course that raises Agile Practices from level 0 to level 3.,Intermediate,18,Online,Internal Academy,True
+C-COMM-150,Effective Business Communication,Intermediate course that raises Communication from level 0 to level 3.,Intermediate,18,Online,Vendor Certification,True
+C-PM-150,Project Management Essentials,Intermediate course that raises Project Management from level 0 to level 3.,Intermediate,16,Classroom,External Partner,True
+C-STAKE-150,Stakeholder Management Essentials,Intermediate course that raises Stakeholder Management from level 0 to level 3.,Intermediate,18,Classroom,Internal Academy,True
+C-LEAD-150,Leadership Essentials,Intermediate course that raises Leadership from level 0 to level 3.,Intermediate,15,Blended,Internal Academy,True
+C-REQ-150,Requirements Analysis Essentials,Intermediate course that raises Requirements Analysis from level 0 to level 3.,Intermediate,12,Online,External Partner,True
+C-DE-401,Data Engineering Capstone on AWS,"Project-based capstone that raises Apache Spark, AWS, ETL and Data Pipelines from level 3 to level 4.",Advanced,33,Blended,Internal Academy,True
+C-MLE-401,Machine Learning Engineering Capstone,"Project-based capstone that raises Machine Learning, MLOps, Docker from level 3 to level 4.",Advanced,33,Blended,Internal Academy,True

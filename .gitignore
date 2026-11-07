@@ -1,0 +1,45 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# --- Virtual environment ---
+.venv/
+venv/
+
+# --- Secrets: only .env.example is committed ---
+.env
+.env.*
+!.env.example
+
+# --- Editors ---
+.idea/
+.vscode/
+*.swp
+
+# --- Generated data, models and indexes (can be large or private) ---
+data/raw/*
+data/processed/*
+data/uploads/*
+data/*.db
+models/*
+vector_store/*
+!**/.gitkeep
+!**/README.md
+mlruns/
+mlartifacts/
+uploads/
+*.db
+*.sqlite3
+*.joblib
+*.pkl
+*.gguf
+*.safetensors
+
+# --- OS ---
+.DS_Store
+Thumbs.db

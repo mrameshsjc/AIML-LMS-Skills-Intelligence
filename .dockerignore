@@ -1,0 +1,20 @@
+# Files Docker must NOT copy into the image: keeps the image small and secret-free.
+.git
+.github
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+.idea
+.vscode
+.env
+.env.*
+data
+models
+vector_store
+mlruns
+tests
+docs
+*.md

@@ -1,0 +1,34 @@
+# Docker Compose: runs one or more containers together with one command.
+#
+#   Start:   docker compose up --build        (add -d to run in background)
+#   Status:  docker compose ps                 (shows "healthy" when ready)
+#   Logs:    docker compose logs -f api
+#   Stop:    docker compose down
+#
+# Phase 1 has one service (the API). Later phases add: dashboard (Streamlit),
+# mlflow and, optionally, ollama and mysql - all on the same network.
+
+services:
+  api:
+    build: .
+    image: aiml-lms-skills-intelligence:dev
+    container_name: aiml-lms-skills-api
+    ports:
+      - "8000:8000"          # host:container -> open http://127.0.0.1:8000/docs
+    env_file:
+      - path: .env           # your local settings (copied from .env.example)
+        required: false      # still starts if .env does not exist yet
+    environment:
+      APP_PROFILE: compose   # tells the app it runs inside Docker Compose
+    volumes:
+      - lms_data:/app/data   # keeps database/index files when the container is recreated
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=4).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  lms_data:                  # named volume managed by Docker (survives `docker compose down`)
