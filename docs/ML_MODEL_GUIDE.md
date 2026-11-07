@@ -6,7 +6,7 @@ This guide explains every algorithm the engine uses: why it was chosen, what the
 | --- | --- | --- | --- |
 | Rule-based formula | Skill gaps, gap score, match % (APIs 1 and 2) | 5–6 | Done |
 | TF-IDF + cosine similarity | Related roles (API 2) | 6 | Done |
-| Hybrid scoring | Course recommendations (API 3) | 7 | Planned |
+| Hybrid scoring | Course recommendations (API 3) | 7 | Done |
 | Logistic Regression / Random Forest | Course completion prediction | 8 | Planned |
 | Sentence embeddings + FAISS | Document search for the AI assistant | 12 | Planned |
 | LLM (Ollama) + RAG | AI assistant answers | 11–13 | Planned |
@@ -89,3 +89,30 @@ It measures the angle between two roles' vectors: **1.0** means an identical ski
 - Use real `importance_weight` values (repeat tokens by weight × level).
 - With hundreds of roles from a real LMS, keep TF-IDF but compute only the top N neighbours per role.
 '''
+
+## 4. Course recommendations: hybrid scoring
+
+**Goal:** for each skill gap, find the courses that close it best, and say why.
+
+**Why a hybrid of rules (not one ML model):** each part answers a question a learner or manager can check: does the course close my gap, does it start at my level, am I ready for it? A single model score would be harder to trust and impossible to explain. The one part that has to be learned, completion probability, is plugged in from the Phase 8 model as an extra signal.
+
+| Part | Weight | Formula | Why it matters |
+| --- | --- | --- | --- |
+| Gap coverage | 0.50 | Σ gain / Σ gap over the course's gap skills, where gain = min(course_to, required) − max(current, course_from) | The main purpose of training is to close the gap |
+| Level fit | 0.20 | Above the learner by *n*: 1 − 0.5n. Below by *n*: 1 − 0.2n, at least 0.5 | Phase 4 EDA: completion falls from 74% to 41% when a course starts 2+ levels too high |
+| Prerequisite readiness | 0.15 | Share of prerequisites completed, or covered by the learner's current level | A course whose prerequisites are missing is not the next step |
+| Completion probability | 0.15 | Phase 8 model | Learned from past enrolments |
+
+**Missing parts are not treated as zero.** Until the completion model exists, its weight is redistributed proportionally: 0.50/0.85, 0.20/0.85 and 0.15/0.85. Treating it as zero would lower every score without telling anyone why. The response lists the `weights_used` and a note.
+
+**Why "covered by your current level" counts as meeting a prerequisite.** Someone with Docker at level 2 should not be told to take *Docker Fundamentals* (0→2) first. Checking the prerequisite course's `level_to` against the learner's actual level avoids pointless repetition.
+
+**Ordering:** mandatory gaps first, then the score. A business rule that a skill is mandatory outranks a slightly better fit for an optional skill.
+
+**Code:** `app/services/training_recommendation.py`. Small pure functions (`useful_gain`, `level_fit`, `combine`) are tested on their own.
+
+**Tuning:** the weights are in `WEIGHTS` at the top of the file. Change them in one place, run the tests, and the API docs explain the effect.
+
+**Limits:**
+- Scores rank courses for one person; they are not comparable across different people.
+- Course duration and delivery mode are shown but not scored. A preference for short or online courses could be added as a fifth part later.

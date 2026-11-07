@@ -15,11 +15,11 @@ WHY AN ABSTRACT BASE CLASS (ABC)
 
 from abc import ABC, abstractmethod
 
-from app.domain.models import Employee, JobRole, RoleRequirement, Skill
+from app.domain.models import Course, CourseSkill, Employee, JobRole, RoleRequirement, Skill
 
 
 class LmsRepository(ABC):
-    """Read-only access to employees, skills, roles and career goals."""
+    """Read-only access to employees, skills, roles, career goals, courses and training history."""
 
     @abstractmethod
     def get_employee(self, employee_id: str) -> Employee | None:
@@ -48,3 +48,23 @@ class LmsRepository(ABC):
     @abstractmethod
     def get_career_goal(self, employee_id: str) -> str | None:
         """The employee's target role_id, or None if no goal is recorded."""
+
+    @abstractmethod
+    def get_courses(self) -> dict[str, Course]:
+        """{course_id: Course} for every course (active and inactive)."""
+
+    @abstractmethod
+    def get_course_skills(self, course_id: str) -> list[CourseSkill]:
+        """Skills the course raises (empty if unknown)."""
+
+    @abstractmethod
+    def get_prerequisites(self, course_id: str) -> list[str]:
+        """Course IDs that must be completed before this course."""
+
+    @abstractmethod
+    def get_training_status(self, employee_id: str) -> dict[str, str]:
+        """{course_id: status} of the employee's enrolments.
+
+        If a course was taken more than once, the most advanced status wins:
+        Completed > In Progress > Enrolled > Dropped.
+        """

@@ -5,7 +5,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | | |
 | --- | --- |
 | Project folder / Git repo | `AIML-LMS-Skills-Intelligence` |
-| Current phase | **Phase 6 – API 2: Job Role Matching** (Phases 1–5 on GitHub, CI green) |
+| Current phase | **Phase 7 – API 3: Training Recommendations** (Phases 1–6 on GitHub, CI green) |
 | Python | 3.11 |
 | LMS integration | Not in this project. The architecture is API-ready for it (later phase). |
 
@@ -13,7 +13,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 
 ---
 
-## 1. What is built so far (Phases 1–6)
+## 1. What is built so far (Phases 1–7)
 
 | Item | File(s) | Why it exists |
 | --- | --- | --- |
@@ -48,8 +48,10 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | **Phase 6:** API 2 | `POST /api/v1/roles/match` | All roles ranked by match %, readiness, explanations; same numbers as API 1 |
 | **Phase 6:** first ML | `app/services/role_similarity.py` | TF-IDF + cosine similarity (scikit-learn) for related roles |
 | **Phase 6:** tests + docs | `tests/unit/test_role_matching.py`, `tests/api/test_roles_api.py`, `docs/ML_MODEL_GUIDE.md` | 23 + 6 checks; algorithm guide |
+| **Phase 7:** API 3 | `POST /api/v1/trainings/recommend` | Courses for each gap, hybrid score with its parts, plain-language reasons |
+| **Phase 7:** tests + docs | `tests/unit/test_training_recommendation.py`, `tests/api/test_trainings_api.py` | 21 + 5 checks; API and ML guide sections |
 
-APIs 1 (`/skills/analyze`) and 2 (`/roles/match`) are live. The other five (`/trainings/recommend`, `/learning-path/{id}`, `/ai/chat`, `/ml/retrain`, `/rag/ingest`) are added in later phases. Full reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
+APIs 1 (`/skills/analyze`), 2 (`/roles/match`) and 3 (`/trainings/recommend`) are live. The other four (`/learning-path/{id}`, `/ai/chat`, `/ml/retrain`, `/rag/ingest`) are added in later phases. Full reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
 
 ## 2. Folder structure
 
@@ -61,9 +63,9 @@ AIML-LMS-Skills-Intelligence/
 │   ├── main.py                   # creates the FastAPI app – entry point        [Phase 1 ✓]
 │   ├── core/                     # config.py, logging_config.py                [Phase 1 ✓]
 │   ├── data_processing/          # schemas, loader, validators, cleaning, quality report  [Phases 3–4 ✓]
-│   ├── api/v1/                   # health ✓, skills ✓ (API 1), roles ✓ (API 2); 5 more later  [Phase 6 ✓]
-│   ├── schemas/                  # request/response models: common, skills, roles  [Phase 6 ✓]
-│   ├── services/                 # upload ✓, skill_analysis ✓, role_matching + role_similarity ✓  [Phases 4–6 ✓]
+│   ├── api/v1/                   # health ✓, skills ✓, roles ✓, trainings ✓ (APIs 1–3); 4 more later  [Phase 7 ✓]
+│   ├── schemas/                  # request/response models: common, skills, roles, trainings  [Phase 7 ✓]
+│   ├── services/                 # upload, skill_analysis, role_matching/similarity, training_recommendation ✓  [Phases 4–7 ✓]
 │   ├── domain/                   # Employee, Skill, JobRole … data classes     [Phase 5 ✓]
 │   ├── repositories/             # base interface ✓, CSV ✓; SQL later          [Phase 5 ✓]
 │   ├── database/                 # SQLAlchemy connection and tables            (later, 9)
@@ -92,6 +94,7 @@ AIML-LMS-Skills-Intelligence/
 │   ├── unit/test_data_cleaning.py, test_upload_service.py # 29 checks        [Phase 4 ✓]
 │   ├── unit/test_skill_analysis.py, api/test_skills_api.py # 21 + 8 checks  [Phase 5 ✓]
 │   ├── unit/test_role_matching.py, api/test_roles_api.py # 23 + 6 checks   [Phase 6 ✓]
+│   ├── unit/test_training_recommendation.py, api/test_trainings_api.py # 21 + 5  [Phase 7 ✓]
 │   ├── unit/  integration/  security/
 ├── reports/                      # generated charts and reports (not in Git)   [Phase 4]
 ├── deployment/                   # docker/, kubernetes/, cloud/                (later, 18–20)
@@ -187,7 +190,7 @@ AIML-LMS-Skills-Intelligence/
 ## 5. Tests and code quality
 
 ```powershell
-pytest -v              # expected: 169 passed (20 API + 149 unit)
+pytest -v              # expected: 195 passed (25 API + 170 unit)
 ruff check .           # expected: All checks passed!
 ruff format --check .  # expected: N files already formatted
 pre-commit install     # one time: runs Ruff automatically before each commit
@@ -307,6 +310,18 @@ Then in Swagger UI: **2. Job Role Matching → POST /api/v1/roles/match → Try 
 
 Endpoint reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md). How TF-IDF similarity works: [`docs/ML_MODEL_GUIDE.md`](docs/ML_MODEL_GUIDE.md).
 
+## 5f. API 3: Training Recommendations (Phase 7)
+
+In Swagger UI: **3. Training Recommendations → POST /api/v1/trainings/recommend → Try it out** with `{"employee_id": "E1001"}`. Expected order:
+
+1. `C-SQL-201` (score 1.00)
+2. `C-PY-201` (0.95)
+3. `C-AWS-101` (0.66)
+4. `C-AWS-201` (0.41, "Complete first: C-AWS-101")
+5. `C-DOCKER-201` (1.00, but Docker is optional for Data Engineer, so it comes last)
+
+Each course comes with its score parts and a reason. The score formula and the example are in [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md); why it is designed this way is in [`docs/ML_MODEL_GUIDE.md`](docs/ML_MODEL_GUIDE.md) section 4.
+
 ## 6. Run with Docker
 
 Docker Desktop must be running.
@@ -405,7 +420,7 @@ See the results in the repository's **Actions** tab. Never commit `.env`, passwo
 
 ## 10. Roadmap
 
-Phase 1 ✓ → 2 synthetic datasets ✓ → 3 data validation ✓ → 4 cleaning, EDA, quality report, upload service ✓ → 5 skills analysis API ✓ → 6 role matching API ✓ → 7 recommendations → 8 ML training → 9 database → 10 learning path → 11 Ollama LLM → 12 embeddings + FAISS → 13 RAG + chat → 14 all seven APIs tested → 15 Streamlit dashboard → 16 MLflow retraining → 17 security → 18 Docker hardening → 19 public demo → 20 Kubernetes → 21 full CI/CD with Snyk → 22 submission package.
+Phase 1 ✓ → 2 synthetic datasets ✓ → 3 data validation ✓ → 4 cleaning, EDA, quality report, upload service ✓ → 5 skills analysis API ✓ → 6 role matching API ✓ → 7 recommendations API ✓ → 8 ML training → 9 database → 10 learning path → 11 Ollama LLM → 12 embeddings + FAISS → 13 RAG + chat → 14 all seven APIs tested → 15 Streamlit dashboard → 16 MLflow retraining → 17 security → 18 Docker hardening → 19 public demo → 20 Kubernetes → 21 full CI/CD with Snyk → 22 submission package.
 
 The full plan, API contracts and database design are in the project blueprint (Enterprise LMS AI Intelligence Engine – Analysis & Technical Blueprint).
 
