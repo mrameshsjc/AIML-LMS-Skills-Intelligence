@@ -1,0 +1,1779 @@
+{
+  "endpoints": {
+    "DELETE /api/v1/rag/documents/{source}": {
+      "api": "-",
+      "parameters": [
+        {
+          "in": "path",
+          "name": "source",
+          "required": true
+        }
+      ],
+      "request": null,
+      "response": {
+        "$defs": {
+          "IndexSummaryOut": {
+            "properties": {
+              "backend": {
+                "type": "string"
+              },
+              "chunks": {
+                "type": "integer"
+              },
+              "documents": {
+                "type": "integer"
+              },
+              "embedder": {
+                "type": "string"
+              },
+              "embedding_model": {
+                "type": "string"
+              },
+              "seconds": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "documents",
+              "chunks",
+              "embedder",
+              "embedding_model",
+              "backend",
+              "seconds"
+            ],
+            "type": "object"
+          }
+        },
+        "properties": {
+          "chunks": {
+            "type": "integer"
+          },
+          "index": {
+            "$ref": "#/$defs/IndexSummaryOut"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "pages": {
+            "type": "integer"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "source",
+          "title",
+          "pages",
+          "chunks",
+          "sha256",
+          "index",
+          "notes"
+        ],
+        "type": "object"
+      }
+    },
+    "GET /api/v1/learning-path/{employee_id}": {
+      "api": "4",
+      "parameters": [
+        {
+          "in": "path",
+          "name": "employee_id",
+          "required": true
+        },
+        {
+          "in": "query",
+          "name": "target_role_id",
+          "required": false
+        },
+        {
+          "in": "query",
+          "name": "include_optional",
+          "required": false
+        },
+        {
+          "in": "query",
+          "name": "explain",
+          "required": false
+        }
+      ],
+      "request": null,
+      "response": {
+        "$defs": {
+          "CourseRef": {
+            "properties": {
+              "course_id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "course_id",
+              "title"
+            ],
+            "type": "object"
+          },
+          "CurrentSkillOut": {
+            "properties": {
+              "level": {
+                "type": "integer"
+              },
+              "required_for_target": {
+                "type": "boolean"
+              },
+              "skill": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "skill",
+              "level",
+              "required_for_target"
+            ],
+            "type": "object"
+          },
+          "ExplanationOut": {
+            "properties": {
+              "duration_ms": {
+                "type": "integer"
+              },
+              "facts": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "grounding_warnings": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "is_fallback": {
+                "type": "boolean"
+              },
+              "model": {
+                "type": "string"
+              },
+              "notes": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "provider": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "text",
+              "provider",
+              "model",
+              "is_fallback",
+              "duration_ms",
+              "grounding_warnings",
+              "facts",
+              "notes"
+            ],
+            "type": "object"
+          },
+          "PathStepOut": {
+            "properties": {
+              "addresses_mandatory_gap": {
+                "type": "boolean"
+              },
+              "after_steps": {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "course_id": {
+                "type": "string"
+              },
+              "cumulative_hours": {
+                "type": "integer"
+              },
+              "delivery_mode": {
+                "type": "string"
+              },
+              "difficulty": {
+                "type": "string"
+              },
+              "duration_hours": {
+                "type": "integer"
+              },
+              "prerequisites": {
+                "items": {
+                  "$ref": "#/$defs/PrerequisiteOut"
+                },
+                "type": "array"
+              },
+              "purpose": {
+                "type": "string"
+              },
+              "raises": {
+                "items": {
+                  "$ref": "#/$defs/StepSkillOut"
+                },
+                "type": "array"
+              },
+              "ready_now": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "score": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "status": {
+                "type": "string"
+              },
+              "step": {
+                "type": "integer"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "step",
+              "course_id",
+              "title",
+              "difficulty",
+              "duration_hours",
+              "delivery_mode",
+              "purpose",
+              "status",
+              "raises",
+              "prerequisites",
+              "after_steps",
+              "ready_now",
+              "addresses_mandatory_gap",
+              "score",
+              "reason",
+              "cumulative_hours"
+            ],
+            "type": "object"
+          },
+          "PrerequisiteOut": {
+            "properties": {
+              "course_id": {
+                "type": "string"
+              },
+              "how": {
+                "type": "string"
+              },
+              "satisfied": {
+                "type": "boolean"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "course_id",
+              "title",
+              "satisfied",
+              "how"
+            ],
+            "type": "object"
+          },
+          "ProgressOut": {
+            "properties": {
+              "completed_courses": {
+                "items": {
+                  "$ref": "#/$defs/CourseRef"
+                },
+                "type": "array"
+              },
+              "in_progress_courses": {
+                "items": {
+                  "$ref": "#/$defs/CourseRef"
+                },
+                "type": "array"
+              },
+              "match_percentage": {
+                "type": "number"
+              },
+              "projected_match_percentage": {
+                "type": "number"
+              },
+              "skills_met": {
+                "type": "integer"
+              },
+              "skills_required": {
+                "type": "integer"
+              },
+              "total_hours": {
+                "type": "integer"
+              },
+              "total_steps": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "match_percentage",
+              "projected_match_percentage",
+              "skills_met",
+              "skills_required",
+              "completed_courses",
+              "in_progress_courses",
+              "total_steps",
+              "total_hours"
+            ],
+            "type": "object"
+          },
+          "RoleRef": {
+            "properties": {
+              "role_id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "role_id",
+              "title"
+            ],
+            "type": "object"
+          },
+          "SkillGapPlanOut": {
+            "properties": {
+              "closed_by": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "current_level": {
+                "type": "integer"
+              },
+              "gap": {
+                "type": "integer"
+              },
+              "level_after_path": {
+                "type": "integer"
+              },
+              "mandatory": {
+                "type": "boolean"
+              },
+              "required_level": {
+                "type": "integer"
+              },
+              "skill": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "skill",
+              "current_level",
+              "required_level",
+              "gap",
+              "mandatory",
+              "closed_by",
+              "level_after_path"
+            ],
+            "type": "object"
+          },
+          "StepSkillOut": {
+            "properties": {
+              "course_from": {
+                "type": "integer"
+              },
+              "course_to": {
+                "type": "integer"
+              },
+              "skill": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "skill",
+              "course_from",
+              "course_to"
+            ],
+            "type": "object"
+          }
+        },
+        "properties": {
+          "current_role": {
+            "$ref": "#/$defs/RoleRef"
+          },
+          "current_skills": {
+            "items": {
+              "$ref": "#/$defs/CurrentSkillOut"
+            },
+            "type": "array"
+          },
+          "employee_id": {
+            "type": "string"
+          },
+          "employee_name": {
+            "type": "string"
+          },
+          "engine_version": {
+            "type": "string"
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExplanationOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "next_action": {
+            "type": "string"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "path": {
+            "items": {
+              "$ref": "#/$defs/PathStepOut"
+            },
+            "type": "array"
+          },
+          "progress": {
+            "$ref": "#/$defs/ProgressOut"
+          },
+          "skill_gaps": {
+            "items": {
+              "$ref": "#/$defs/SkillGapPlanOut"
+            },
+            "type": "array"
+          },
+          "target_role": {
+            "$ref": "#/$defs/RoleRef"
+          },
+          "target_source": {
+            "type": "string"
+          },
+          "uncovered_skills": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "employee_id",
+          "employee_name",
+          "current_role",
+          "target_role",
+          "target_source",
+          "current_skills",
+          "skill_gaps",
+          "path",
+          "progress",
+          "next_action",
+          "uncovered_skills",
+          "notes",
+          "engine_version"
+        ],
+        "type": "object"
+      }
+    },
+    "GET /api/v1/rag/documents": {
+      "api": "-",
+      "parameters": [],
+      "request": null,
+      "response": {
+        "$defs": {
+          "DocumentOut": {
+            "properties": {
+              "chunks": {
+                "type": "integer"
+              },
+              "origin": {
+                "type": "string"
+              },
+              "pages": {
+                "type": "integer"
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "source",
+              "title",
+              "origin",
+              "pages",
+              "chunks",
+              "sha256"
+            ],
+            "type": "object"
+          }
+        },
+        "properties": {
+          "backend": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "built_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "chunk_count": {
+            "default": 0,
+            "type": "integer"
+          },
+          "documents": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/DocumentOut"
+            },
+            "type": "array"
+          },
+          "embedder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "embedding_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "tenant": {
+            "type": "string"
+          },
+          "warnings": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "ready",
+          "tenant"
+        ],
+        "type": "object"
+      }
+    },
+    "POST /api/v1/ai/chat": {
+      "api": "5",
+      "parameters": [],
+      "request": {
+        "$defs": {
+          "ChatTurn": {
+            "properties": {
+              "content": {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              "role": {
+                "enum": [
+                  "user",
+                  "assistant"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "role",
+              "content"
+            ],
+            "type": "object"
+          }
+        },
+        "properties": {
+          "employee_id": {
+            "anyOf": [
+              {
+                "pattern": "^E\\d{4}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "history": {
+            "items": {
+              "$ref": "#/$defs/ChatTurn"
+            },
+            "maxItems": 20,
+            "type": "array"
+          },
+          "question": {
+            "maxLength": 1000,
+            "minLength": 2,
+            "type": "string"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "type": "object"
+      },
+      "response": {
+        "$defs": {
+          "SourceOut": {
+            "properties": {
+              "excerpt": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "page": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "score": {
+                "type": "number"
+              },
+              "section": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "label",
+              "source",
+              "title",
+              "section",
+              "page",
+              "score",
+              "excerpt"
+            ],
+            "type": "object"
+          }
+        },
+        "properties": {
+          "answer": {
+            "type": "string"
+          },
+          "duration_ms": {
+            "type": "integer"
+          },
+          "engine_version": {
+            "type": "string"
+          },
+          "facts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "grounding_warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "intents": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "is_fallback": {
+            "type": "boolean"
+          },
+          "model": {
+            "type": "string"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/$defs/SourceOut"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "question",
+          "answer",
+          "provider",
+          "model",
+          "is_fallback",
+          "intents",
+          "sources",
+          "facts",
+          "grounding_warnings",
+          "notes",
+          "duration_ms",
+          "engine_version"
+        ],
+        "type": "object"
+      }
+    },
+    "POST /api/v1/rag/ingest": {
+      "api": "7",
+      "parameters": [
+        {
+          "in": "form",
+          "name": "file",
+          "required": true
+        },
+        {
+          "in": "form",
+          "name": "overwrite",
+          "required": false
+        }
+      ],
+      "request": null,
+      "response": {
+        "$defs": {
+          "IndexSummaryOut": {
+            "properties": {
+              "backend": {
+                "type": "string"
+              },
+              "chunks": {
+                "type": "integer"
+              },
+              "documents": {
+                "type": "integer"
+              },
+              "embedder": {
+                "type": "string"
+              },
+              "embedding_model": {
+                "type": "string"
+              },
+              "seconds": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "documents",
+              "chunks",
+              "embedder",
+              "embedding_model",
+              "backend",
+              "seconds"
+            ],
+            "type": "object"
+          }
+        },
+        "properties": {
+          "chunks": {
+            "type": "integer"
+          },
+          "index": {
+            "$ref": "#/$defs/IndexSummaryOut"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "pages": {
+            "type": "integer"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "source",
+          "title",
+          "pages",
+          "chunks",
+          "sha256",
+          "index",
+          "notes"
+        ],
+        "type": "object"
+      }
+    },
+    "POST /api/v1/roles/match": {
+      "api": "2",
+      "parameters": [],
+      "request": {
+        "$defs": {
+          "SkillLevelIn": {
+            "properties": {
+              "level": {
+                "maximum": 5,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "skill": {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "skill",
+              "level"
+            ],
+            "type": "object"
+          }
+        },
+        "properties": {
+          "current_skills": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/$defs/SkillLevelIn"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "employee_id": {
+            "pattern": "^E\\d{4}$",
+            "type": "string"
+          },
+          "role_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "target_role_id": {
+            "anyOf": [
+              {
+                "pattern": "^R\\d{3}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "top_n": {
+            "default": 5,
+            "maximum": 20,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "employee_id"
+        ],
+        "type": "object"
+      },
+      "response": {
+        "$defs": {
+          "RelatedRoleOut": {
+            "properties": {
+              "employee_match_percentage": {
+                "type": "number"
+              },
+              "role_id": {
+                "type": "string"
+              },
+              "shared_skills": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "similarity": {
+                "type": "number"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "role_id",
+              "title",
+              "similarity",
+              "shared_skills",
+              "employee_match_percentage"
+            ],
+            "type": "object"
+          },
+          "RoleMatchOut": {
+            "properties": {
+              "department": {
+                "type": "string"
+              },
+              "explanation": {
+                "type": "string"
+              },
+              "gap_score": {
+                "type": "number"
+              },
+              "is_career_goal": {
+                "type": "boolean"
+              },
+              "is_current_role": {
+                "type": "boolean"
+              },
+              "mandatory_gaps": {
+                "type": "integer"
+              },
+              "match_percentage": {
+                "type": "number"
+              },
+              "matching_skills": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "missing_skills": {
+                "items": {
+                  "$ref": "#/$defs/SkillShortfall"
+                },
+                "type": "array"
+              },
+              "needs_improvement": {
+                "items": {
+                  "$ref": "#/$defs/SkillShortfall"
+                },
+                "type": "array"
+              },
+              "rank": {
+                "type": "integer"
+              },
+              "readiness": {
+                "type": "string"
+              },
+              "role_id": {
+                "type": "string"
+              },
+              "seniority": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "rank",
+              "role_id",
+              "title",
+              "department",
+              "seniority",
+              "match_percentage",
+              "gap_score",
+              "readiness",
+              "is_current_role",
+              "is_career_goal",
+              "matching_skills",
+              "needs_improvement",
+              "missing_skills",
+              "mandatory_gaps",
+              "explanation"
+            ],
+            "type": "object"
+          },
+          "RoleRef": {
+            "properties": {
+              "role_id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "role_id",
+              "title"
+            ],
+            "type": "object"
+          },
+          "SkillShortfall": {
+            "properties": {
+              "current_level": {
+                "type": "integer"
+              },
+              "mandatory": {
+                "type": "boolean"
+              },
+              "required_level": {
+                "type": "integer"
+              },
+              "skill": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "skill",
+              "current_level",
+              "required_level",
+              "mandatory"
+            ],
+            "type": "object"
+          }
+        },
+        "properties": {
+          "career_goal": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RoleRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "current_role": {
+            "$ref": "#/$defs/RoleRef"
+          },
+          "employee_id": {
+            "type": "string"
+          },
+          "employee_name": {
+            "type": "string"
+          },
+          "engine_version": {
+            "type": "string"
+          },
+          "matches": {
+            "items": {
+              "$ref": "#/$defs/RoleMatchOut"
+            },
+            "type": "array"
+          },
+          "overrides_applied": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "related_roles": {
+            "items": {
+              "$ref": "#/$defs/RelatedRoleOut"
+            },
+            "type": "array"
+          },
+          "related_to": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RoleRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "roles_considered": {
+            "type": "integer"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RoleMatchOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "employee_id",
+          "employee_name",
+          "current_role",
+          "career_goal",
+          "roles_considered",
+          "matches",
+          "target",
+          "related_to",
+          "related_roles",
+          "summary",
+          "overrides_applied",
+          "engine_version"
+        ],
+        "type": "object"
+      }
+    },
+    "POST /api/v1/skills/analyze": {
+      "api": "1",
+      "parameters": [],
+      "request": {
+        "$defs": {
+          "SkillLevelIn": {
+            "properties": {
+              "level": {
+                "maximum": 5,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "skill": {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "skill",
+              "level"
+            ],
+            "type": "object"
+          }
+        },
+        "properties": {
+          "current_skills": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/$defs/SkillLevelIn"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "employee_id": {
+            "pattern": "^E\\d{4}$",
+            "type": "string"
+          },
+          "target_role_id": {
+            "anyOf": [
+              {
+                "pattern": "^R\\d{3}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "employee_id"
+        ],
+        "type": "object"
+      },
+      "response": {
+        "$defs": {
+          "ProfileSkillOut": {
+            "properties": {
+              "level": {
+                "type": "integer"
+              },
+              "required_for_target": {
+                "type": "boolean"
+              },
+              "skill": {
+                "type": "string"
+              },
+              "skill_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "skill_id",
+              "skill",
+              "level",
+              "required_for_target"
+            ],
+            "type": "object"
+          },
+          "RoleRef": {
+            "properties": {
+              "role_id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "role_id",
+              "title"
+            ],
+            "type": "object"
+          },
+          "SkillGapOut": {
+            "properties": {
+              "category": {
+                "type": "string"
+              },
+              "current_level": {
+                "type": "integer"
+              },
+              "gap": {
+                "type": "integer"
+              },
+              "mandatory": {
+                "type": "boolean"
+              },
+              "required_level": {
+                "type": "integer"
+              },
+              "skill": {
+                "type": "string"
+              },
+              "skill_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "skill_id",
+              "skill",
+              "category",
+              "current_level",
+              "required_level",
+              "gap",
+              "mandatory",
+              "status"
+            ],
+            "type": "object"
+          }
+        },
+        "properties": {
+          "current_role": {
+            "$ref": "#/$defs/RoleRef"
+          },
+          "employee_id": {
+            "type": "string"
+          },
+          "employee_name": {
+            "type": "string"
+          },
+          "engine_version": {
+            "type": "string"
+          },
+          "gap_score": {
+            "type": "number"
+          },
+          "mandatory_gaps": {
+            "type": "integer"
+          },
+          "match_percentage": {
+            "type": "number"
+          },
+          "missing_skills": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "overrides_applied": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "role_ready": {
+            "type": "boolean"
+          },
+          "skill_profile": {
+            "items": {
+              "$ref": "#/$defs/ProfileSkillOut"
+            },
+            "type": "array"
+          },
+          "skills": {
+            "items": {
+              "$ref": "#/$defs/SkillGapOut"
+            },
+            "type": "array"
+          },
+          "suggestions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "target_role": {
+            "$ref": "#/$defs/RoleRef"
+          },
+          "target_source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "employee_id",
+          "employee_name",
+          "current_role",
+          "target_role",
+          "target_source",
+          "skills",
+          "skill_profile",
+          "missing_skills",
+          "gap_score",
+          "match_percentage",
+          "mandatory_gaps",
+          "role_ready",
+          "suggestions",
+          "summary",
+          "overrides_applied",
+          "engine_version"
+        ],
+        "type": "object"
+      }
+    },
+    "POST /api/v1/trainings/recommend": {
+      "api": "3",
+      "parameters": [],
+      "request": {
+        "properties": {
+          "employee_id": {
+            "pattern": "^E\\d{4}$",
+            "type": "string"
+          },
+          "include_enrolled": {
+            "default": true,
+            "type": "boolean"
+          },
+          "max_results": {
+            "default": 10,
+            "maximum": 30,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "skills": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "target_role_id": {
+            "anyOf": [
+              {
+                "pattern": "^R\\d{3}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "employee_id"
+        ],
+        "type": "object"
+      },
+      "response": {
+        "$defs": {
+          "PrerequisiteOut": {
+            "properties": {
+              "course_id": {
+                "type": "string"
+              },
+              "how": {
+                "type": "string"
+              },
+              "satisfied": {
+                "type": "boolean"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "course_id",
+              "title",
+              "satisfied",
+              "how"
+            ],
+            "type": "object"
+          },
+          "RecommendationOut": {
+            "properties": {
+              "addresses_mandatory_gap": {
+                "type": "boolean"
+              },
+              "components": {
+                "$ref": "#/$defs/ScoreComponents"
+              },
+              "course_id": {
+                "type": "string"
+              },
+              "delivery_mode": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "difficulty": {
+                "type": "string"
+              },
+              "duration_hours": {
+                "type": "integer"
+              },
+              "enrollment_status": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "prerequisites": {
+                "items": {
+                  "$ref": "#/$defs/PrerequisiteOut"
+                },
+                "type": "array"
+              },
+              "provider": {
+                "type": "string"
+              },
+              "rank": {
+                "type": "integer"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "score": {
+                "type": "number"
+              },
+              "skills_covered": {
+                "items": {
+                  "$ref": "#/$defs/SkillCoveredOut"
+                },
+                "type": "array"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "rank",
+              "course_id",
+              "title",
+              "description",
+              "difficulty",
+              "duration_hours",
+              "delivery_mode",
+              "provider",
+              "skills_covered",
+              "prerequisites",
+              "score",
+              "components",
+              "addresses_mandatory_gap",
+              "enrollment_status",
+              "reason"
+            ],
+            "type": "object"
+          },
+          "RoleRef": {
+            "properties": {
+              "role_id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "role_id",
+              "title"
+            ],
+            "type": "object"
+          },
+          "ScoreComponents": {
+            "properties": {
+              "completion_probability": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "gap_coverage": {
+                "type": "number"
+              },
+              "level_fit": {
+                "type": "number"
+              },
+              "prereq_ready": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "gap_coverage",
+              "level_fit",
+              "prereq_ready",
+              "completion_probability"
+            ],
+            "type": "object"
+          },
+          "SkillCoveredOut": {
+            "properties": {
+              "course_from": {
+                "type": "integer"
+              },
+              "course_to": {
+                "type": "integer"
+              },
+              "current_level": {
+                "type": "integer"
+              },
+              "gap": {
+                "type": "integer"
+              },
+              "gap_closed": {
+                "type": "integer"
+              },
+              "mandatory": {
+                "type": "boolean"
+              },
+              "required_level": {
+                "type": "integer"
+              },
+              "skill": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "skill",
+              "current_level",
+              "required_level",
+              "course_from",
+              "course_to",
+              "gap_closed",
+              "gap",
+              "mandatory"
+            ],
+            "type": "object"
+          }
+        },
+        "properties": {
+          "employee_id": {
+            "type": "string"
+          },
+          "employee_name": {
+            "type": "string"
+          },
+          "engine_version": {
+            "type": "string"
+          },
+          "gap_score": {
+            "type": "number"
+          },
+          "match_percentage": {
+            "type": "number"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "recommendations": {
+            "items": {
+              "$ref": "#/$defs/RecommendationOut"
+            },
+            "type": "array"
+          },
+          "skill_gaps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "target_role": {
+            "$ref": "#/$defs/RoleRef"
+          },
+          "target_source": {
+            "type": "string"
+          },
+          "uncovered_skills": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "weights_used": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "employee_id",
+          "employee_name",
+          "target_role",
+          "target_source",
+          "gap_score",
+          "match_percentage",
+          "skill_gaps",
+          "recommendations",
+          "uncovered_skills",
+          "weights_used",
+          "notes",
+          "engine_version"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "error": {
+    "$defs": {
+      "ErrorDetail": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "request_id"
+        ],
+        "type": "object"
+      }
+    },
+    "properties": {
+      "error": {
+        "$ref": "#/$defs/ErrorDetail"
+      }
+    },
+    "required": [
+      "error"
+    ],
+    "type": "object"
+  }
+}

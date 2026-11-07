@@ -23,3 +23,12 @@ testpaths = ["tests"]
 # Lets tests import the `app` package from the project root.
 pythonpath = ["."]
 addopts = "-ra"
+# Mark slow tests with @pytest.mark.slow; skip them with: pytest -m "not slow"
+markers = ["slow: takes several seconds (all-employee sweeps, model training)"]
+
+[tool.coverage.run]
+# Measure the application code only (not tests or scripts).
+source = ["app"]
+
+[tool.coverage.report]
+skip_empty = true

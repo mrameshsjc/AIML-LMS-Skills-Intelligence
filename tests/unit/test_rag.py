@@ -342,6 +342,7 @@ def _run(script: str, *args: str, store: Path) -> subprocess.CompletedProcess:
     )
 
 
+@pytest.mark.slow
 def test_build_and_search_scripts(tmp_path):
     built = _run("build_index.py", store=tmp_path)
     assert built.returncode == 0, built.stderr
@@ -351,6 +352,7 @@ def test_build_and_search_scripts(tmp_path):
     assert "1. score" in found.stdout and "mentoring_programme.docx" in found.stdout
 
 
+@pytest.mark.slow
 def test_search_script_without_an_index(tmp_path):
     result = _run("search_documents.py", "anything", store=tmp_path)
     assert result.returncode == 1 and "build_index.py" in result.stderr

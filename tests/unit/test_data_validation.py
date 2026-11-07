@@ -206,6 +206,7 @@ SCRIPTS = [
 ]
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("script", SCRIPTS)
 def test_script_passes_on_clean_data(script):
     result = subprocess.run(
@@ -214,6 +215,7 @@ def test_script_passes_on_clean_data(script):
     assert result.returncode == 0, result.stdout[-2000:] + result.stderr[-2000:]
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("script", SCRIPTS[2:])
 def test_validation_script_fails_on_dirty_data(script, dirty_folder):
     result = subprocess.run(

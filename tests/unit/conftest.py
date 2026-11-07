@@ -82,7 +82,8 @@ def fake_ollama():
     server = ThreadingHTTPServer(("127.0.0.1", 0), FakeOllama)
     server.models = ["llama3.2:3b", "nomic-embed-text:latest"]
     server.reply, server.delay, server.requests = "Hello from the fake model.", 0, []
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    # poll_interval: how often the server checks for shutdown (default 0.5 s would slow every test down)
+    thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True)
     thread.start()
     server.url = f"http://127.0.0.1:{server.server_address[1]}"
     yield server
