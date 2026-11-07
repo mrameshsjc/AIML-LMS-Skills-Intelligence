@@ -34,7 +34,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api.v1 import health, skills
+from app.api.v1 import health, roles, skills
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.core.logging_config import request_id_var, setup_logging
@@ -48,7 +48,7 @@ training recommendations, personalised learning paths and an LLM + RAG assistant
 | # | Endpoint | Status |
 | --- | --- | --- |
 | 1 | `POST /api/v1/skills/analyze` | **live** (Phase 5) |
-| 2 | `POST /api/v1/roles/match` | Phase 6 |
+| 2 | `POST /api/v1/roles/match` | **live** (Phase 6) |
 | 3 | `POST /api/v1/trainings/recommend` | Phase 7 |
 | 4 | `GET /api/v1/learning-path/{employee_id}` | Phase 10 |
 | 5 | `POST /api/v1/ai/chat` | Phase 13 |
@@ -175,6 +175,7 @@ def create_app() -> FastAPI:
     # ------------------------------------------------------------------
     app.include_router(health.router, prefix=settings.api_v1_prefix)
     app.include_router(skills.router, prefix=settings.api_v1_prefix)
+    app.include_router(roles.router, prefix=settings.api_v1_prefix)
 
     @app.get("/", include_in_schema=False)
     def root() -> dict:

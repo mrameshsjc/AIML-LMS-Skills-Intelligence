@@ -6,7 +6,7 @@ The engine exposes seven business endpoints under `/api/v1`. They are stable con
 | --- | --- | --- |
 | – | `GET /api/v1/health` | Live (Phase 1) |
 | 1 | `POST /api/v1/skills/analyze` | **Live (Phase 5)** |
-| 2 | `POST /api/v1/roles/match` | Phase 6 |
+| 2 | `POST /api/v1/roles/match` | **Live (Phase 6)** |
 | 3 | `POST /api/v1/trainings/recommend` | Phase 7 |
 | 4 | `GET /api/v1/learning-path/{employee_id}` | Phase 10 |
 | 5 | `POST /api/v1/ai/chat` | Phase 13 |
@@ -30,6 +30,7 @@ Every error has the same shape, so a client needs only one piece of error-handli
 | 404 | `EMPLOYEE_NOT_FOUND`, `ROLE_NOT_FOUND`, `NOT_FOUND` | An ID in the request, or the URL, does not exist |
 | 422 | `VALIDATION_ERROR` | A field has the wrong format. `details` lists every bad field |
 | 422 | `UNKNOWN_SKILL`, `INVALID_LEVEL` | A what-if skill does not exist, or a level is outside 0–5 |
+| 422 | `INVALID_ROLE_ID` | An entry in `role_ids` is not like `R004` |
 | 500 | `INTERNAL_ERROR` | Unexpected. The details are in the server log, findable by `request_id` |
 
 Every response carries an `X-Request-ID` header. Send your own `X-Request-ID` (as the LMS will later) and it is reused, so one ID follows a request across systems.
@@ -123,4 +124,74 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/skills/analyze 
 ```
 
 ### How it works inside
-`app/api/v1/skills.py` (HTTP only) → `SkillAnalysisService.analyze()` in `app/services/skill_analysis.py` (the logic) → `LmsRepository` (data). Today the repository is `CsvLmsRepository`, reading the folder named by `DATA_DIR`, which defaults to `data/sample`. The pure function `compute_gaps()` is reused by role matching in Phase 6.
+`app/api/v1/skills.py` (HTTP only) → `SkillAnalysisService.analyze()` in `app/services/skill_analysis.py` (the logic) → `LmsRepository` (data). Today the repository is `CsvLmsRepository`, reading the folder named by `DATA_DIR`, which defaults to `data/sample`. The pure function `compute_gaps()` is shared with API 2, so both APIs always give the same numbers.
+
+## API 2 – Job role matching
+
+`POST /api/v1/roles/match`
+
+Scores an employee against every job role (or a chosen list), ranks them, explains each match, and suggests related roles.
+
+### Request
+
+| Field | Type | Required | Rules |
+| --- | --- | --- | --- |
+| `employee_id` | text | yes | `E` + 4 digits |
+| `role_ids` | list | no | Compare only these roles, e.g. `["R002", "R004"]`. Default: all 13 roles. Repeats are ignored |
+| `target_role_id` | text | no | A role of special interest. It is always returned in `target`, even outside the top N, and related roles are found for it. Default: the employee's career goal |
+| `top_n` | number | no | How many ranked roles to return, 1–20. Default 5 |
+| `current_skills` | list | no | What-if levels, exactly as in API 1 |
+
+```json
+{"employee_id": "E1001"}
+```
+
+### Response (200)
+
+| Field | Meaning |
+| --- | --- |
+| `matches` | The top N roles, best first. Each has `rank`, `match_percentage`, `gap_score`, `readiness`, `is_current_role`, `is_career_goal`, `matching_skills`, `needs_improvement` and `missing_skills` (each with current and required level), `mandatory_gaps` and `explanation` |
+| `target` | The target role's result, with its `rank` among all compared roles (0 = not among them) |
+| `related_to`, `related_roles` | Roles whose required skills are most similar to the target, or to the best non-current role if there is no target. Each has `similarity` (0–1), `shared_skills` and `employee_match_percentage` |
+| `career_goal`, `current_role`, `roles_considered`, `summary`, `overrides_applied`, `engine_version` | As named |
+
+**Ranking:** highest `match_percentage` first. Ties go to fewer mandatory gaps, then alphabetical order.
+
+**Readiness:**
+
+| Label | Match % |
+| --- | --- |
+| Ready | 100 |
+| Close | 80–99 |
+| Developing | 50–79 |
+| Early | below 50 |
+
+The match percentage is computed with the same formula and code as API 1, so `/roles/match` and `/skills/analyze` always agree.
+
+### Example (E1001)
+
+| Rank | Role | Match | Readiness | Note |
+| --- | --- | --- | --- | --- |
+| 1 | Software Developer | 100% | Ready | current role |
+| 2 | QA Engineer | 62.5% | Developing | 2 mandatory gaps |
+| 3 | Data Engineer | 62.5% | Developing | career goal, 3 mandatory gaps |
+| 4 | Senior Software Developer | 50% | Developing | |
+| 5 | Machine Learning Engineer | 43.5% | Early | |
+
+Summary: *"Arjun Krishnan's best match is Software Developer (current role) at 100%. Best other role: QA Engineer at 62.5% (Developing). Target Data Engineer: 62.5% (Developing, rank 3 of 13)."*
+
+Related to Data Engineer:
+
+| Role | Similarity | Shared skills | E1001's match |
+| --- | --- | --- | --- |
+| Machine Learning Engineer | 0.72 | Python, SQL, AWS, Docker, Machine Learning | 43.5% |
+| Data Scientist | 0.39 | Python, SQL, Machine Learning | 30.4% |
+| Senior Software Developer | 0.36 | Python, SQL, Docker | 50% |
+
+How the similarity is computed is explained in [`ML_MODEL_GUIDE.md`](ML_MODEL_GUIDE.md).
+
+### Try it from PowerShell
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/roles/match `
+  -ContentType "application/json" -Body '{"employee_id": "E1001", "top_n": 3}'
+```
