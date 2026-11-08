@@ -130,7 +130,6 @@ class Settings(BaseSettings):
     mlflow_tracking_uri: str = ""
     mlflow_experiment: str = "completion-model"
 
-<<<<<<< HEAD
     # --- Security (Phase 17) --------------------------------------------------------
     # Login with roles. Off for local development; REQUIRED (enforced at start-up) when
     # APP_PROFILE=public-demo or APP_ENV=production.
@@ -147,8 +146,6 @@ class Settings(BaseSettings):
     cors_origins: str = ""
     block_prompt_injection: bool = True  # refuse questions/uploads that try to override the assistant's rules
 
-=======
->>>>>>> 3b18c7963333b5c28c29ad72afd8a9d2c7e5e314
     # --- Database (Phase 9) -------------------------------------------------
     # SQLite is a single file and needs no server, which is ideal for the
     # first local version. MySQL (e.g. mysql+pymysql://user:password@host/lms_ai)

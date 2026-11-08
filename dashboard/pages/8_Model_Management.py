@@ -36,15 +36,11 @@ def retrain_button(label: str) -> None:
         with st.spinner(
             "Validating data, comparing algorithms, training, evaluating, applying the quality gate ..."
         ):
-<<<<<<< HEAD
             user = ui.current_user()
             who = user.username if user and user.authenticated else "dashboard admin"
             report = ui.safe(get_retraining_service().retrain, who, reason)
         if report is not None:
             ui.audit("retrain", status=report.status, new_version=report.new_version)
-=======
-            report = ui.safe(get_retraining_service().retrain, "dashboard admin", reason)
->>>>>>> 3b18c7963333b5c28c29ad72afd8a9d2c7e5e314
         if report is None:
             return
         if report.status == PROMOTED:

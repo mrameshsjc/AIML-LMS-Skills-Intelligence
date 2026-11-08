@@ -9,20 +9,12 @@ How the engine is tested, what each kind of test proves, and how to run them. Al
             │  smoke test (running) │  scripts/api_smoke_test.py     a deployed server, real HTTP
             ├───────────────────────┤
             │  integration  (26)    │  tests/integration/            the APIs together, contracts
-<<<<<<< HEAD
             │  dashboard  (20)      │  tests/dashboard/              each Streamlit page (AppTest)
             ├───────────────────────┤
             │  API  (99)            │  tests/api/                    each endpoint through FastAPI
             ├───────────────────────┤
             │  unit  (344)          │  tests/unit/                   functions and services alone
             │  security  (64)       │  tests/security/               login, access rules, limits, injection
-=======
-            │  dashboard  (16)      │  tests/dashboard/              each Streamlit page (AppTest)
-            ├───────────────────────┤
-            │  API  (79)            │  tests/api/                    each endpoint through FastAPI
-            ├───────────────────────┤
-            │  unit  (344)          │  tests/unit/                   functions and services alone
->>>>>>> 3b18c7963333b5c28c29ad72afd8a9d2c7e5e314
             └───────────────────────┘
 ```
 
@@ -40,11 +32,7 @@ Many fast tests at the bottom, fewer and broader ones at the top. A failing unit
 ## 2. Running the tests
 
 ```powershell
-<<<<<<< HEAD
 pytest                              # everything: about 553 tests
-=======
-pytest                              # everything: about 465 tests
->>>>>>> 3b18c7963333b5c28c29ad72afd8a9d2c7e5e314
 pytest -m "not slow"                # quick run while coding (skips the ~26 tests that start scripts or train models)
 pytest tests/unit/test_chat.py -v   # one file, with each test's name
 pytest -k "learning_path"           # tests whose name contains the text

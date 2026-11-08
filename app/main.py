@@ -43,11 +43,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-<<<<<<< HEAD
 from app.api.v1 import ai_chat, auth, health, learning_path, ml_training, rag, roles, skills, trainings
-=======
-from app.api.v1 import ai_chat, health, learning_path, ml_training, rag, roles, skills, trainings
->>>>>>> 3b18c7963333b5c28c29ad72afd8a9d2c7e5e314
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.core.logging_config import request_id_var, setup_logging
@@ -67,16 +63,11 @@ training recommendations, personalised learning paths and an LLM + RAG assistant
 | 3 | `POST /api/v1/trainings/recommend` | **live** (Phase 7) |
 | 4 | `GET /api/v1/learning-path/{employee_id}` | **live** (Phase 10) |
 | 5 | `POST /api/v1/ai/chat` | **live** (Phase 13) |
-<<<<<<< HEAD
 | 6 | `POST /api/v1/ml/retrain` | **live** (Phase 16, administrators only) |
 | 7 | `POST /api/v1/rag/ingest` | **live** (Phase 13, administrators only) |
 
 **Login (Phase 17):** when the server runs with `AUTH_ENABLED=true`, use the **Authorize** button
 (or `POST /api/v1/auth/token`). Employees see only their own data, managers their team, admins everyone.
-=======
-| 6 | `POST /api/v1/ml/retrain` | **live** (Phase 16, admin key) |
-| 7 | `POST /api/v1/rag/ingest` | **live** (Phase 13) |
->>>>>>> 3b18c7963333b5c28c29ad72afd8a9d2c7e5e314
 
 All data is synthetic. Try `POST /api/v1/skills/analyze` with
 `{"employee_id": "E1001", "target_role_id": "R004"}`.
@@ -268,7 +259,6 @@ def create_app() -> FastAPI:
     app.include_router(ai_chat.router, prefix=settings.api_v1_prefix)
     app.include_router(rag.router, prefix=settings.api_v1_prefix)
     app.include_router(ml_training.router, prefix=settings.api_v1_prefix)
-<<<<<<< HEAD
 
     # CORS: which OTHER websites may call this API from a browser. None by default; the LMS
     # front end's address goes in CORS_ORIGINS (comma-separated) in the integration project.
@@ -281,8 +271,6 @@ def create_app() -> FastAPI:
             allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-Admin-Key"],
             expose_headers=["X-Request-ID", "Retry-After"],
         )
-=======
->>>>>>> 3b18c7963333b5c28c29ad72afd8a9d2c7e5e314
 
     @app.get("/", include_in_schema=False)
     def root() -> dict:
