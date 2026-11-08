@@ -109,3 +109,9 @@ def test_dependabot_watches_python_docker_and_actions():
     ecosystems = {u["package-ecosystem"] for u in DEPENDABOT["updates"]}
     assert ecosystems == {"pip", "docker", "github-actions"}
     assert all(u["target-branch"] == "development" for u in DEPENDABOT["updates"])
+
+
+def test_the_admin_key_is_not_printed_in_the_log():
+    for stage in ("stage('10. Development deployment')", "stage('11. Smoke test')"):
+        block = JENKINSFILE.split(stage)[1].split("stage('")[0]
+        assert "set +x" in block, stage

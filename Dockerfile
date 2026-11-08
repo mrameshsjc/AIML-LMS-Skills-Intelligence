@@ -18,14 +18,16 @@
 #     .dockerignore and arrive as environment variables at run time.
 #   - Works with a read-only root filesystem (compose.yaml: read_only: true).
 #
-# WHY python:3.11-slim-bookworm
+# WHY python:3.11-slim-trixie
 #   The same Python version as CI; "slim" is a small Debian image that works
-#   with ML wheels (numpy, faiss, scikit-learn), unlike Alpine. The tag is
-#   fixed to a Debian release (bookworm) so a rebuild does not silently switch
-#   operating system. For fully repeatable builds pin the digest as well:
-#   docker build --build-arg PYTHON_IMAGE=python:3.11-slim-bookworm@sha256:<digest> .
+#   with ML wheels (numpy, faiss, scikit-learn), unlike Alpine (no FAISS wheels
+#   for it). The tag is fixed to a Debian release so a rebuild does not silently
+#   switch operating system. Debian 13 "trixie" replaced 12 "bookworm" in Phase 21:
+#   Snyk's container scan found a critical and several high findings in bookworm's
+#   system packages, and recommended trixie. For fully repeatable builds pin the digest:
+#   docker build --build-arg PYTHON_IMAGE=python:3.11-slim-trixie@sha256:<digest> .
 
-ARG PYTHON_IMAGE=python:3.11-slim-bookworm
+ARG PYTHON_IMAGE=python:3.11-slim-trixie
 
 # ---------- Stage 1: install the Python libraries --------------------------------------------------
 FROM ${PYTHON_IMAGE} AS builder
@@ -61,6 +63,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
     HOME=/home/appuser
+
+# Security fixes Debian published after the base image was built (Phase 21, Snyk).
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 
 # The user the app runs as: fixed IDs, no login shell.
 RUN groupadd --gid ${APP_UID} appuser \

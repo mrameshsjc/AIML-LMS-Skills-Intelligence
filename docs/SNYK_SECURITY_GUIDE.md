@@ -66,6 +66,17 @@ Run the dependency scan with the project's virtual environment active, so Snyk s
 
 **What "reachable" means here:** optional packages (MLflow, FAISS) are used only by admin-only retraining or are switched off in the public demo. That lowers the risk; it doesn't remove it. Prefer fixing.
 
+## 5b. First scan of this project (November 2026)
+
+The first Jenkins build ran all 11 stages; the smoke test passed 16/16, and the build was **UNSTABLE** because of the container scan:
+
+| Finding | Where | Action taken |
+| --- | --- | --- |
+| 1 critical (`zlib`), several high (`sqlite3`, …) | System packages of the base image `python:3.11-slim-bookworm` (Debian 12) | Base image changed to `python:3.11-slim-trixie` (Debian 13, Snyk's recommendation) and `apt-get upgrade` added to the image build |
+| None | Python packages inside the image | – |
+
+Re-run the pipeline after such a change. Findings that remain and have **no fix in Debian yet** are accepted in `.snyk` with a reason and an expiry (section 5), and reviewed at the next phase.
+
 ## 6. Dependabot: updates before they become findings
 
 `.github/dependabot.yml` makes GitHub open pull requests into `development` every week: one grouped pull request for minor and patch updates of Python packages, and separate ones for the Docker base image and GitHub Actions. Each runs the full CI; merge it when green. GitHub's own **Dependabot alerts** (repository *Settings → Code security*) can be switched on too. They're free and work with Snyk.
