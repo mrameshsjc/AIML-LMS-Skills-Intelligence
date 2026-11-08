@@ -7,16 +7,23 @@ PURPOSE
     data, train, evaluate, compare with the current model, apply the quality
     gate, register the version (and in MLflow), and promote it only if approved.
 
+<<<<<<< HEAD
 ADMIN ONLY (app/api/dependencies.py: require_admin)
     Either log in as an administrator (Authorization: Bearer <token>, Phase 17)
     or send the administrator key:  X-Admin-Key: <ADMIN_API_KEY from .env>.
     With login switched off and no ADMIN_API_KEY, retraining is switched off (403).
     At most RATE_LIMIT_ADMIN_PER_HOUR admin requests per hour and IP address.
+=======
+ADMIN ONLY
+    Send the administrator key:  X-Admin-Key: <ADMIN_API_KEY from .env>
+    Without ADMIN_API_KEY set on the server, retraining is switched off (403).
+>>>>>>> 3b18c7963333b5c28c29ad72afd8a9d2c7e5e314
 
 AFTER A PROMOTION
     The API loads the new model at once (the cached model is cleared): no restart.
 
 ERRORS (shared format)
+<<<<<<< HEAD
     401 ADMIN_AUTH_REQUIRED      403 ADMIN_ACTIONS_DISABLED / ADMIN_ONLY
     409 RETRAINING_IN_PROGRESS   422 VALIDATION_ERROR      429 RATE_LIMITED
 """
@@ -29,6 +36,23 @@ from app.ml.model_registry import current_version, list_cards
 from app.ml.retraining import PROMOTED, RetrainReport, read_history
 from app.ml.tracking import default_tracking_uri, mlflow_installed
 from app.schemas.common import ADMIN_RESPONSES, ErrorResponse
+=======
+    401 ADMIN_AUTH_REQUIRED      403 ADMIN_ACTIONS_DISABLED
+    409 RETRAINING_IN_PROGRESS   422 VALIDATION_ERROR
+"""
+
+from typing import Annotated
+
+from fastapi import APIRouter, Header
+
+from app.api.dependencies import RetrainingServiceDep, get_completion_predictor
+from app.core.config import get_settings
+from app.core.security import check_admin_key
+from app.ml.model_registry import current_version, list_cards
+from app.ml.retraining import PROMOTED, RetrainReport, read_history
+from app.ml.tracking import default_tracking_uri, mlflow_installed
+from app.schemas.common import ErrorResponse
+>>>>>>> 3b18c7963333b5c28c29ad72afd8a9d2c7e5e314
 from app.schemas.ml import (
     DataValidationOut,
     GateCheckOut,
@@ -74,18 +98,35 @@ def to_response(r: RetrainReport) -> RetrainResponse:
         "best on unseen test rows. Compares it with the **current** model on the same rows and applies "
         "the **quality gate** (minimum ROC AUC, better than chance, no regression). Every run saves a "
         "new version; only an approved one becomes current. Runs are logged to MLflow when installed.\n\n"
+<<<<<<< HEAD
         "Administrators only: an admin login (Bearer token) or the header **X-Admin-Key**."
     ),
     responses={
         **ADMIN_RESPONSES,
+=======
+        "Requires the header **X-Admin-Key**."
+    ),
+    responses={
+        401: {"model": ErrorResponse, "description": "Missing or wrong administrator key"},
+        403: {
+            "model": ErrorResponse,
+            "description": "Admin actions switched off (no ADMIN_API_KEY)",
+        },
+>>>>>>> 3b18c7963333b5c28c29ad72afd8a9d2c7e5e314
         409: {"model": ErrorResponse, "description": "Another retraining run is in progress"},
     },
 )
 def retrain(
     request: RetrainRequest,
     service: RetrainingServiceDep,
+<<<<<<< HEAD
     who: AdminDep,
 ) -> RetrainResponse:
+=======
+    x_admin_key: Annotated[str | None, Header(description="The administrator key (ADMIN_API_KEY).")] = None,
+) -> RetrainResponse:
+    who = check_admin_key(x_admin_key, get_settings().admin_api_key.get_secret_value())
+>>>>>>> 3b18c7963333b5c28c29ad72afd8a9d2c7e5e314
     report = service.retrain(requested_by=who, reason=request.reason, promote=request.promote)
     if report.status == PROMOTED:
         get_completion_predictor.cache_clear()  # API 3 uses the new model from the next request
@@ -127,5 +168,9 @@ def model_status() -> ModelStatusResponse:
             "installed": mlflow_installed(),
             "tracking_uri": settings.mlflow_tracking_uri or default_tracking_uri(),
         },
+<<<<<<< HEAD
         admin_actions_enabled=bool(settings.admin_api_key.get_secret_value()) or settings.auth_enabled,
+=======
+        admin_actions_enabled=bool(settings.admin_api_key.get_secret_value()),
+>>>>>>> 3b18c7963333b5c28c29ad72afd8a9d2c7e5e314
     )

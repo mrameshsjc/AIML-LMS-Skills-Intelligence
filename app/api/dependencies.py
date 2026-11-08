@@ -209,6 +209,7 @@ def get_retraining_service() -> RetrainingService:
 
 
 RetrainingServiceDep = Annotated[RetrainingService, Depends(get_retraining_service)]
+<<<<<<< HEAD
 
 
 # --- Security (Phase 17) ---------------------------------------------------------------------------
@@ -297,3 +298,5 @@ def limit_chat(request: Request, principal: CurrentUserDep) -> None:
 
 
 ChatLimitDep = Annotated[None, Depends(limit_chat)]
+=======
+>>>>>>> 3b18c7963333b5c28c29ad72afd8a9d2c7e5e314

@@ -965,6 +965,7 @@
         "type": "object"
       }
     },
+<<<<<<< HEAD
     "POST /api/v1/auth/token": {
       "api": "-",
       "parameters": [
@@ -1021,6 +1022,8 @@
         "type": "object"
       }
     },
+=======
+>>>>>>> 3b18c7963333b5c28c29ad72afd8a9d2c7e5e314
     "POST /api/v1/ml/retrain": {
       "api": "6",
       "parameters": [

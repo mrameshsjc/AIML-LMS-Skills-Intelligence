@@ -82,7 +82,11 @@ ENDPOINTS: list[tuple[str, str, str, type[BaseModel] | None, type[BaseModel], li
         "/api/v1/ml/retrain",
         RetrainRequest,
         RetrainResponse,
+<<<<<<< HEAD
         [ADMIN_KEY],
+=======
+        [{"name": "x-admin-key", "in": "header", "required": False}],
+>>>>>>> 3b18c7963333b5c28c29ad72afd8a9d2c7e5e314
     ),
     ("-", "GET", "/api/v1/ml/status", None, ModelStatusResponse, []),
     (
