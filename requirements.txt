@@ -34,3 +34,6 @@ streamlit>=1.55,<2.0          # the web dashboard (streamlit run dashboard/Home.
 
 # Phase 16: experiment tracking and model registry for retraining (API 6)
 mlflow>=3.0,<4.0              # optional at runtime: without it, retraining works and simply is not tracked
+
+# Phase 17: security
+pyjwt>=2.8,<3.0               # signed access tokens (JWT) for login; passwords use the built-in hashlib (PBKDF2)

@@ -38,7 +38,7 @@ COPY .streamlit ./.streamlit
 # Run as a normal user, not root: if the app were ever compromised, the
 # attacker would have far fewer permissions inside the container.
 RUN useradd --create-home appuser \
-    && mkdir -p /app/data /app/vector_store /app/models \
+    && mkdir -p /app/data /app/vector_store /app/models /app/logs /app/data/accounts \
     && chown -R appuser:appuser /app
 USER appuser
 

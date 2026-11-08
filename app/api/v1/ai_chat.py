@@ -14,10 +14,11 @@ ERRORS (shared format)
 
 from fastapi import APIRouter
 
-from app.api.dependencies import ChatServiceDep
+from app.api.dependencies import ChatLimitDep, ChatServiceDep, CurrentUserDep, RepositoryDep
 from app.core.config import get_settings
 from app.schemas.chat import ChatRequest, ChatResponse, SourceOut
-from app.schemas.common import ErrorResponse
+from app.schemas.common import AUTH_RESPONSES, ErrorResponse
+from app.security.access import authorize_employee
 from app.services.chat_service import ChatAnswer
 
 router = APIRouter(prefix="/ai", tags=["5. AI Assistant"])
@@ -63,11 +64,21 @@ def to_response(a: ChatAnswer) -> ChatResponse:
         "Without a running language model, a labelled fallback lists the facts and passages."
     ),
     responses={
+        **AUTH_RESPONSES,
         404: {"model": ErrorResponse, "description": "Employee or role not found"},
         422: {"model": ErrorResponse, "description": "Invalid request"},
         503: {"model": ErrorResponse, "description": "LLM unavailable (LLM_PROVIDER=ollama)"},
     },
 )
-def chat(request: ChatRequest, service: ChatServiceDep) -> ChatResponse:
+def chat(
+    request: ChatRequest,
+    service: ChatServiceDep,
+    principal: CurrentUserDep,
+    repository: RepositoryDep,
+    _: ChatLimitDep,
+) -> ChatResponse:
+    # A logged-in employee asking about "my gaps" means themselves, even without employee_id.
+    employee_id = request.employee_id or (principal.employee_id if principal.authenticated else None)
+    authorize_employee(principal, employee_id, repository)  # Phase 17: own / team data only
     history = [(turn.role, turn.content) for turn in request.history]
-    return to_response(service.ask(request.question, request.employee_id, history))
+    return to_response(service.ask(request.question, employee_id, history))

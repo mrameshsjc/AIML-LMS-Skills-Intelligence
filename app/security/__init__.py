@@ -1,1 +1,1 @@
-"""Authentication, roles, rate limiting and audit log (Phase 17)."""
+"""Security (Phase 17): users, passwords, tokens, access rules, rate limits, audit log, injection checks."""

@@ -4,8 +4,9 @@ Administrator check for protected actions (Phase 16).
 WHY NOW
     API 6 retrains the model the whole engine relies on. The requirements say:
     "Protect this endpoint with administrator authentication. Do not allow
-    normal users to trigger retraining." Phase 17 adds full login with user
-    and admin roles; until then, an ADMINISTRATOR KEY protects admin actions.
+    normal users to trigger retraining." An ADMINISTRATOR KEY protects admin
+    actions for scripts and CI; Phase 17 adds admin LOGIN as the other way in
+    (both are checked in app/api/dependencies.py: require_admin).
 
 HOW
     The administrator sends the key in the header  X-Admin-Key: <key>.

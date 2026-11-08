@@ -20,6 +20,7 @@ ui.setup_page(
     "including references to the other files? Valid files can be saved to data/uploads.",
     icon="📤",
 )
+ui.admin_page()  # Phase 17: changing LMS data is for administrators
 
 uploaded = st.file_uploader("CSV file", type=["csv"], help="For example a new employee_skills.csv")
 dataset = st.selectbox("Dataset", ["Detect automatically", *SCHEMAS])

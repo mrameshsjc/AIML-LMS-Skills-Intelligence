@@ -12,13 +12,17 @@ WHY MULTIPART
     Files are sent as multipart/form-data, the standard way browsers and tools
     upload files (FastAPI needs the python-multipart package for it).
 
-SECURITY NOTE
-    Phase 17 restricts these endpoints to administrators. Until then they are
-    open, like every endpoint, and the API serves synthetic data only.
+SECURITY (Phase 17)
+    Uploading and deleting are for ADMINISTRATORS only: an admin login or the
+    X-Admin-Key header. Listing is open to every logged-in user. Uploads are
+    also checked for: content that does not match the extension (an .exe
+    renamed to .pdf), size, and text that tries to give the assistant orders
+    (prompt injection).
 
 ERRORS (shared format)
     404 DOCUMENT_NOT_FOUND             409 DOCUMENT_EXISTS / DUPLICATE_DOCUMENT / DOCUMENT_IS_APPROVED
     413 FILE_TOO_LARGE                 422 UNSUPPORTED_FILE_TYPE / EMPTY_FILE / INVALID_DOCUMENT
+    401 / 403 / 429 admin only         422 FILE_CONTENT_MISMATCH / INJECTION_SUSPECTED
     503 INDEX_BUILD_FAILED
 """
 
@@ -26,15 +30,16 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 
-from app.api.dependencies import IngestionServiceDep, get_index_manifest
+from app.api.dependencies import AdminDep, CurrentUserDep, IngestionServiceDep, get_index_manifest
 from app.core.config import get_settings
-from app.schemas.common import ErrorResponse
+from app.schemas.common import ADMIN_RESPONSES, AUTH_RESPONSES, ErrorResponse
 from app.schemas.rag import DocumentListResponse, DocumentOut, IndexSummaryOut, IngestResponse
 from app.services.ingestion_service import IngestResult
 
 router = APIRouter(prefix="/rag", tags=["7. Knowledge Documents"])
 
 ERRORS = {
+    **ADMIN_RESPONSES,
     404: {"model": ErrorResponse, "description": "Document not found"},
     409: {"model": ErrorResponse, "description": "Name exists, duplicate content, or an approved document"},
     413: {"model": ErrorResponse, "description": "File too large"},
@@ -70,12 +75,14 @@ def _out(r: IngestResult) -> IngestResponse:
     description=(
         "Extracts the text, checks it, stores the file in the uploads folder and rebuilds the index. "
         "Supported: .pdf, .docx, .txt, .csv, .md (up to RAG_MAX_UPLOAD_MB). Send **overwrite=true** to "
-        "replace an uploaded document with a new version. Identical content under another name is refused."
+        "replace an uploaded document with a new version. Identical content under another name is refused. "
+        "**Administrators only** (admin login or X-Admin-Key)."
     ),
     responses={k: v for k, v in ERRORS.items() if k != 404},
 )
 def ingest(
     service: IngestionServiceDep,
+    _: AdminDep,
     file: Annotated[UploadFile, File(description="The document to upload.")],
     overwrite: Annotated[bool, Form(description="Replace an uploaded document with the same name.")] = False,
 ) -> IngestResponse:
@@ -88,8 +95,11 @@ def ingest(
     response_model=DocumentListResponse,
     summary="List the documents in the knowledge index",
     description="Every indexed document with its origin (base or uploaded), pages, chunks and fingerprint.",
+    responses={401: AUTH_RESPONSES[401], 429: AUTH_RESPONSES[429]},
 )
-def list_documents(manifest: Annotated[dict | None, Depends(get_index_manifest)]) -> DocumentListResponse:
+def list_documents(
+    manifest: Annotated[dict | None, Depends(get_index_manifest)], _: CurrentUserDep
+) -> DocumentListResponse:
     tenant = get_settings().rag_tenant
     if manifest is None:
         return DocumentListResponse(ready=False, tenant=tenant)
@@ -121,7 +131,7 @@ def list_documents(manifest: Annotated[dict | None, Depends(get_index_manifest)]
     response_model=IngestResponse,
     summary="Delete an uploaded document",
     description="Removes an uploaded document and rebuilds the index. Base documents cannot be deleted.",
-    responses={k: v for k, v in ERRORS.items() if k in (404, 409, 503)},
+    responses={k: v for k, v in ERRORS.items() if k in (401, 403, 404, 409, 429, 503)},
 )
-def delete_document(source: str, service: IngestionServiceDep) -> IngestResponse:
+def delete_document(source: str, service: IngestionServiceDep, _: AdminDep) -> IngestResponse:
     return _out(service.delete(source))

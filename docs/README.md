@@ -16,6 +16,7 @@ Guides are added in the phase that needs them:
 | PUBLIC_DEPLOYMENT_GUIDE.md, DEMO_WALKTHROUGH.md | 19, 22 |
 | TESTING_GUIDE.md (**done**), api_contract.json (the saved API contract) | 14 |
 | DASHBOARD_GUIDE.md (**done**) | 15 |
+| SECURITY_GUIDE.md (**done**: login, roles, rate limits, audit log, prompt injection, uploads) | 17 |
 | TROUBLESHOOTING.md | grows every phase |
 
 For Phase 1, setup, Docker and CI/CD instructions are in the main README.md.

@@ -18,3 +18,16 @@ class ErrorResponse(BaseModel):
 class RoleRef(BaseModel):
     role_id: str = Field(examples=["R004"])
     title: str = Field(examples=["Data Engineer"])
+
+
+# Phase 17: the errors every protected endpoint can return, for the OpenAPI documentation.
+AUTH_RESPONSES: dict = {
+    401: {"model": ErrorResponse, "description": "Not logged in, or the token is not valid / expired"},
+    403: {"model": ErrorResponse, "description": "This account may not view this employee's data"},
+    429: {"model": ErrorResponse, "description": "Too many requests: wait (see Retry-After)"},
+}
+ADMIN_RESPONSES: dict = {
+    401: {"model": ErrorResponse, "description": "Administrator login or X-Admin-Key required"},
+    403: {"model": ErrorResponse, "description": "Not an administrator, or admin actions switched off"},
+    429: {"model": ErrorResponse, "description": "Too many admin requests: wait (see Retry-After)"},
+}

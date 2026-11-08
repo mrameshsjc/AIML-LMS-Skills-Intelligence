@@ -51,6 +51,7 @@ class Employee:
     department: str
     current_role_id: str
     location: str
+    manager_id: str | None = None  # Phase 17: used to give managers access to their team
 
     @property
     def full_name(self) -> str:

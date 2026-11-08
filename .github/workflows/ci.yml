@@ -53,7 +53,7 @@ jobs:
 
       - name: Start container and check health
         run: |
-          docker run -d --name api -p 8000:8000 aiml-lms-skills-intelligence:ci
+          docker run -d --name api -p 8000:8000 -e ADMIN_API_KEY=ci-test-key aiml-lms-skills-intelligence:ci
           for i in $(seq 1 20); do
             if curl -fsS http://127.0.0.1:8000/api/v1/health; then echo; echo "Health check passed"; exit 0; fi
             sleep 2
@@ -62,7 +62,7 @@ jobs:
 
       - name: Smoke test - every API over real HTTP (scripts/api_smoke_test.py)
         # Same script you can run on your PC. No Ollama in CI, so the LLM check is a WARN, not a failure.
-        run: python3 scripts/api_smoke_test.py --base-url http://127.0.0.1:8000 --wait 60
+        run: python3 scripts/api_smoke_test.py --base-url http://127.0.0.1:8000 --wait 60 --admin-key ci-test-key
 
       - name: Show container logs if anything failed
         if: failure()

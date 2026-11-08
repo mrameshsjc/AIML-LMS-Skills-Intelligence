@@ -5,7 +5,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | | |
 | --- | --- |
 | Project folder / Git repo | `AIML-LMS-Skills-Intelligence` |
-| Current phase | **Phase 16 – API 6: controlled retraining with MLflow** (Phases 1–15 on GitHub, CI green) |
+| Current phase | **Phase 17 – Security: login, roles, rate limits, audit log, prompt-injection protection** (Phases 1–16 on GitHub, CI green) |
 | Python | 3.11 |
 | LMS integration | Not in this project. The architecture is API-ready for it (later phase). |
 
@@ -13,7 +13,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 
 ---
 
-## 1. What is built so far (Phases 1–16)
+## 1. What is built so far (Phases 1–17)
 
 | Item | File(s) | Why it exists |
 | --- | --- | --- |
@@ -80,8 +80,13 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | **Phase 16:** API 6 | `POST /api/v1/ml/retrain` (admin key), `GET /api/v1/ml/status` | Validate → train → evaluate → compare with the current model → quality gate → register → promote only if approved |
 | **Phase 16:** MLflow + security | `app/ml/retraining.py`, `app/ml/tracking.py`, `app/core/security.py`, `scripts/retrain.py` | Runs, metrics and approved versions in MLflow (alias `champion`); `X-Admin-Key` protects admin actions |
 | **Phase 16:** tests + docs | `tests/unit/test_retraining.py`, `tests/api/test_ml_api.py`, ML guide section 7 | 15 + 6 checks; all seven APIs documented |
+| **Phase 17:** login + roles | `app/security/` (passwords, users, tokens, access), `app/api/v1/auth.py`, `scripts/create_user.py` | JWT login; employees see only themselves, managers their team, admins everyone; tenants kept apart |
+| **Phase 17:** admin protection | `app/api/dependencies.py` (`require_admin`) | API 6 and API 7 upload/delete: admin login or `X-Admin-Key`; dashboard pages 1, 7, 8 admin-only |
+| **Phase 17:** abuse + audit | `app/security/rate_limit.py`, `audit.py`, `app/main.py` | Rate limits (429 + Retry-After), security headers, CORS, audit log, refuses to start with unsafe settings |
+| **Phase 17:** AI + upload safety | `app/security/prompt_injection.py`, `uploads.py` | 4 prompt-injection layers in the assistant and uploads; renamed executables refused |
+| **Phase 17:** tests + docs | `tests/security/`, `tests/api/test_auth_api.py`, `docs/SECURITY_GUIDE.md` | 64 + 14 + 4 dashboard checks; security guide |
 
-**All seven APIs are live:** 1 (`/skills/analyze`), 2 (`/roles/match`), 3 (`/trainings/recommend`), 4 (`/learning-path/{id}`), 5 (`/ai/chat`), 6 (`/ml/retrain`, admin key) and 7 (`/rag/ingest`). Full reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
+**All seven APIs are live:** 1 (`/skills/analyze`), 2 (`/roles/match`), 3 (`/trainings/recommend`), 4 (`/learning-path/{id}`), 5 (`/ai/chat`), 6 (`/ml/retrain`, admin) and 7 (`/rag/ingest`, admin). With `AUTH_ENABLED=true` they need a login (`/auth/token`). Full reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
 
 ## 2. Folder structure
 
@@ -135,6 +140,7 @@ AIML-LMS-Skills-Intelligence/
 │   ├── api/test_api_contract.py  # OpenAPI = contract; error format of every endpoint (20)  [Phase 14 ✓]
 │   ├── dashboard/test_pages.py   # every Streamlit page with AppTest (16)          [Phase 15 ✓]
 │   ├── unit/test_retraining.py, api/test_ml_api.py # 15 + 6 checks            [Phase 16 ✓]
+│   ├── security/, api/test_auth_api.py # 64 + 14 checks (login, roles, limits, injection) [Phase 17 ✓]
 │   ├── unit/  integration/  security/
 ├── reports/                      # generated charts and reports (not in Git)   [Phase 4]
 ├── deployment/                   # docker/, kubernetes/, cloud/                (later, 18–20)
@@ -474,6 +480,20 @@ mlflow ui --backend-store-uri sqlite:///mlruns/mlflow.db        # see the runs a
 ```
 
 In Swagger: **6. ML Model Management → POST /api/v1/ml/retrain** with your key in `x-admin-key`. The response shows the **quality gate** (minimum ROC AUC 0.60, better than chance, no drop versus the current model on the same test rows) and whether the new version was **promoted**. Every run saves a new version; only approved ones become current; old versions stay for rollback. `GET /api/v1/ml/status` lists versions and runs. Guide: [`docs/ML_MODEL_GUIDE.md`](docs/ML_MODEL_GUIDE.md) section 7.
+
+## 5p. Security: login, roles, rate limits, audit (Phase 17)
+
+Locally nothing changes: login is **off** by default and the sidebar / log say so. To try login:
+
+```powershell
+pip install -r requirements.txt                                   # adds pyjwt
+python -c "import secrets; print(secrets.token_urlsafe(48))"      # .env: AUTH_SECRET_KEY=<output>, AUTH_ENABLED=true
+python scripts/create_demo_users.py                               # employee (E1001), manager (E1064), admin; passwords shown once
+uvicorn app.main:app --reload                                     # Swagger: the Authorize button
+python scripts/api_smoke_test.py --username admin --password <admin password>
+```
+
+Log in as `employee` and `GET /api/v1/learning-path/E1002` gives **403**; as `manager` you see E1064's team; only `admin` (or `X-Admin-Key`) may retrain or upload. Every API call is written to `logs/audit.jsonl`. The assistant refuses "ignore your instructions…" questions and uploads with hidden instructions. Guide: [`docs/SECURITY_GUIDE.md`](docs/SECURITY_GUIDE.md).
 
 ## 6. Run with Docker
 

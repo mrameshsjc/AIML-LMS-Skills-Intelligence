@@ -101,7 +101,7 @@ def test_approved_documents_are_read_only(service):
         ("tool.exe", b"MZ", InvalidInputError, "UNSUPPORTED_FILE_TYPE"),
         ("empty.txt", b"", InvalidInputError, "EMPTY_FILE"),
         ("big.txt", b"x" * 5001, PayloadTooLargeError, "FILE_TOO_LARGE"),
-        ("fake.pdf", b"this is not a pdf", InvalidInputError, "INVALID_DOCUMENT"),
+        ("fake.pdf", b"this is not a pdf", InvalidInputError, "FILE_CONTENT_MISMATCH"),
         ("blank.md", b"   \n  ", InvalidInputError, "INVALID_DOCUMENT"),
     ],
 )

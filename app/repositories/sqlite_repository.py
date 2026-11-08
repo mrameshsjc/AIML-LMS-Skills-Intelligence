@@ -67,11 +67,15 @@ class SqliteLmsRepository(LmsRepository):
     # --- People -----------------------------------------------------------------
     def get_employee(self, employee_id: str) -> Employee | None:
         r = self._one(
-            "SELECT employee_id, first_name, last_name, department, current_role_id, location "
+            "SELECT employee_id, first_name, last_name, department, current_role_id, location, manager_id "
             "FROM employees WHERE employee_id = ?",
             employee_id,
         )
         return Employee(*r) if r else None
+
+    def direct_reports(self, manager_id: str) -> list[str]:
+        rows = self._all("SELECT employee_id FROM employees WHERE manager_id = ? ORDER BY rowid", manager_id)
+        return [r["employee_id"] for r in rows]
 
     def get_employee_skills(self, employee_id: str) -> dict[str, int]:
         rows = self._all(

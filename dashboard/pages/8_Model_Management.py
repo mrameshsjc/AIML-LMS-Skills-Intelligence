@@ -23,7 +23,7 @@ ui.setup_page(
     "not real accuracy.",
     "🤖",
 )
-ui.admin_notice()
+ui.admin_page()
 settings = get_settings()
 cards = list_cards(settings.model_dir)
 current = current_version(settings.model_dir)
@@ -36,7 +36,11 @@ def retrain_button(label: str) -> None:
         with st.spinner(
             "Validating data, comparing algorithms, training, evaluating, applying the quality gate ..."
         ):
-            report = ui.safe(get_retraining_service().retrain, "dashboard admin", reason)
+            user = ui.current_user()
+            who = user.username if user and user.authenticated else "dashboard admin"
+            report = ui.safe(get_retraining_service().retrain, who, reason)
+        if report is not None:
+            ui.audit("retrain", status=report.status, new_version=report.new_version)
         if report is None:
             return
         if report.status == PROMOTED:
@@ -103,6 +107,7 @@ with a:
     if st.button("Switch version (rollback)") and chosen != current:
         set_current(chosen, settings.model_dir)
         get_completion_predictor.cache_clear()
+        ui.audit("switch_model_version", version=chosen)
         st.success(f"Version {chosen} is now current. Restart the API so it uses it.")
 with b:
     st.caption(

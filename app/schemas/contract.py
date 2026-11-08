@@ -26,6 +26,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from app.schemas.auth import MeResponse, TokenResponse
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.schemas.common import ErrorResponse
 from app.schemas.learning_path import LearningPathResponse
@@ -36,7 +37,21 @@ from app.schemas.skills import SkillAnalysisRequest, SkillAnalysisResponse
 from app.schemas.trainings import TrainingRecommendationRequest, TrainingRecommendationResponse
 
 # (api number or "-", method, path, request model, response model, other parameters)
+ADMIN_KEY = {"name": "x-admin-key", "in": "header", "required": False}  # or an admin login (Phase 17)
+
 ENDPOINTS: list[tuple[str, str, str, type[BaseModel] | None, type[BaseModel], list[dict]]] = [
+    (
+        "-",
+        "POST",
+        "/api/v1/auth/token",
+        None,
+        TokenResponse,
+        [
+            {"name": "username", "in": "form", "required": True},
+            {"name": "password", "in": "form", "required": True},
+        ],
+    ),
+    ("-", "GET", "/api/v1/auth/me", None, MeResponse, []),
     ("1", "POST", "/api/v1/skills/analyze", SkillAnalysisRequest, SkillAnalysisResponse, []),
     ("2", "POST", "/api/v1/roles/match", RoleMatchRequest, RoleMatchResponse, []),
     (
@@ -67,7 +82,7 @@ ENDPOINTS: list[tuple[str, str, str, type[BaseModel] | None, type[BaseModel], li
         "/api/v1/ml/retrain",
         RetrainRequest,
         RetrainResponse,
-        [{"name": "x-admin-key", "in": "header", "required": False}],
+        [ADMIN_KEY],
     ),
     ("-", "GET", "/api/v1/ml/status", None, ModelStatusResponse, []),
     (
@@ -79,6 +94,7 @@ ENDPOINTS: list[tuple[str, str, str, type[BaseModel] | None, type[BaseModel], li
         [
             {"name": "file", "in": "form", "required": True},
             {"name": "overwrite", "in": "form", "required": False},
+            ADMIN_KEY,
         ],
     ),
     ("-", "GET", "/api/v1/rag/documents", None, DocumentListResponse, []),
@@ -88,7 +104,7 @@ ENDPOINTS: list[tuple[str, str, str, type[BaseModel] | None, type[BaseModel], li
         "/api/v1/rag/documents/{source}",
         None,
         IngestResponse,
-        [{"name": "source", "in": "path", "required": True}],
+        [{"name": "source", "in": "path", "required": True}, ADMIN_KEY],
     ),
 ]
 

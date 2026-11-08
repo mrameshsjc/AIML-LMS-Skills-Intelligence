@@ -14,14 +14,23 @@ WHY
     - Tests can swap in another repository:
         app.dependency_overrides[get_repository] = lambda: FakeRepository()
     - @lru_cache loads the data once, on the first request, and reuses it.
+
+SECURITY (Phase 17)
+    CurrentUserDep   who is calling: the logged-in user (JWT), or an anonymous
+                     local user when AUTH_ENABLED=false (local development).
+    AdminDep         administrators only: an admin login OR the X-Admin-Key header.
+    ChatLimitDep     the stricter rate limit for the (slow, costly) assistant.
 """
 
 from functools import lru_cache, partial
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, Header, Request
+from fastapi.security import OAuth2PasswordBearer
 
 from app.core.config import get_settings
+from app.core.errors import ForbiddenError, UnauthorizedError
+from app.core.security import check_admin_key
 from app.llm.base import LLMProvider
 from app.llm.factory import build_provider
 from app.ml.model_registry import MODEL_NAME
@@ -34,6 +43,10 @@ from app.rag.vector_store import choose_backend
 from app.repositories.base import LmsRepository
 from app.repositories.csv_repository import CsvLmsRepository
 from app.repositories.sqlite_repository import SqliteLmsRepository
+from app.security.access import check_tenant
+from app.security.rate_limit import LIMITER
+from app.security.tokens import decode_token
+from app.security.users import Principal, UserStore
 from app.services.chat_service import ChatService
 from app.services.explanation_service import ExplanationService
 from app.services.ingestion_service import IngestionService
@@ -151,6 +164,7 @@ def get_chat_service(repository: RepositoryDep, llm: LLMProviderDep) -> ChatServ
         min_score=partial(min_score, settings),
         top_k=settings.rag_top_k,
         completion_model=get_completion_predictor(),
+        block_injection=settings.block_prompt_injection,
     )
 
 
@@ -169,6 +183,7 @@ def get_ingestion_service() -> IngestionService:
         overlap=settings.rag_chunk_overlap,
         max_bytes=int(settings.rag_max_upload_mb * 1024 * 1024),
         on_change=get_knowledge_index.cache_clear,
+        block_injection=settings.block_prompt_injection,
     )
 
 
@@ -194,3 +209,91 @@ def get_retraining_service() -> RetrainingService:
 
 
 RetrainingServiceDep = Annotated[RetrainingService, Depends(get_retraining_service)]
+
+
+# --- Security (Phase 17) ---------------------------------------------------------------------------
+# auto_error=False: a missing token is not an error by itself - with login switched off, or for the
+# X-Admin-Key route, there is none. tokenUrl lets the Swagger UI "Authorize" button log in.
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token", auto_error=False)
+TokenDep = Annotated[str | None, Depends(oauth2_scheme)]
+
+
+def client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+def get_user_store() -> UserStore:
+    return UserStore(get_settings().users_file)
+
+
+def _principal_from_token(token: str) -> Principal:
+    """Check the token's signature and expiry, its tenant, and that the account is still active."""
+    settings = get_settings()
+    principal = decode_token(token, settings.auth_secret_key.get_secret_value())
+    check_tenant(principal, settings.rag_tenant)
+    user = get_user_store().get(principal.username)
+    if user is None or user.disabled:  # deleted or disabled after the token was issued
+        raise UnauthorizedError("ACCOUNT_DISABLED", "This account no longer exists or is disabled.")
+    return principal
+
+
+def get_current_user(request: Request, token: TokenDep) -> Principal:
+    """Who is calling. With AUTH_ENABLED=false, an anonymous local user who may view everyone."""
+    settings = get_settings()
+    if not settings.auth_enabled:
+        principal = Principal("anonymous", "anonymous", None, settings.rag_tenant, authenticated=False)
+    elif not token:
+        raise UnauthorizedError(
+            "AUTH_REQUIRED",
+            "Log in first: POST /api/v1/auth/token, then send the header Authorization: Bearer <token>.",
+        )
+    else:
+        principal = _principal_from_token(token)
+    request.state.user, request.state.role = principal.username, principal.role  # for the audit log
+    return principal
+
+
+CurrentUserDep = Annotated[Principal, Depends(get_current_user)]
+
+
+def require_admin(
+    request: Request,
+    token: TokenDep,
+    x_admin_key: Annotated[
+        str | None, Header(description="The administrator key (ADMIN_API_KEY), instead of an admin login.")
+    ] = None,
+) -> str:
+    """Administrators only (retraining, document uploads and deletions). Returns who is acting.
+
+    Accepted: the X-Admin-Key header (scripts, CI), or - with login switched on - an admin's token.
+    Every attempt counts towards the admin rate limit, so neither the key nor tokens can be guessed fast.
+    """
+    settings = get_settings()
+    LIMITER.check("admin", client_ip(request), settings.rate_limit_admin_per_hour, 3600)
+    if x_admin_key is not None:
+        who = check_admin_key(x_admin_key, settings.admin_api_key.get_secret_value())
+    elif settings.auth_enabled and token:
+        principal = _principal_from_token(token)
+        if not principal.is_admin:
+            raise ForbiddenError("ADMIN_ONLY", "Only administrators may do this.")
+        who = principal.username
+    elif settings.auth_enabled:
+        raise UnauthorizedError(
+            "ADMIN_AUTH_REQUIRED", "Log in as an administrator, or send the header X-Admin-Key."
+        )
+    else:
+        who = check_admin_key(None, settings.admin_api_key.get_secret_value())  # 403 off, or 401
+    request.state.user, request.state.role = who, "admin"
+    return who
+
+
+AdminDep = Annotated[str, Depends(require_admin)]
+
+
+def limit_chat(request: Request, principal: CurrentUserDep) -> None:
+    """The assistant calls a language model: a stricter per-user (or per-IP) limit than other APIs."""
+    who = principal.username if principal.authenticated else client_ip(request)
+    LIMITER.check("chat", who, get_settings().rate_limit_chat_per_minute, 60)
+
+
+ChatLimitDep = Annotated[None, Depends(limit_chat)]

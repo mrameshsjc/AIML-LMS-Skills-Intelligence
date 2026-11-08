@@ -20,9 +20,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, Query
 
-from app.api.dependencies import ExplanationServiceDep, LearningPathServiceDep
+from app.api.dependencies import CurrentUserDep, ExplanationServiceDep, LearningPathServiceDep, RepositoryDep
 from app.core.config import get_settings
-from app.schemas.common import ErrorResponse, RoleRef
+from app.schemas.common import AUTH_RESPONSES, ErrorResponse, RoleRef
 from app.schemas.learning_path import (
     CourseRef,
     CurrentSkillOut,
@@ -34,6 +34,7 @@ from app.schemas.learning_path import (
     StepSkillOut,
 )
 from app.schemas.trainings import PrerequisiteOut
+from app.security.access import authorize_employee
 from app.services.explanation_service import Explanation
 from app.services.learning_path import LearningPath, PathStep
 
@@ -144,6 +145,7 @@ def to_response(p: LearningPath, explanation: Explanation | None = None) -> Lear
         "based only on the path's facts; without a running model, a labelled fallback lists the facts."
     ),
     responses={
+        **AUTH_RESPONSES,
         404: {"model": ErrorResponse, "description": "Employee or role not found"},
         422: {"model": ErrorResponse, "description": "Invalid employee or role ID"},
         503: {
@@ -156,6 +158,8 @@ def get_learning_path(
     employee_id: Annotated[str, Path(pattern=r"^E\d{4}$", examples=["E1001"])],
     service: LearningPathServiceDep,
     explainer: ExplanationServiceDep,
+    principal: CurrentUserDep,
+    repository: RepositoryDep,
     target_role_id: Annotated[
         str | None,
         Query(
@@ -170,5 +174,6 @@ def get_learning_path(
         bool, Query(description="Add a plain-language explanation from the language model (slower).")
     ] = False,
 ) -> LearningPathResponse:
+    authorize_employee(principal, employee_id, repository)  # Phase 17: own / team data only
     path = service.build(employee_id, target_role_id, include_optional)
     return to_response(path, explainer.explain_path(path) if explain else None)

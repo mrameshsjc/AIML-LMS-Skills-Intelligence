@@ -7,17 +7,33 @@ The engine exposes seven business endpoints under `/api/v1`. They are stable con
 | – | `GET /api/v1/health` | Live (Phase 1) |
 | – | `GET /api/v1/health/llm` | Live (Phase 11): is Ollama running, is the model installed? |
 | – | `GET /api/v1/health/rag` | Live (Phase 12): is the document index built, what does it contain? |
+| – | `POST /api/v1/auth/token`, `GET /api/v1/auth/me` | Live (Phase 17): login and "who am I" |
 | 1 | `POST /api/v1/skills/analyze` | **Live (Phase 5)** |
 | 2 | `POST /api/v1/roles/match` | **Live (Phase 6)** |
 | 3 | `POST /api/v1/trainings/recommend` | **Live (Phase 7)** |
 | 4 | `GET /api/v1/learning-path/{employee_id}` | **Live (Phase 10)** |
 | 5 | `POST /api/v1/ai/chat` | **Live (Phase 13)** |
-| 6 | `POST /api/v1/ml/retrain` (+ `GET /api/v1/ml/status`) | **Live (Phase 16)**, admin key |
-| 7 | `POST /api/v1/rag/ingest` (+ `GET`, `DELETE /api/v1/rag/documents`) | **Live (Phase 13)** |
+| 6 | `POST /api/v1/ml/retrain` (+ `GET /api/v1/ml/status`) | **Live (Phase 16)**, administrators only |
+| 7 | `POST /api/v1/rag/ingest` (+ `GET`, `DELETE /api/v1/rag/documents`) | **Live (Phase 13)**, upload/delete administrators only |
 
 **Try it:** start the server with `uvicorn app.main:app --reload` and open **http://127.0.0.1:8000/docs**. Every endpoint has a description, request examples, response examples and error examples there.
 
-Authentication arrives in Phase 17. Until then, all endpoints are open and serve synthetic data only.
+## Authentication (Phase 17)
+
+Full details: [`SECURITY_GUIDE.md`](SECURITY_GUIDE.md).
+
+| Server setting | APIs 1–5 | API 6, API 7 upload/delete |
+| --- | --- | --- |
+| `AUTH_ENABLED=false` (local default) | open | header `X-Admin-Key: <ADMIN_API_KEY>` |
+| `AUTH_ENABLED=true` | header `Authorization: Bearer <token>`; employee = own data, manager = team, admin = everyone | admin's token **or** `X-Admin-Key` |
+
+Get a token: `POST /api/v1/auth/token` with a **form** body `username=...&password=...` (in Swagger: the **Authorize** button).
+
+```json
+{"access_token": "eyJhbGciOi...", "token_type": "bearer", "expires_in": 3600, "role": "employee", "employee_id": "E1001"}
+```
+
+`GET /api/v1/auth/me` returns `username`, `role`, `employee_id`, `tenant`, `authenticated`, `can_view` (`everyone` / `team` / `self`) and `auth_enabled`. With login on, API 5 without `employee_id` answers personal questions about the logged-in employee. Health checks and `GET /api/v1/ml/status` stay open. Rate limits: 120 requests/minute per IP, assistant 20/minute, admin actions 10/hour, login 10/minute.
 
 ## Errors (all endpoints)
 
@@ -33,12 +49,19 @@ Every error has the same shape, so a client needs only one piece of error-handli
 | 422 | `VALIDATION_ERROR` | A field has the wrong format. `details` lists every bad field |
 | 422 | `UNKNOWN_SKILL`, `INVALID_LEVEL` | A what-if skill does not exist, or a level is outside 0–5 |
 | 422 | `INVALID_ROLE_ID` | An entry in `role_ids` is not like `R004` |
-| 401 | `ADMIN_AUTH_REQUIRED` | API 6: the `X-Admin-Key` header is missing or wrong |
-| 403 | `ADMIN_ACTIONS_DISABLED` | API 6: no `ADMIN_API_KEY` is configured on the server, so admin actions are off |
+| 401 | `AUTH_REQUIRED`, `INVALID_TOKEN`, `TOKEN_EXPIRED`, `ACCOUNT_DISABLED` | Login is on and the token is missing, invalid, expired, or its account is gone |
+| 401 | `INVALID_CREDENTIALS` | Login: wrong username or password |
+| 401 | `ADMIN_AUTH_REQUIRED` | API 6/7 admin actions: no valid `X-Admin-Key` or admin login |
+| 403 | `ACCESS_DENIED` | Another employee's data (also for unknown IDs, for non-admins) |
+| 403 | `ADMIN_ONLY` | Logged in, but not an administrator |
+| 403 | `ADMIN_ACTIONS_DISABLED` | Login off and no `ADMIN_API_KEY` configured, so admin actions are off |
+| 403 | `AUTH_DISABLED`, `WRONG_TENANT` | Login while login is off; an account of another organisation |
+| 429 | `RATE_LIMITED` | Too many requests; the `Retry-After` header says how many seconds to wait |
 | 409 | `RETRAINING_IN_PROGRESS` | API 6: another retraining run is still running |
 | 409 | `DOCUMENT_EXISTS`, `DUPLICATE_DOCUMENT`, `DOCUMENT_IS_APPROVED` | API 7: the name is taken (send `overwrite=true`), the same content exists under another name, or an approved document would be changed |
 | 413 | `FILE_TOO_LARGE` | API 7: the upload exceeds `RAG_MAX_UPLOAD_MB` |
 | 422 | `UNSUPPORTED_FILE_TYPE`, `EMPTY_FILE`, `INVALID_DOCUMENT` | API 7: not .pdf/.docx/.txt/.csv/.md, empty, or no readable text |
+| 422 | `FILE_CONTENT_MISMATCH`, `INJECTION_SUSPECTED` | API 7: the content does not match the extension (e.g. a renamed program); text that tries to instruct the assistant |
 | 503 | `INDEX_BUILD_FAILED` | API 7: the index could not be rebuilt (the change is rolled back) |
 | 503 | `LLM_UNAVAILABLE` | API 4 `explain=true` or API 5 with `LLM_PROVIDER=ollama` while Ollama is down (with `auto`, the fallback answers instead) |
 | 500 | `INTERNAL_ERROR` | Unexpected. The details are in the server log, findable by `request_id` |
@@ -445,18 +468,19 @@ python scripts/ask.py --employee E1001                                    # a co
 ### Try it from PowerShell 7
 ```powershell
 "training,provider,hours`nKafka Essentials,External Partner,12" | Set-Content internal_trainings.csv
-Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/rag/ingest -Form @{ file = Get-Item internal_trainings.csv }
+$admin = @{ "X-Admin-Key" = "<your ADMIN_API_KEY>" }
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/v1/rag/ingest -Headers $admin -Form @{ file = Get-Item internal_trainings.csv }
 Invoke-RestMethod -Uri http://127.0.0.1:8000/api/v1/rag/documents
-Invoke-RestMethod -Method Delete -Uri http://127.0.0.1:8000/api/v1/rag/documents/internal_trainings.csv
+Invoke-RestMethod -Method Delete -Uri http://127.0.0.1:8000/api/v1/rag/documents/internal_trainings.csv -Headers $admin
 ```
 With Windows PowerShell 5.1 (no `-Form`), use the `curl.exe` built into Windows:
 ```powershell
-curl.exe -F "file=@internal_trainings.csv" http://127.0.0.1:8000/api/v1/rag/ingest
-curl.exe -F "file=@internal_trainings.csv" -F "overwrite=true" http://127.0.0.1:8000/api/v1/rag/ingest
+curl.exe -H "X-Admin-Key: <key>" -F "file=@internal_trainings.csv" http://127.0.0.1:8000/api/v1/rag/ingest
+curl.exe -H "X-Admin-Key: <key>" -F "file=@internal_trainings.csv" -F "overwrite=true" http://127.0.0.1:8000/api/v1/rag/ingest
 ```
 In Swagger UI: **7. Knowledge Documents → POST /api/v1/rag/ingest → Try it out → Choose file**.
 
-**Security:** Phase 17 restricts API 7 to administrators. RAG ingestion is separate from ML retraining (API 6) and does not change the language model.
+**Security (Phase 17):** uploading and deleting are for administrators (admin login or `X-Admin-Key`); listing needs only a login. Uploads are refused when the content does not match the extension or contains text that tries to instruct the assistant. RAG ingestion is separate from ML retraining (API 6) and does not change the language model.
 
 ## API 6 – ML model retraining
 
@@ -465,7 +489,7 @@ In Swagger UI: **7. Knowledge Documents → POST /api/v1/rag/ingest → Try it o
 Runs the controlled retraining workflow: validate the data → features → train → evaluate → compare with the current model → quality gate → register → promote if approved → MLflow. Details: [`ML_MODEL_GUIDE.md`](ML_MODEL_GUIDE.md) section 7.
 
 ### Authentication
-Send the administrator key in a header: `X-Admin-Key: <ADMIN_API_KEY>`. Set the key in `.env` and restart the server:
+Either log in as an administrator (`Authorization: Bearer <token>`, when `AUTH_ENABLED=true`) or send the administrator key in a header: `X-Admin-Key: <ADMIN_API_KEY>`. Set the key in `.env` and restart the server:
 
 ```powershell
 python -c "import secrets; print(secrets.token_urlsafe(32))"     # copy the output into .env as ADMIN_API_KEY=...
@@ -473,9 +497,11 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"     # copy the outp
 
 | Situation | Response |
 | --- | --- |
-| No `ADMIN_API_KEY` on the server | 403 `ADMIN_ACTIONS_DISABLED` |
-| Header missing or wrong | 401 `ADMIN_AUTH_REQUIRED` |
-| Correct key | 200 with the report |
+| Login off and no `ADMIN_API_KEY` on the server | 403 `ADMIN_ACTIONS_DISABLED` |
+| Key wrong, or no key and no admin login | 401 `ADMIN_AUTH_REQUIRED` |
+| Logged in as employee or manager | 403 `ADMIN_ONLY` |
+| More than `RATE_LIMIT_ADMIN_PER_HOUR` attempts | 429 `RATE_LIMITED` |
+| Correct key or admin login | 200 with the report |
 
 ### Request
 

@@ -29,7 +29,7 @@ With Docker: `docker compose up -d --build` starts the API (port 8000) and the d
 
 **The selected employee is remembered** across pages (sidebar), starting with E1001, the worked example from the requirements.
 
-**Admin pages** show a notice: in Phase 15 every page is open; Phase 17 adds login and limits them to administrators.
+**Login (Phase 17).** With `AUTH_ENABLED=true` every page asks for a login in the sidebar (the same accounts as the API, created with `scripts/create_user.py` or `scripts/create_demo_users.py`). The employee picker then lists only who the account may see: an **employee** only themselves, a **manager** their team, an **admin** everyone. **Data upload**, **Document management** and **Model management** are for administrators; others see "Administrators only". Logins, uploads, deletions, retraining and rollbacks are written to the audit log (`logs/audit.jsonl`). With login off (the local default) every page is open and the sidebar says so. Details: [`SECURITY_GUIDE.md`](SECURITY_GUIDE.md).
 
 ## 3. How it is built
 

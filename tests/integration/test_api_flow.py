@@ -18,6 +18,9 @@ from fastapi.testclient import TestClient
 
 from app.api import dependencies
 from app.core.config import get_settings
+from tests.conftest import TEST_ADMIN_KEY
+
+ADMIN = {"X-Admin-Key": TEST_ADMIN_KEY}  # uploads and deletions are for administrators (Phase 17)
 
 
 @pytest.fixture(scope="module")
@@ -85,9 +88,10 @@ def test_full_journey_for_e1001(client):
     assert f"Next action: {path['next_action']}" in answer["facts"] and first in answer["answer"]
     assert any("No document index" in n for n in answer["notes"])
 
-    # 7. Upload a document (API 7): this also builds the index
+    # 7. Upload a document (API 7, administrators only): this also builds the index
     uploaded = client.post(
         "/api/v1/rag/ingest",
+        headers=ADMIN,
         files={
             "file": ("internal_trainings.csv", b"training,hours\nKafka Essentials,12\nSpark Bootcamp,24\n")
         },
@@ -104,7 +108,8 @@ def test_full_journey_for_e1001(client):
     assert status["ready"] and "internal_trainings.csv" in {d["source"] for d in status["documents"]}
 
     # 9. Delete it: gone from the index and from answers
-    assert client.delete("/api/v1/rag/documents/internal_trainings.csv").json()["status"] == "deleted"
+    deleted = client.delete("/api/v1/rag/documents/internal_trainings.csv", headers=ADMIN)
+    assert deleted.json()["status"] == "deleted"
     again = client.post(
         "/api/v1/ai/chat", json={"question": "How long is the Kafka Essentials training?"}
     ).json()
