@@ -2,7 +2,7 @@
 # Install with:  pip install -r requirements-dev.txt   (this also installs requirements.txt)
 
 -r requirements.txt
-pytest>=8.0,<10.0     # test runner
+pytest>=9.2.0,<10.0     # test runner
 pytest-cov>=5.0,<8.0  # coverage report: which lines the tests run (Phase 14)
 httpx>=0.27,<1.0      # HTTP client used by FastAPI's TestClient
 ruff>=0.6,<1.0        # linter + formatter (replaces flake8, isort and black in one fast tool)
