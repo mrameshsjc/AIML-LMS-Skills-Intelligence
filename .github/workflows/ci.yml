@@ -2,7 +2,8 @@
 # A red X on GitHub means a step failed; click it to read the log.
 #
 # Stages: checkout -> Python 3.11 -> install -> lint -> format check -> tests -> Docker build
-# The Docker job runs scripts/api_smoke_test.py against the container (Phase 14).
+# The Docker job runs scripts/api_smoke_test.py against the container (Phase 14), started
+# hardened like compose.yaml: read-only, no capabilities, non-root, empty volumes (Phase 18).
 # Later phases add: Snyk security scan, image publish and deploy.
 
 name: CI
@@ -48,17 +49,38 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
-      - name: Build image
-        run: docker build -t aiml-lms-skills-intelligence:ci .
-
-      - name: Start container and check health
+      - name: Check the Compose files (syntax, references, required variables)
         run: |
-          docker run -d --name api -p 8000:8000 -e ADMIN_API_KEY=ci-test-key aiml-lms-skills-intelligence:ci
-          for i in $(seq 1 20); do
-            if curl -fsS http://127.0.0.1:8000/api/v1/health; then echo; echo "Health check passed"; exit 0; fi
+          docker compose config -q
+          AUTH_SECRET_KEY=ci-check docker compose -f compose.yaml -f deployment/docker/compose.prod.yaml config -q
+
+      - name: Build image
+        run: docker build --build-arg APP_VERSION=${{ github.sha }} -t aiml-lms-skills-intelligence:ci .
+
+      - name: Image facts - runs as non-root, size
+        run: |
+          test "$(docker run --rm --entrypoint id aiml-lms-skills-intelligence:ci -u)" = "10001"
+          echo "Runs as user 10001 (not root)"
+          docker image ls aiml-lms-skills-intelligence:ci --format "Image size: {{.Size}}"
+
+      - name: Start the container HARDENED (as in compose.yaml) and check health
+        # read-only root filesystem, no Linux capabilities; only volumes and /tmp are writable.
+        # The start step must still create the database and the index on these empty volumes.
+        run: |
+          docker run -d --name api -p 8000:8000 \
+            --read-only --tmpfs /tmp --tmpfs /home/appuser \
+            --cap-drop ALL --security-opt no-new-privileges:true \
+            -v /app/data/db -v /app/vector_store -v /app/data/uploads -v /app/models \
+            -v /app/mlruns -v /app/data/accounts -v /app/logs \
+            -e ADMIN_API_KEY=ci-test-key -e DATA_SOURCE=database -e DATABASE_URL=sqlite:///./data/db/lms_ai.db \
+            aiml-lms-skills-intelligence:ci
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:8000/api/v1/health; then echo; echo "Health check passed"; break; fi
+            if [ "$i" = 45 ]; then echo "Health check failed"; docker logs api; exit 1; fi
             sleep 2
           done
-          echo "Health check failed"; docker logs api; exit 1
+          docker logs api 2>&1 | grep "prepare" || true
+          curl -fsS http://127.0.0.1:8000/api/v1/health/rag | grep -q '"ready":true' && echo "Index built by the start step"
 
       - name: Smoke test - every API over real HTTP (scripts/api_smoke_test.py)
         # Same script you can run on your PC. No Ollama in CI, so the LLM check is a WARN, not a failure.

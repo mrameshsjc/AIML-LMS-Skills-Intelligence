@@ -10,7 +10,7 @@ Guides are added in the phase that needs them:
 | ML_MODEL_GUIDE.md (formula, TF-IDF, hybrid scoring, completion model, learning path, retraining + MLflow **done**) | 5–8, 16 |
 | LLM_RAG_GUIDE.md (Ollama, fallback, guardrails, document search, RAG assistant **done**) | 11–13 |
 | DATABASE_GUIDE.md (SQLite **done**; MySQL later) | 9 |
-| DOCKER_GUIDE.md | 1, 18 |
+| DOCKER_GUIDE.md (**done**: build, run, stop, inspect, debug, volumes, hardening) | 1, 18 |
 | GITHUB_ACTIONS_CICD_GUIDE.md, SNYK_SECURITY_GUIDE.md | 1, 21 |
 | KUBERNETES_GUIDE.md | 20 |
 | PUBLIC_DEPLOYMENT_GUIDE.md, DEMO_WALKTHROUGH.md | 19, 22 |

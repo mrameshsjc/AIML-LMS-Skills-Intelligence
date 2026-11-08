@@ -11,7 +11,7 @@ streamlit run dashboard/Home.py           # from the project folder; opens http:
 
 The dashboard does **not** need the API to be running: it uses the same services directly. Start uvicorn too if you also want Swagger. For the AI assistant and explanations, start Ollama; without it, a labelled fallback answers. Build the document index once with `python scripts/build_index.py`, or with **Rebuild now** on the Document management page.
 
-With Docker: `docker compose up -d --build` starts the API (port 8000) and the dashboard (port 8501) from the same image, sharing the index, uploads and models.
+With Docker: `docker compose up -d --build` starts the API (port 8000) and the dashboard (port 8501) from the same image, sharing the database, index, uploads, models and accounts. The dashboard starts once the API is healthy (see `DOCKER_GUIDE.md`).
 
 ## 2. The pages
 

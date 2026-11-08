@@ -1,0 +1,185 @@
+# compose.yaml - run the whole engine locally with one command (Phase 1, hardened in Phase 18).
+# Guide with every PowerShell command: docs/DOCKER_GUIDE.md
+#
+#   PS> docker compose up --build -d          start api + dashboard (first start ~1 min)
+#   PS> docker compose ps                     wait for "healthy"
+#   PS> docker compose logs -f api            follow the logs
+#   PS> docker compose down                   stop (the volumes - your data - are kept)
+#
+#   Optional services (profiles):
+#   PS> docker compose --profile mlflow up -d     + MLflow UI   http://127.0.0.1:5000
+#   PS> docker compose --profile llm up -d        + Ollama in a container (see the guide)
+#
+# SERVICES                       PORT (this PC only)
+#   api        FastAPI + Swagger   http://127.0.0.1:8000/docs
+#   dashboard  Streamlit           http://127.0.0.1:8501
+#   mlflow     MLflow UI           http://127.0.0.1:5000     (profile "mlflow")
+#   ollama     local LLM           http://127.0.0.1:11434    (profile "llm")
+#   No MySQL: this project uses SQLite (a file on the lms_db volume); MySQL comes with the LMS integration.
+#
+# HARDENING (Phase 18), the same for every service of ours (x-hardening below):
+#   ports bound to 127.0.0.1 (not reachable from the network), read-only root filesystem
+#   (only volumes and /tmp are writable), all Linux capabilities dropped, no privilege
+#   escalation, an init process, memory/CPU limits, rotated logs.
+
+name: aiml-lms-skills-intelligence
+
+x-hardening: &hardening
+  read_only: true
+  tmpfs:
+    - /tmp
+    - /home/appuser            # tools that write to $HOME (Streamlit, MLflow) get a throw-away folder
+  cap_drop: [ALL]
+  security_opt:
+    - no-new-privileges:true
+  init: true                   # a tiny init process forwards stop signals and cleans up child processes
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+  restart: unless-stopped
+
+x-app-env: &app-env
+  APP_PROFILE: compose
+  # Containers reach Ollama on your PC as host.docker.internal; with --profile llm set
+  # OLLAMA_BASE_URL=http://ollama:11434 in .env instead.
+  OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+  # The database lives on the lms_db volume; Compose uses it by default (DATA_SOURCE=csv in .env to switch off).
+  DATA_SOURCE: ${DATA_SOURCE:-database}
+  DATABASE_URL: sqlite:///./data/db/lms_ai.db
+  USERS_FILE: data/accounts/users.json
+  AUDIT_LOG_FILE: logs/audit.jsonl
+  MLFLOW_TRACKING_URI: sqlite:////app/mlruns/mlflow.db
+
+x-app-volumes: &app-volumes
+  - lms_db:/app/data/db               # SQLite database
+  - lms_index:/app/vector_store       # FAISS / NumPy document index
+  - lms_uploads:/app/data/uploads     # uploaded documents (API 7) and checked CSV files
+  - lms_models:/app/models            # model versions (API 6)
+  - lms_mlruns:/app/mlruns            # MLflow runs and registered models
+  - lms_accounts:/app/data/accounts   # login accounts (Phase 17)
+  - lms_logs:/app/logs                # audit log (Phase 17)
+
+services:
+  api:
+    <<: *hardening
+    build:
+      context: .
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
+    image: aiml-lms-skills-intelligence:dev
+    container_name: aiml-lms-skills-api
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file:
+      - path: .env             # your settings (copy .env.example); secrets stay out of this file
+        required: false
+    environment:
+      <<: *app-env
+      PREPARE_ON_START: "true"   # the api prepares database + index on first start (one service only)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # makes that name work on Linux too
+    volumes: *app-volumes
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=4).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 90s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2g
+
+  dashboard:
+    <<: *hardening
+    image: aiml-lms-skills-intelligence:dev   # the same image: same code, same services
+    container_name: aiml-lms-skills-dashboard
+    command: ["streamlit", "run", "dashboard/Home.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true", "--browser.gatherUsageStats=false"]
+    ports:
+      - "127.0.0.1:8501:8501"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: *app-env
+      PREPARE_ON_START: "false"  # the api already prepared the shared volumes
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes: *app-volumes
+    depends_on:
+      api:
+        condition: service_healthy   # start after the database and index exist
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=4).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1g
+
+  mlflow:
+    <<: *hardening
+    profiles: [mlflow]
+    image: aiml-lms-skills-intelligence:dev
+    container_name: aiml-lms-skills-mlflow
+    command: ["mlflow", "server", "--backend-store-uri", "sqlite:////app/mlruns/mlflow.db", "--artifacts-destination", "/app/mlruns/artifacts", "--host", "0.0.0.0", "--port", "5000"]
+    ports:
+      - "127.0.0.1:5000:5000"
+    environment:
+      PREPARE_ON_START: "false"
+    volumes:
+      - lms_mlruns:/app/mlruns         # the runs API 6 writes (read by the UI)
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=4).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1g
+
+  ollama:
+    # Only where suitable: needs about 4-8 GB of free RAM for llama3.2:3b. Ollama installed on
+    # Windows is usually faster (it can use the GPU) - then you do not need this service.
+    profiles: [llm]
+    image: ollama/ollama:0.40.10    # pinned: an update is a deliberate change, not a surprise
+    container_name: aiml-lms-skills-ollama
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama    # downloaded models survive restarts
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 8g
+
+volumes:                       # named volumes: managed by Docker, kept by `docker compose down`
+  lms_db:
+  lms_index:
+  lms_uploads:
+  lms_models:
+  lms_mlruns:
+  lms_accounts:
+  lms_logs:
+  ollama_models:

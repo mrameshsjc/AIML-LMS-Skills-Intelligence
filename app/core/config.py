@@ -31,7 +31,7 @@ HOW TO TRY IT
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -146,11 +146,36 @@ class Settings(BaseSettings):
     cors_origins: str = ""
     block_prompt_injection: bool = True  # refuse questions/uploads that try to override the assistant's rules
 
+    # --- Containers (Phase 18) ---
+    # The container's start step (app/core/prepare.py) creates folders, the database (DATA_SOURCE=database)
+    # and the document index if they are missing. Only ONE service should do it (the api); others set false.
+    prepare_on_start: bool = True
+
     # --- Database (Phase 9) -------------------------------------------------
     # SQLite is a single file and needs no server, which is ideal for the
     # first local version. MySQL (e.g. mysql+pymysql://user:password@host/lms_ai)
     # is planned for a later phase; this version accepts sqlite:/// URLs only.
     database_url: str = "sqlite:///./data/lms_ai.db"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _ignore_comment_only_values(cls, values):
+        """A line like `KEY=   # note` in .env gives KEY the value "# note" (a .env rule).
+
+        Older copies of .env.example had such lines. A value that is only a comment
+        means "not set": the default is used instead of failing at start-up.
+        """
+        if isinstance(values, dict):
+            return {
+                k: v for k, v in values.items() if not (isinstance(v, str) and v.lstrip().startswith("#"))
+            }
+        return values
+
+    @field_validator("rag_min_score", mode="before")
+    @classmethod
+    def _empty_means_default(cls, value):
+        """RAG_MIN_SCORE= (empty, as in .env.example) means "choose by embedder", not an error."""
+        return None if isinstance(value, str) and not value.strip() else value
 
     def check_security(self) -> list[str]:
         """Problems that must stop the server, plus warnings (returned as text, raised by main.py)."""

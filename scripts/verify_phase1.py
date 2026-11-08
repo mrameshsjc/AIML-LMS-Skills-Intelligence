@@ -84,7 +84,7 @@ REQUIRED_PATHS = [
     "requirements-dev.txt",
     "pyproject.toml",
     "Dockerfile",
-    "docker-compose.yml",
+    "compose.yaml",
     ".github/workflows/ci.yml",
     ".env.example",
     ".gitignore",
