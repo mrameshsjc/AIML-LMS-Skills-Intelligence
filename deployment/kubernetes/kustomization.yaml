@@ -1,0 +1,29 @@
+# kustomization.yaml: the list of manifests that make up the engine on Kubernetes (Phase 20).
+#
+#   PS> kubectl apply -k deployment/kubernetes        create or update everything
+#   PS> kubectl kustomize deployment/kubernetes       show the final YAML without applying it
+#
+# The Secret is NOT here (it would end up in Git): create it from your own file first,
+#   PS> kubectl -n lms-skills create secret generic lms-secrets --from-env-file=deployment/kubernetes/secret.env
+# Guide: docs/KUBERNETES_GUIDE.md
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: lms-skills
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - persistent-volume.yaml
+  - api-deployment.yaml
+  - api-service.yaml
+  - api-hpa.yaml
+  - api-pdb.yaml
+  - dashboard-deployment.yaml
+  - dashboard-service.yaml
+
+# The image built inside Minikube (docs/KUBERNETES_GUIDE.md, section 4). Change the tag here
+# for a new version, then `kubectl apply -k` performs a rolling update.
+images:
+  - name: aiml-lms-skills-intelligence
+    newTag: dev

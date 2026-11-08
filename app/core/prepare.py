@@ -19,6 +19,11 @@ WHAT IT DOES (each step is skipped when its result already exists)
     5. model       PREPARE_TRAIN_MODEL=true: train a first completion model if
                    there is none, so the demo can show model metrics (Phase 19)
 
+SEVERAL PODS AT ONCE (Phase 20)
+    On Kubernetes every API and dashboard pod runs this step in an init container,
+    all on the same volume. A lock file (vector_store/.prepare.lock) makes them wait
+    for each other: the first builds, the others then find everything "ready".
+
 RESET (Phase 19)
     reset_demo() puts the demo back to its starting state: uploaded documents,
     model versions and the database are removed, then the steps above run again.
@@ -47,7 +52,8 @@ import logging
 import os
 import shutil
 import sys
-from contextlib import closing
+from collections.abc import Iterator
+from contextlib import closing, contextmanager
 from pathlib import Path
 
 from app.core.config import Settings, get_settings
@@ -186,10 +192,33 @@ def reset_demo(settings: Settings) -> list[str]:
     return lines + prepare(settings.model_copy(update={"prepare_on_start": True}))
 
 
+@contextmanager
+def volume_lock(settings: Settings) -> Iterator[None]:
+    """One start step at a time per shared volume (Linux containers). A no-op on Windows."""
+    folder = resolve_folder(settings.vector_store_dir)
+    folder.mkdir(parents=True, exist_ok=True)
+    try:
+        import fcntl
+    except ImportError:  # Windows: one local process, nothing to coordinate
+        yield
+        return
+    with (folder / ".prepare.lock").open("w") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)  # waits while another pod prepares
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+
 def prepare(settings: Settings) -> list[str]:
     """Run every step; returns readable lines for the container log. Raises only for the database."""
     if not settings.prepare_on_start:
         return ["Start step skipped (PREPARE_ON_START=false)."]
+    with volume_lock(settings):
+        return _prepare(settings)
+
+
+def _prepare(settings: Settings) -> list[str]:
     lines = []
     created = ensure_folders(settings)
     lines.append(f"Folders: {'created ' + ', '.join(created) if created else 'ready'}")

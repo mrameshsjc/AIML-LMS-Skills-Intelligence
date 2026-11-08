@@ -3,7 +3,9 @@ The container start step (Phase 18, app/core/prepare.py): a fresh, empty set
 of volumes becomes a working system; a second start changes nothing.
 """
 
+import multiprocessing
 import sqlite3
+import sys
 
 import pytest
 from pydantic import SecretStr
@@ -111,3 +113,25 @@ def test_reset_puts_the_demo_back_to_the_start(settings, tmp_path):
     assert any(line.startswith("Database: created") for line in lines)  # rebuilt from the sample
     assert read_manifest(tmp_path / "store" / "default")["chunk_count"] > 0
     assert store.get("root") is not None  # accounts survive a reset
+
+
+# --- Phase 20: several pods prepare the same volume at once ---------------------------------------
+def _prepare_in_process(settings_json: str, queue) -> None:
+    queue.put(prepare(Settings.model_validate_json(settings_json)))
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the lock uses fcntl (Linux containers)")
+def test_two_pods_starting_together_build_once(settings):
+    context = multiprocessing.get_context("spawn")
+    queue = context.Queue()
+    data = settings.model_dump_json()
+    workers = [context.Process(target=_prepare_in_process, args=(data, queue)) for _ in range(2)]
+    for worker in workers:
+        worker.start()
+    results = [queue.get(timeout=120) for _ in workers]
+    for worker in workers:
+        worker.join(timeout=30)
+    index_lines = sorted(line for lines in results for line in lines if line.startswith("Document index"))
+    assert index_lines[0].startswith("Document index: built") and index_lines[1].startswith(
+        "Document index: ready"
+    )

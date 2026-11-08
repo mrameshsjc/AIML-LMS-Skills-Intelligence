@@ -1,0 +1,141 @@
+# Deployment: runs the FastAPI service as 2 identical pods (replicas) and replaces them one at a
+# time on an update (rolling update), so the API stays available. Phase 20.
+#
+# Each pod starts in three steps:
+#   1. init "volume-permissions"  creates the sub-folders on the shared volume, owned by user 10001
+#   2. init "prepare"             database, document index, admin account, first model - once:
+#                                 the other pods wait for the lock and then find everything ready
+#   3. container "api"            uvicorn, checked by the readiness and liveness probes
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lms-api
+  labels:
+    app.kubernetes.io/name: lms-skills
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: lms-skills-intelligence
+spec:
+  replicas: 2                       # the HorizontalPodAutoscaler (api-hpa.yaml) adjusts this
+  revisionHistoryLimit: 5           # old versions kept for `kubectl rollout undo`
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lms-skills
+      app.kubernetes.io/component: api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0             # never fewer ready pods than wanted during an update
+      maxSurge: 1                   # start one new pod, wait until it is ready, then stop an old one
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lms-skills
+        app.kubernetes.io/component: api
+        app.kubernetes.io/part-of: lms-skills-intelligence
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: volume-permissions
+          image: aiml-lms-skills-intelligence
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c"]
+          args:
+            - mkdir -p /volume/db /volume/vector_store /volume/uploads /volume/models /volume/mlruns
+              /volume/accounts /volume/logs && chown -R 10001:10001 /volume
+          securityContext:          # the only step that runs as root, and only to set folder owners
+            runAsNonRoot: false
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+              add: [CHOWN, DAC_OVERRIDE]    # set owners; create sub-folders even after the first run
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+          volumeMounts:
+            - {name: data, mountPath: /volume}
+        - name: prepare
+          image: aiml-lms-skills-intelligence
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "app.core.prepare"]
+          envFrom:
+            - configMapRef: {name: lms-config}
+            - secretRef: {name: lms-secrets}
+          env:
+            - {name: PREPARE_ON_START, value: "true"}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: {cpu: 250m, memory: 256Mi}
+            limits: {cpu: "1", memory: 1Gi}
+          volumeMounts:
+            - {name: data, mountPath: /app/data/db, subPath: db}
+            - {name: data, mountPath: /app/vector_store, subPath: vector_store}
+            - {name: data, mountPath: /app/data/uploads, subPath: uploads}
+            - {name: data, mountPath: /app/models, subPath: models}
+            - {name: data, mountPath: /app/mlruns, subPath: mlruns}
+            - {name: data, mountPath: /app/data/accounts, subPath: accounts}
+            - {name: data, mountPath: /app/logs, subPath: logs}
+            - {name: tmp, mountPath: /tmp}
+            - {name: home, mountPath: /home/appuser}
+      containers:
+        - name: api
+          image: aiml-lms-skills-intelligence
+          imagePullPolicy: IfNotPresent
+          command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+          ports:
+            - {name: http, containerPort: 8000}
+          envFrom:
+            - configMapRef: {name: lms-config}
+            - secretRef: {name: lms-secrets}
+          env:
+            - {name: PREPARE_ON_START, value: "false"}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: {cpu: 250m, memory: 384Mi}   # what the scheduler reserves; the HPA measures against it
+            limits: {cpu: "1", memory: 1Gi}        # the most it may use (over memory = restarted)
+          # Readiness: may this pod receive traffic? Not ready = taken out of the Service, not restarted.
+          readinessProbe:
+            httpGet: {path: /api/v1/health, port: http}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # Liveness: is it still alive? Fails 3 times in a row = Kubernetes restarts the container.
+          livenessProbe:
+            httpGet: {path: /api/v1/health, port: http}
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - {name: data, mountPath: /app/data/db, subPath: db}
+            - {name: data, mountPath: /app/vector_store, subPath: vector_store}
+            - {name: data, mountPath: /app/data/uploads, subPath: uploads}
+            - {name: data, mountPath: /app/models, subPath: models}
+            - {name: data, mountPath: /app/mlruns, subPath: mlruns}
+            - {name: data, mountPath: /app/data/accounts, subPath: accounts}
+            - {name: data, mountPath: /app/logs, subPath: logs}
+            - {name: tmp, mountPath: /tmp}
+            - {name: home, mountPath: /home/appuser}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: lms-data}
+        - name: tmp
+          emptyDir: {}
+        - name: home
+          emptyDir: {}
