@@ -23,7 +23,7 @@ joblib>=1.4,<2.0              # saves/loads scikit-learn pipelines (models/compl
 # Phase 9: database - uses Python's built-in sqlite3 module, nothing to install.
 
 # Phase 12: knowledge documents and search
-pypdf>=5.0,<7.0               # reads text from PDF documents (Word .docx is read with the built-in zipfile)
+pypdf>=6.21.4,<7.0               # reads text from PDF documents (Word .docx is read with the built-in zipfile)
 faiss-cpu>=1.9,<2.0           # FAISS vector search; without it the engine falls back to exact NumPy search
 
 # Phase 13: document upload (API 7)
