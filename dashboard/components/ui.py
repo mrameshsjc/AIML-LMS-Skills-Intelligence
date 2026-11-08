@@ -26,6 +26,7 @@ dashboard and Swagger always show the same numbers.
 
 from __future__ import annotations
 
+import os
 import secrets
 from collections.abc import Callable
 from typing import TypeVar
@@ -46,8 +47,33 @@ T = TypeVar("T")
 DEFAULT_EMPLOYEE = "E1001"  # the worked example from the requirements
 
 
+def apply_streamlit_secrets() -> bool:
+    """Streamlit Community Cloud: copy the root-level secrets into the environment (Phase 19).
+
+    The engine reads its settings from environment variables. Streamlit copies secrets there
+    only when st.secrets is first READ, so read it here, before the settings are loaded.
+    Returns True if a setting changed (the cached settings and services are then rebuilt).
+    Locally there is no secrets file: nothing happens and .env is used as before.
+    """
+    try:
+        found = {k: v for k, v in st.secrets.items() if isinstance(v, str | int | float | bool)}
+    except Exception:  # no .streamlit/secrets.toml (local runs, Docker)
+        return False
+    changed = False
+    for key, value in found.items():
+        if os.environ.get(key) != str(value):
+            os.environ[key] = str(value)
+            changed = True
+    if changed:
+        get_settings.cache_clear()
+        for cache in (get_repository, get_llm_provider):
+            cache.cache_clear()
+    return changed
+
+
 def setup_page(title: str, intro: str, icon: str = "🎓") -> None:
     st.set_page_config(page_title=f"{title} – LMS Skills Intelligence", page_icon=icon, layout="wide")
+    apply_streamlit_secrets()  # before ANY setting is read
     st.title(title)
     st.caption(intro)
     problems = get_settings().check_security()  # the same start-up rules as the API (Phase 17/19)

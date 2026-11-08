@@ -196,3 +196,30 @@ def test_fallback_answers_are_labelled(guest_on):
     app.chat_input[0].set_value("Which skills are required for an AI Engineer?").run()
     assert not app.exception
     assert any("Fallback mode" in i.value for i in app.info)
+
+
+# --- Streamlit Community Cloud secrets (Phase 19 fix) -------------------------------------------------
+CLOUD_SECRETS = {
+    "APP_PROFILE": "public-demo",
+    "AUTH_ENABLED": "true",
+    "GUEST_ACCESS": "true",
+    "AUTH_SECRET_KEY": "c" * 48,
+    "BOOTSTRAP_ADMIN_PASSWORD": "long-enough-pass-1",
+}
+
+
+def test_streamlit_secrets_switch_on_the_public_demo(monkeypatch, tmp_path):
+    # Secrets reach the engine only through environment variables; restore them after the test.
+    local = {"APP_PROFILE": "local", "AUTH_ENABLED": "false", "GUEST_ACCESS": "false"}
+    for key in CLOUD_SECRETS:
+        monkeypatch.setenv(key, local.get(key, ""))  # valid local values until the secrets apply
+    monkeypatch.setenv("USERS_FILE", str(tmp_path / "users.json"))
+    get_settings.cache_clear()
+    app = AppTest.from_file(str(DASHBOARD / "pages/1_Data_Upload.py"), default_timeout=120)
+    for key, value in CLOUD_SECRETS.items():
+        app.secrets[key] = value
+    app.run()
+    assert not app.exception, app.exception
+    assert any("Guest" in c.value for c in app.sidebar.caption)  # login on, guest access
+    assert "Administrators only" in app.error[0].value  # the admin page is closed to guests
+    get_settings.cache_clear()
