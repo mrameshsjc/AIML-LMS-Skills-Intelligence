@@ -5,7 +5,8 @@
 # The Docker job runs scripts/api_smoke_test.py against the container (Phase 14), started
 # hardened like compose.yaml: read-only, no capabilities, non-root, empty volumes (Phase 18).
 # It also renders the Kubernetes manifests (Phase 20).
-# Later phases add: Snyk security scan, image publish and deploy.
+# The Snyk job (Phase 21) scans dependencies and the image when the repository secret SNYK_TOKEN
+# is set, and shows the results in the Security tab. Jenkins runs the full pipeline: Jenkinsfile.
 
 name: CI
 
@@ -93,3 +94,66 @@ jobs:
       - name: Show container logs if anything failed
         if: failure()
         run: docker logs api
+
+  security:
+    name: Snyk security scan
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      security-events: write          # results appear under Security -> Code scanning
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}   # never printed; empty on forks and Dependabot pull requests
+    steps:
+      - name: Snyk token configured?
+        if: env.SNYK_TOKEN == ''
+        run: echo "::notice title=Snyk scan skipped::Add the repository secret SNYK_TOKEN to scan (docs/SNYK_SECURITY_GUIDE.md)."
+
+      - name: Check out code
+        if: env.SNYK_TOKEN != ''
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        if: env.SNYK_TOKEN != ''
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install the dependencies Snyk examines
+        if: env.SNYK_TOKEN != ''
+        run: pip install -r requirements.txt
+
+      - name: Install the Snyk CLI
+        if: env.SNYK_TOKEN != ''
+        run: npm install --global snyk@1
+
+      - name: Snyk dependency scan (requirements.txt)
+        if: env.SNYK_TOKEN != ''
+        # Reported, not blocking: a vulnerability published today must not stop unrelated work.
+        # The findings are visible in the log and in the Security tab; fix them in the next phase branch.
+        continue-on-error: true
+        run: snyk test --file=requirements.txt --package-manager=pip --command=python --severity-threshold=high --sarif-file-output=snyk-dependencies.sarif
+
+      - name: Build the image for the container scan
+        if: env.SNYK_TOKEN != ''
+        run: docker build -t aiml-lms-skills-intelligence:snyk .
+
+      - name: Snyk container scan (base image + system packages)
+        if: env.SNYK_TOKEN != ''
+        continue-on-error: true
+        run: snyk container test aiml-lms-skills-intelligence:snyk --file=Dockerfile --severity-threshold=high --sarif-file-output=snyk-container.sarif
+
+      - name: Upload dependency results to the Security tab
+        if: always() && env.SNYK_TOKEN != '' && hashFiles('snyk-dependencies.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk-dependencies.sarif
+          category: snyk-dependencies
+
+      - name: Upload container results to the Security tab
+        if: always() && env.SNYK_TOKEN != '' && hashFiles('snyk-container.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk-container.sarif
+          category: snyk-container

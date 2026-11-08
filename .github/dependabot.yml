@@ -1,0 +1,23 @@
+# Dependabot (Phase 21): GitHub opens a pull request when a newer version of a dependency exists.
+# The pull requests go to development and run the normal CI; merge them like any phase branch.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    target-branch: development
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      python-minor-and-patch:          # one pull request for all small updates
+        update-types: [minor, patch]
+  - package-ecosystem: docker
+    directory: "/"
+    target-branch: development
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: "/"
+    target-branch: development
+    schedule:
+      interval: monthly

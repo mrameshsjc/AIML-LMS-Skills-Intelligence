@@ -1,0 +1,7 @@
+# Snyk policy file (Phase 21): ignores that were reviewed and ACCEPTED, with a reason and an expiry date.
+# Add entries with the CLI so the format stays correct, for example:
+#   snyk ignore --id=SNYK-PYTHON-EXAMPLE-1234567 --expiry=2027-03-31 --reason="Only reachable from admin-only retraining; fix pending upstream"
+# Every ignore needs a reason and an expiry. Review them in each phase. See docs/SNYK_SECURITY_GUIDE.md.
+version: v1.25.0
+ignore: {}
+patch: {}

@@ -5,7 +5,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | | |
 | --- | --- |
 | Project folder / Git repo | `AIML-LMS-Skills-Intelligence` |
-| Current phase | **Phase 20 – Kubernetes with Minikube: Deployments, Services, ConfigMap, Secret, PV/PVC, probes, limits, autoscaling** (Phases 1–19 on GitHub, CI green) |
+| Current phase | **Phase 21 – CI/CD: Jenkins pipeline (11 stages) and Snyk security scanning** (Phases 1–20 on GitHub, CI green) |
 | **Live demo** | Dashboard: **https://lms-skills-intelligence.streamlit.app** · API: **https://lms-skills-api.onrender.com/api/v1** · Swagger: **https://lms-skills-api.onrender.com/docs** (synthetic data, no account needed; the API wakes in about a minute after a quiet period) |
 | Python | 3.11 |
 | LMS integration | Not in this project. The architecture is API-ready for it (later phase). |
@@ -14,7 +14,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 
 ---
 
-## 1. What is built so far (Phases 1–20)
+## 1. What is built so far (Phases 1–21)
 
 | Item | File(s) | Why it exists |
 | --- | --- | --- |
@@ -98,6 +98,9 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | **Phase 20:** Kubernetes manifests | `deployment/kubernetes/` (kustomization, namespace, ConfigMap, PV + PVC, Deployments, Services, HPA, PDB) | API with 2–4 replicas and rolling updates, dashboard, shared persistent volume, readiness/liveness probes, resource limits, hardened pods |
 | **Phase 20:** multi-replica ready | `app/api/dependencies.py`, `app/core/prepare.py` | Index and current model reload when another pod changes them; start step locked so one pod builds |
 | **Phase 20:** tests + docs | `tests/unit/test_kubernetes_manifests.py`, CI `kubectl kustomize`, `docs/KUBERNETES_GUIDE.md` | 14 manifest checks + concurrent start test; PowerShell guide incl. Docker vs Kubernetes, scaling, rollback |
+| **Phase 21:** Jenkins pipeline | `Jenkinsfile`, `deployment/jenkins/` | Checkout → Python → dependencies → code quality → unit tests → API tests → Snyk → Docker build → publish (if configured) → dev deployment → smoke test; secrets only from Jenkins credentials |
+| **Phase 21:** Snyk + updates | GitHub job "Snyk security scan", `.snyk`, `.github/dependabot.yml` | Dependency and container scans with results in GitHub's Security tab; weekly update pull requests |
+| **Phase 21:** tests + docs | `tests/unit/test_cicd_config.py`, `docs/JENKINS_CICD_GUIDE.md`, `docs/SNYK_SECURITY_GUIDE.md` | 16 checks; step-by-step Jenkins and Snyk setup |
 
 **All seven APIs are live:** 1 (`/skills/analyze`), 2 (`/roles/match`), 3 (`/trainings/recommend`), 4 (`/learning-path/{id}`), 5 (`/ai/chat`), 6 (`/ml/retrain`, admin) and 7 (`/rag/ingest`, admin). With `AUTH_ENABLED=true` they need a login (`/auth/token`). Full reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
 
@@ -157,6 +160,7 @@ AIML-LMS-Skills-Intelligence/
 │   ├── unit/test_docker_config.py, test_prepare.py # 26 + 6 checks            [Phase 18 ✓]
 │   ├── unit/test_hosted_llm.py, test_prepare_hf_space.py, api/test_admin_api.py [Phase 19 ✓]
 │   ├── unit/test_kubernetes_manifests.py # 14 checks                        [Phase 20 ✓]
+│   ├── unit/test_cicd_config.py  # Jenkinsfile, Jenkins image, Snyk job, Dependabot (16) [Phase 21 ✓]
 │   ├── unit/  integration/  security/
 ├── reports/                      # generated charts and reports (not in Git)   [Phase 4]
 ├── deployment/                   # docker/, kubernetes/, cloud/                (later, 18–20)
@@ -535,6 +539,15 @@ kubectl -n lms-skills port-forward service/lms-api 18000:80    # http://127.0.0.
 ```
 
 Two API replicas (autoscaled 2–4), the dashboard, and one persistent volume for the database, index, uploads, models and accounts. Pods have readiness and liveness probes, resource limits, and run as non-root with a read-only filesystem. Full guide with Docker vs Kubernetes, scaling, rolling updates, rollback and troubleshooting: [`docs/KUBERNETES_GUIDE.md`](docs/KUBERNETES_GUIDE.md).
+
+## 5s. CI/CD: Jenkins and Snyk (Phase 21)
+
+```powershell
+docker compose -f deployment/jenkins/compose.yaml up -d --build     # Jenkins at http://127.0.0.1:18080
+docker exec lms-jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+```
+
+Then add the credential `snyk-token` and create a *Pipeline from SCM* job using `Jenkinsfile`. Its 11 stages end with the development API at http://127.0.0.1:18001/docs, checked by the smoke test. On GitHub, add the repository secret `SNYK_TOKEN` and every push scans dependencies and the image (results under *Security*). Guides: [`docs/JENKINS_CICD_GUIDE.md`](docs/JENKINS_CICD_GUIDE.md), [`docs/SNYK_SECURITY_GUIDE.md`](docs/SNYK_SECURITY_GUIDE.md).
 
 ## 6. Run with Docker (hardened in Phase 18)
 
