@@ -146,14 +146,14 @@ jobs:
 
       - name: Upload dependency results to the Security tab
         if: always() && env.SNYK_TOKEN != '' && hashFiles('snyk-dependencies.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: snyk-dependencies.sarif
           category: snyk-dependencies
 
       - name: Upload container results to the Security tab
         if: always() && env.SNYK_TOKEN != '' && hashFiles('snyk-container.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: snyk-container.sarif
           category: snyk-container
