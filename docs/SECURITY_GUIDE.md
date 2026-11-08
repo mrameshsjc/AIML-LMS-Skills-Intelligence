@@ -43,7 +43,7 @@ LMS in the integration project.
 | Dashboard | Open | Sidebar login; pages 1, 7, 8 for admins |
 | Start-up | Warning in the log | Requires `AUTH_SECRET_KEY` ≥ 32 characters |
 
-**Public demo (Phase 19): `AUTH_ENABLED=true` + `GUEST_ACCESS=true`.** Visitors without an account become a read-only **guest**: they may use APIs 1–5 and the dashboard pages for every *synthetic* employee, see the documents and the model metrics, and nothing else. Admin actions still need an admin login: guests get `401 ADMIN_AUTH_REQUIRED` from the API and "Administrators only" in the dashboard. Use guest access **only with synthetic data**. On hosts whose disk resets (Hugging Face Spaces), `BOOTSTRAP_ADMIN_PASSWORD` (a secret, 12+ characters) recreates the `admin` account at every start. Details: [`PUBLIC_DEPLOYMENT_GUIDE.md`](PUBLIC_DEPLOYMENT_GUIDE.md).
+**Public demo (Phase 19): `AUTH_ENABLED=true` + `GUEST_ACCESS=true`.** Visitors without an account become a read-only **guest**: they may use APIs 1–5 and the dashboard pages for every *synthetic* employee, see the documents and the model metrics, and nothing else. Admin actions still need an admin login: guests get `401 ADMIN_AUTH_REQUIRED` from the API and "Administrators only" in the dashboard. Use guest access **only with synthetic data**. On hosts whose disk resets (Streamlit Community Cloud, Render, Hugging Face Spaces), `BOOTSTRAP_ADMIN_PASSWORD` (a secret, 12+ characters) recreates the `admin` account at every start. Details: [`PUBLIC_DEPLOYMENT_GUIDE.md`](PUBLIC_DEPLOYMENT_GUIDE.md).
 
 Health checks (`/api/v1/health*`) and `GET /api/v1/ml/status` (model versions, no personal data) stay open in both modes, so Docker and Kubernetes can probe the service.
 

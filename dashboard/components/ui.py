@@ -54,8 +54,20 @@ def setup_page(title: str, intro: str, icon: str = "🎓") -> None:
     if problems:
         st.error("Unsafe settings - the dashboard will not run:\n\n- " + "\n- ".join(problems))
         st.stop()
+    if get_settings().prepare_in_dashboard:
+        _prepare_once()
     _sidebar_status()
     _login_box()
+
+
+@st.cache_resource(
+    show_spinner="First start: building the database, the document index and a first model ..."
+)
+def _prepare_once() -> list[str]:
+    """Streamlit Community Cloud (Phase 19): run the container start step once per server process."""
+    from app.core.prepare import prepare
+
+    return prepare(get_settings())
 
 
 @st.cache_data(ttl=60, show_spinner=False)

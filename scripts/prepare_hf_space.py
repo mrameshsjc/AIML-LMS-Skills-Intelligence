@@ -1,6 +1,10 @@
 """
 Prepare a Hugging Face Space folder for the public demo (Phase 19).
 
+NOTE (November 2026): Hugging Face now requires a PRO plan for Docker Spaces. The free
+public demo uses Streamlit Community Cloud + Render instead (docs/PUBLIC_DEPLOYMENT_GUIDE.md).
+This script is kept for anyone with a PRO plan.
+
 A Hugging Face Docker Space is its own small Git repository with a Dockerfile
 and a README.md whose header tells Hugging Face how to run it. This script
 builds that folder from the project, for one of two Spaces:
@@ -19,7 +23,7 @@ What it changes compared with the normal image (Dockerfile):
 HOW TO RUN (PowerShell, from the project folder)
     PS> python scripts/prepare_hf_space.py dashboard --out ..\\hf-lms-dashboard
     PS> python scripts/prepare_hf_space.py api --out ..\\hf-lms-api
-    Then push each folder to its Space: docs/PUBLIC_DEPLOYMENT_GUIDE.md, section 4.
+    Then upload each folder:  hf upload <user>/<space> <folder> . --repo-type space
 """
 
 from __future__ import annotations

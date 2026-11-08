@@ -13,7 +13,7 @@ Guides are added in the phase that needs them:
 | DOCKER_GUIDE.md (**done**: build, run, stop, inspect, debug, volumes, hardening) | 1, 18 |
 | GITHUB_ACTIONS_CICD_GUIDE.md, SNYK_SECURITY_GUIDE.md | 1, 21 |
 | KUBERNETES_GUIDE.md | 20 |
-| PUBLIC_DEPLOYMENT_GUIDE.md (**done**: hosting evaluation, Hugging Face Spaces, hosted LLM, reset, walkthrough, limitations); DEMO_WALKTHROUGH.md | 19, 22 |
+| PUBLIC_DEPLOYMENT_GUIDE.md (**done**: hosting evaluation, Streamlit Community Cloud + Render, hosted LLM, reset, walkthrough, limitations); DEMO_WALKTHROUGH.md | 19, 22 |
 | TESTING_GUIDE.md (**done**), api_contract.json (the saved API contract) | 14 |
 | DASHBOARD_GUIDE.md (**done**) | 15 |
 | SECURITY_GUIDE.md (**done**: login, roles, rate limits, audit log, prompt injection, uploads) | 17 |

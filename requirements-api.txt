@@ -1,0 +1,15 @@
+# requirements-api.txt: ONLY what the API needs (Phase 19), for small free hosts such as Render (512 MB).
+# Same versions as requirements.txt (tests/unit/test_requirements.py keeps them in step).
+# Left out: streamlit (dashboard), mlflow (tracking is optional), faiss-cpu (NumPy search is used instead),
+# matplotlib (EDA scripts only).
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30,<1.0
+pydantic>=2.7,<3.0
+pydantic-settings>=2.4,<3.0
+pandas>=3.0,<4.0
+numpy>=1.26,<3.0
+scikit-learn>=1.5,<2.0
+joblib>=1.4,<2.0
+pypdf>=5.0,<7.0
+python-multipart>=0.0.9,<1.0
+pyjwt>=2.8,<3.0

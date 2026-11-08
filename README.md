@@ -5,7 +5,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | | |
 | --- | --- |
 | Project folder / Git repo | `AIML-LMS-Skills-Intelligence` |
-| Current phase | **Phase 19 – Public cloud deployment: Hugging Face Spaces, guest access, hosted LLM option, demo reset** (Phases 1–18 on GitHub, CI green) |
+| Current phase | **Phase 19 – Public cloud deployment: Streamlit Community Cloud + Render, guest access, hosted LLM option, demo reset** (Phases 1–18 on GitHub, CI green) |
 | Public demo | Dashboard, API and Swagger URLs: added here after deployment and verification ([`docs/PUBLIC_DEPLOYMENT_GUIDE.md`](docs/PUBLIC_DEPLOYMENT_GUIDE.md)) |
 | Python | 3.11 |
 | LMS integration | Not in this project. The architecture is API-ready for it (later phase). |
@@ -90,10 +90,10 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | **Phase 18:** Compose | `compose.yaml`, `deployment/docker/compose.prod.yaml` | api + dashboard (+ mlflow, ollama profiles); 7 persistent volumes; read-only, no capabilities, localhost ports, limits |
 | **Phase 18:** start step | `app/core/prepare.py` | Empty volumes become a working system: database + document index on first start |
 | **Phase 18:** tests + docs | `tests/unit/test_docker_config.py`, `test_prepare.py`, CI hardened run, `docs/DOCKER_GUIDE.md` | 26 + 6 checks; PowerShell guide to build, run, stop, inspect, debug |
-| **Phase 19:** hosting decision | `docs/PUBLIC_DEPLOYMENT_GUIDE.md` | Streamlit Community Cloud, Hugging Face Spaces, Render, Railway and others compared; two free Hugging Face Spaces chosen |
+| **Phase 19:** hosting decision | `docs/PUBLIC_DEPLOYMENT_GUIDE.md` | Streamlit Community Cloud, Hugging Face Spaces, Render, Railway and others compared; dashboard on Streamlit Community Cloud, API on Render (both free) |
 | **Phase 19:** public demo mode | `GUEST_ACCESS`, `BOOTSTRAP_ADMIN_PASSWORD`, `PREPARE_TRAIN_MODEL` | Visitors browse read-only without an account; admin from a secret; first model at start for the metrics |
 | **Phase 19:** hosted LLM option | `app/llm/hosted_provider.py` (`LLM_PROVIDER=hosted`) | Any OpenAI-compatible service, explicit approval required; labelled fallback when unavailable |
-| **Phase 19:** demo reset + packaging | `POST /api/v1/admin/reset-demo`, `scripts/prepare_hf_space.py`, `deployment/cloud/` | Reset mechanism for demo data; Space folders for the dashboard and the API |
+| **Phase 19:** demo reset + hosting files | `POST /api/v1/admin/reset-demo`, `render.yaml`, `requirements-api.txt`, `dashboard/requirements.txt`, `deployment/cloud/` | Reset mechanism; Render Blueprint; slim installs for the free tiers; Streamlit secrets template |
 | **Phase 19:** tests | `test_hosted_llm.py`, `test_prepare_hf_space.py`, `test_admin_api.py`, guest tests | 34 new checks |
 
 **All seven APIs are live:** 1 (`/skills/analyze`), 2 (`/roles/match`), 3 (`/trainings/recommend`), 4 (`/learning-path/{id}`), 5 (`/ai/chat`), 6 (`/ml/retrain`, admin) and 7 (`/rag/ingest`, admin). With `AUTH_ENABLED=true` they need a login (`/auth/token`). Full reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
@@ -507,17 +507,14 @@ python scripts/api_smoke_test.py --username admin --password <admin password>
 
 Log in as `employee` and `GET /api/v1/learning-path/E1002` gives **403**; as `manager` you see E1064's team; only `admin` (or `X-Admin-Key`) may retrain or upload. Every API call is written to `logs/audit.jsonl`. The assistant refuses "ignore your instructions…" questions and uploads with hidden instructions. Guide: [`docs/SECURITY_GUIDE.md`](docs/SECURITY_GUIDE.md).
 
-## 5q. Public demo on Hugging Face Spaces (Phase 19)
+## 5q. Public demo: Streamlit Community Cloud + Render (Phase 19)
 
-```powershell
-python scripts/prepare_hf_space.py dashboard --out ..\hf-lms-dashboard   # Space folder for the dashboard
-python scripts/prepare_hf_space.py api --out ..\hf-lms-api               # Space folder for FastAPI + Swagger
-pip install huggingface_hub; hf auth login                              # once, with a write token
-hf upload <user>/lms-skills-dashboard ..\hf-lms-dashboard . --repo-type space
-hf upload <user>/lms-skills-api ..\hf-lms-api . --repo-type space
-```
+| Part | Host (free) | How |
+| --- | --- | --- |
+| Dashboard | Streamlit Community Cloud | share.streamlit.io → Create app → repo, branch `main`, file `dashboard/Home.py`, Python 3.11, secrets from `deployment/cloud/streamlit/secrets.toml.example` |
+| API + Swagger | Render | render.com → New → Blueprint → this repo (`render.yaml`); enter the admin password |
 
-Set the Space secrets `AUTH_SECRET_KEY` and `BOOTSTRAP_ADMIN_PASSWORD` first. Visitors browse as read-only guests; uploads, retraining and the demo reset are admin-only. Without a hosted LLM the assistant answers in a clearly labelled fallback mode. Full steps, the hosting comparison, verification checklist, walkthrough and known limitations: [`docs/PUBLIC_DEPLOYMENT_GUIDE.md`](docs/PUBLIC_DEPLOYMENT_GUIDE.md).
+Both redeploy automatically on every push to `main`. Visitors browse as read-only guests; uploads, retraining and the demo reset are admin-only. Without a hosted LLM the assistant answers in a clearly labelled fallback mode. Full steps, the hosting comparison, verification checklist, walkthrough and known limitations: [`docs/PUBLIC_DEPLOYMENT_GUIDE.md`](docs/PUBLIC_DEPLOYMENT_GUIDE.md).
 
 ## 6. Run with Docker (hardened in Phase 18)
 

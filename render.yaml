@@ -1,0 +1,48 @@
+# render.yaml: Render "Blueprint" for the public API + Swagger UI (Phase 19).
+# Render reads this file when you choose New -> Blueprint and pick this GitHub repository.
+# Free web service: 512 MB RAM, sleeps after 15 minutes without traffic (about a minute to wake).
+# Guide: docs/PUBLIC_DEPLOYMENT_GUIDE.md, section 4B.
+services:
+  - type: web
+    name: lms-skills-api
+    runtime: python
+    plan: free
+    branch: main
+    autoDeploy: true                      # redeploys on every push to main
+    buildCommand: pip install -r requirements-api.txt
+    # The start step (app/core/prepare.py) builds the index, the admin account and a first model,
+    # then starts uvicorn on Render's port. --proxy-headers: visitors' addresses for rate limits.
+    startCommand: python -m app.core.prepare uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips "*"
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.11"
+      - key: APP_PROFILE
+        value: public-demo
+      - key: AUTH_ENABLED
+        value: "true"
+      - key: GUEST_ACCESS
+        value: "true"
+      - key: PREPARE_TRAIN_MODEL
+        value: "true"
+      - key: EMBEDDING_PROVIDER
+        value: tfidf
+      - key: VECTOR_BACKEND
+        value: numpy
+      - key: LLM_PROVIDER
+        value: fallback
+      - key: MLFLOW_ENABLED
+        value: "false"
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "60"
+      - key: RATE_LIMIT_CHAT_PER_MINUTE
+        value: "10"
+      - key: RATE_LIMIT_ADMIN_PER_HOUR
+        value: "10"
+      - key: RAG_MAX_UPLOAD_MB
+        value: "2"
+      # Secrets: never in Git.
+      - key: AUTH_SECRET_KEY
+        generateValue: true               # Render creates a random secret
+      - key: BOOTSTRAP_ADMIN_PASSWORD
+        sync: false                       # Render asks you for it when the Blueprint is created

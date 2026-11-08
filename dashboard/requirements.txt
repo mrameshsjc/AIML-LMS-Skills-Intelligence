@@ -1,0 +1,15 @@
+# dashboard/requirements.txt: what the DASHBOARD needs on Streamlit Community Cloud (Phase 19).
+# Community Cloud uses the requirements file next to the entry point (dashboard/Home.py) first.
+# Same versions as requirements.txt (tests/unit/test_requirements.py keeps them in step).
+# Left out: uvicorn (no API server here), mlflow (optional), faiss-cpu (NumPy search), matplotlib.
+streamlit>=1.55,<2.0
+fastapi>=0.115,<1.0
+pydantic>=2.7,<3.0
+pydantic-settings>=2.4,<3.0
+pandas>=3.0,<4.0
+numpy>=1.26,<3.0
+scikit-learn>=1.5,<2.0
+joblib>=1.4,<2.0
+pypdf>=5.0,<7.0
+python-multipart>=0.0.9,<1.0
+pyjwt>=2.8,<3.0
