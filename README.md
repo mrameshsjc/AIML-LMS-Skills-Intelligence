@@ -5,7 +5,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | | |
 | --- | --- |
 | Project folder / Git repo | `AIML-LMS-Skills-Intelligence` |
-| Current phase | **Phase 19 – Public cloud deployment: Streamlit Community Cloud + Render, guest access, hosted LLM option, demo reset** (Phases 1–18 on GitHub, CI green) |
+| Current phase | **Phase 20 – Kubernetes with Minikube: Deployments, Services, ConfigMap, Secret, PV/PVC, probes, limits, autoscaling** (Phases 1–19 on GitHub, CI green) |
 | **Live demo** | Dashboard: **https://lms-skills-intelligence.streamlit.app** · API: **https://lms-skills-api.onrender.com/api/v1** · Swagger: **https://lms-skills-api.onrender.com/docs** (synthetic data, no account needed; the API wakes in about a minute after a quiet period) |
 | Python | 3.11 |
 | LMS integration | Not in this project. The architecture is API-ready for it (later phase). |
@@ -14,7 +14,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 
 ---
 
-## 1. What is built so far (Phases 1–19)
+## 1. What is built so far (Phases 1–20)
 
 | Item | File(s) | Why it exists |
 | --- | --- | --- |
@@ -95,6 +95,9 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | **Phase 19:** hosted LLM option | `app/llm/hosted_provider.py` (`LLM_PROVIDER=hosted`) | Any OpenAI-compatible service, explicit approval required; labelled fallback when unavailable |
 | **Phase 19:** demo reset + hosting files | `POST /api/v1/admin/reset-demo`, `render.yaml`, `requirements-api.txt`, `dashboard/requirements.txt`, `deployment/cloud/` | Reset mechanism; Render Blueprint; slim installs for the free tiers; Streamlit secrets template |
 | **Phase 19:** tests | `test_hosted_llm.py`, `test_prepare_hf_space.py`, `test_admin_api.py`, guest tests | 34 new checks |
+| **Phase 20:** Kubernetes manifests | `deployment/kubernetes/` (kustomization, namespace, ConfigMap, PV + PVC, Deployments, Services, HPA, PDB) | API with 2–4 replicas and rolling updates, dashboard, shared persistent volume, readiness/liveness probes, resource limits, hardened pods |
+| **Phase 20:** multi-replica ready | `app/api/dependencies.py`, `app/core/prepare.py` | Index and current model reload when another pod changes them; start step locked so one pod builds |
+| **Phase 20:** tests + docs | `tests/unit/test_kubernetes_manifests.py`, CI `kubectl kustomize`, `docs/KUBERNETES_GUIDE.md` | 14 manifest checks + concurrent start test; PowerShell guide incl. Docker vs Kubernetes, scaling, rollback |
 
 **All seven APIs are live:** 1 (`/skills/analyze`), 2 (`/roles/match`), 3 (`/trainings/recommend`), 4 (`/learning-path/{id}`), 5 (`/ai/chat`), 6 (`/ml/retrain`, admin) and 7 (`/rag/ingest`, admin). With `AUTH_ENABLED=true` they need a login (`/auth/token`). Full reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
 
@@ -153,6 +156,7 @@ AIML-LMS-Skills-Intelligence/
 │   ├── security/, api/test_auth_api.py # 64 + 14 checks (login, roles, limits, injection) [Phase 17 ✓]
 │   ├── unit/test_docker_config.py, test_prepare.py # 26 + 6 checks            [Phase 18 ✓]
 │   ├── unit/test_hosted_llm.py, test_prepare_hf_space.py, api/test_admin_api.py [Phase 19 ✓]
+│   ├── unit/test_kubernetes_manifests.py # 14 checks                        [Phase 20 ✓]
 │   ├── unit/  integration/  security/
 ├── reports/                      # generated charts and reports (not in Git)   [Phase 4]
 ├── deployment/                   # docker/, kubernetes/, cloud/                (later, 18–20)
@@ -515,6 +519,22 @@ Log in as `employee` and `GET /api/v1/learning-path/E1002` gives **403**; as `ma
 | API + Swagger | Render | render.com → New → Blueprint → this repo (`render.yaml`); enter the admin password |
 
 Both redeploy automatically on every push to `main`. Visitors browse as read-only guests; uploads, retraining and the demo reset are admin-only. Without a hosted LLM the assistant answers in a clearly labelled fallback mode. Full steps, the hosting comparison, verification checklist, walkthrough and known limitations: [`docs/PUBLIC_DEPLOYMENT_GUIDE.md`](docs/PUBLIC_DEPLOYMENT_GUIDE.md).
+
+## 5r. Kubernetes with Minikube (Phase 20)
+
+```powershell
+minikube start --driver=docker --cpus=4 --memory=6144
+minikube addons enable metrics-server
+minikube image build -t aiml-lms-skills-intelligence:dev .
+kubectl apply -f deployment/kubernetes/namespace.yaml
+Copy-Item deployment/kubernetes/secret.example.env deployment/kubernetes/secret.env   # fill in your values
+kubectl -n lms-skills create secret generic lms-secrets --from-env-file=deployment/kubernetes/secret.env
+kubectl apply -k deployment/kubernetes
+kubectl -n lms-skills get pods -w
+kubectl -n lms-skills port-forward service/lms-api 8000:80     # http://127.0.0.1:8000/docs
+```
+
+Two API replicas (autoscaled 2–4), the dashboard, and one persistent volume for the database, index, uploads, models and accounts. Pods have readiness and liveness probes, resource limits, and run as non-root with a read-only filesystem. Full guide with Docker vs Kubernetes, scaling, rolling updates, rollback and troubleshooting: [`docs/KUBERNETES_GUIDE.md`](docs/KUBERNETES_GUIDE.md).
 
 ## 6. Run with Docker (hardened in Phase 18)
 

@@ -4,6 +4,7 @@
 # Stages: checkout -> Python 3.11 -> install -> lint -> format check -> tests -> Docker build
 # The Docker job runs scripts/api_smoke_test.py against the container (Phase 14), started
 # hardened like compose.yaml: read-only, no capabilities, non-root, empty volumes (Phase 18).
+# It also renders the Kubernetes manifests (Phase 20).
 # Later phases add: Snyk security scan, image publish and deploy.
 
 name: CI
@@ -48,6 +49,9 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v4
+
+      - name: Render the Kubernetes manifests (kubectl kustomize, no cluster needed)
+        run: kubectl kustomize deployment/kubernetes > /dev/null && echo "Kubernetes manifests render"
 
       - name: Check the Compose files (syntax, references, required variables)
         run: |

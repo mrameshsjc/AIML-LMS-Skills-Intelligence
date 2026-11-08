@@ -60,7 +60,7 @@ class Settings(BaseSettings):
 
     # Deployment profile from the blueprint: local laptop, Docker Compose,
     # or the public demo. Later phases change behaviour based on this.
-    app_profile: Literal["local", "compose", "public-demo"] = "local"
+    app_profile: Literal["local", "compose", "kubernetes", "public-demo"] = "local"
 
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 

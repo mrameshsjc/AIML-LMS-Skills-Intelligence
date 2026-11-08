@@ -1,0 +1,14 @@
+# PodDisruptionBudget: during planned maintenance (draining a node, upgrades) Kubernetes keeps
+# at least one API pod running.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: lms-api
+  labels:
+    app.kubernetes.io/part-of: lms-skills-intelligence
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lms-skills
+      app.kubernetes.io/component: api
