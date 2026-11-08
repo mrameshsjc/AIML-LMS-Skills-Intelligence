@@ -81,7 +81,7 @@ def test_jenkinsfile_braces_balance():
 
 
 def test_jenkins_image_has_the_pipeline_tools():
-    for tool in ("python3-venv", "docker.io", "kubectl", "snyk"):
+    for tool in ("python3-venv", "download.docker.com/linux/static", "kubectl", "snyk"):
         assert tool in JENKINS_IMAGE
     assert JENKINS_IMAGE.rstrip().splitlines()[-1].startswith("RUN jenkins-plugin-cli")
     assert re.search(r"^USER jenkins$", JENKINS_IMAGE, re.MULTILINE)  # not left as root
