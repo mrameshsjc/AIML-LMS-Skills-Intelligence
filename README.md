@@ -531,7 +531,7 @@ Copy-Item deployment/kubernetes/secret.example.env deployment/kubernetes/secret.
 kubectl -n lms-skills create secret generic lms-secrets --from-env-file=deployment/kubernetes/secret.env
 kubectl apply -k deployment/kubernetes
 kubectl -n lms-skills get pods -w
-kubectl -n lms-skills port-forward service/lms-api 8000:80     # http://127.0.0.1:8000/docs
+kubectl -n lms-skills port-forward service/lms-api 18000:80    # http://127.0.0.1:18000/docs
 ```
 
 Two API replicas (autoscaled 2–4), the dashboard, and one persistent volume for the database, index, uploads, models and accounts. Pods have readiness and liveness probes, resource limits, and run as non-root with a read-only filesystem. Full guide with Docker vs Kubernetes, scaling, rolling updates, rollback and troubleshooting: [`docs/KUBERNETES_GUIDE.md`](docs/KUBERNETES_GUIDE.md).

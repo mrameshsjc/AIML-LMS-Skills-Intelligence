@@ -63,7 +63,19 @@ minikube image build -t aiml-lms-skills-intelligence:dev .
 minikube image ls | Select-String aiml-lms-skills    # shows docker.io/library/aiml-lms-skills-intelligence:dev
 ```
 
-The first build takes a few minutes; later builds reuse cached layers. If you already built it with Docker Compose, `minikube image load aiml-lms-skills-intelligence:dev` copies it instead.
+The first build takes a few minutes; later builds reuse cached layers.
+
+**Alternatives** (useful if `minikube image build` misbehaves):
+
+```powershell
+# build with Docker Desktop, then copy the image into Minikube
+docker build -t aiml-lms-skills-intelligence:dev .
+minikube image load aiml-lms-skills-intelligence:dev
+
+# or: point this PowerShell window's docker command at Minikube's Docker, and build straight into it
+& minikube -p minikube docker-env --shell powershell | Invoke-Expression
+docker build -t aiml-lms-skills-intelligence:dev .
+```
 
 ## 5. Create the namespace and the Secret
 
@@ -104,11 +116,11 @@ kubectl -n lms-skills logs deployment/lms-api -c prepare
 
 ## 7. Open it
 
-Simplest, works with every Minikube driver (keep each window open):
+Simplest, works with every Minikube driver. Keep each window open; ports 18000/18501 avoid ports that Windows often reserves or that local servers use:
 
 ```powershell
-kubectl -n lms-skills port-forward service/lms-api 8000:80          # window 1 → http://127.0.0.1:8000/docs
-kubectl -n lms-skills port-forward service/lms-dashboard 8501:80    # window 2 → http://127.0.0.1:8501
+kubectl -n lms-skills port-forward service/lms-api 18000:80         # window 1 → http://127.0.0.1:18000/docs
+kubectl -n lms-skills port-forward service/lms-dashboard 18501:80   # window 2 → http://127.0.0.1:18501
 ```
 
 Or let Minikube open them through the NodePorts (on Windows with the Docker driver, keep the window open):
@@ -121,7 +133,8 @@ minikube service lms-api -n lms-skills --url
 Check it:
 
 ```powershell
-python scripts/api_smoke_test.py --base-url http://127.0.0.1:8000 --admin-key <ADMIN_API_KEY from secret.env>
+$adminKey = (Select-String -Path deployment\kubernetes\secret.env -Pattern '^ADMIN_API_KEY=').Line.Split('=',2)[1]
+python scripts/api_smoke_test.py --base-url http://127.0.0.1:18000 --admin-key $adminKey
 ```
 
 Visitors browse as guests; the admin logs in as `admin` with `BOOTSTRAP_ADMIN_PASSWORD`. The assistant uses Ollama on your PC (`host.minikube.internal`) when it is running, otherwise the labelled fallback.
@@ -191,6 +204,7 @@ minikube delete                          # remove the cluster completely
 
 | STATUS / symptom | Meaning and fix |
 | --- | --- |
+| `minikube image build`: "open Dockerfile: no such file or directory" | An older `.dockerignore` excluded the Dockerfile; use the Phase 20 version, or one of the alternatives in section 4 |
 | `ErrImageNeverPull` / `ImagePullBackOff` | The image isn't inside Minikube: section 4 (`minikube image build ...`), and check the tag in `kustomization.yaml` |
 | `CreateContainerConfigError` | The Secret `lms-secrets` is missing: section 5 |
 | `Init:Error` / `Init:CrashLoopBackOff` | The start step failed: `kubectl -n lms-skills logs <pod> -c prepare` (or `-c volume-permissions`) |
@@ -199,7 +213,11 @@ minikube delete                          # remove the cluster completely
 | `OOMKilled` | Over the memory limit: raise `limits.memory` in the deployment, or give Minikube more memory |
 | Running but `READY 0/1` | The readiness probe fails: `kubectl -n lms-skills describe pod <pod>` (events) and the logs |
 | HPA shows `<unknown>/70%` | `minikube addons enable metrics-server`, wait a minute |
-| `port-forward` stops | It ends when its pod is replaced; run it again |
+| `port-forward` stops | It ends when its pod is replaced (e.g. after `rollout restart`); run it again |
+| `port-forward`: "Only one usage of each socket address" | The port is in use (an old port-forward, a local uvicorn, or Docker Compose): stop it, or use another port |
+| `port-forward`: "forbidden by its access permissions" | Windows reserves port ranges for WSL2/Hyper-V (often including 8080): use e.g. `18000:80`; `netsh interface ipv4 show excludedportrange protocol=tcp` lists them |
+| Smoke test API 7 upload: 401 `ADMIN_AUTH_REQUIRED` with `--admin-key` | The Secret in the cluster has another key than your `secret.env` (often: created before the file was edited). Compare: `kubectl -n lms-skills exec deployment/lms-api -- printenv ADMIN_API_KEY`; recreate the Secret, then `rollout restart` |
+| LLM WARN "Cannot reach Ollama at http://host.minikube.internal:11434 (Name or service not known)" | Some Minikube/Docker Desktop setups don't resolve that name inside pods. Optional: test `host.docker.internal` (`kubectl -n lms-skills exec deployment/lms-api -- python -c "import socket; print(socket.gethostbyname('host.docker.internal'))"`) and set it as `OLLAMA_BASE_URL` in the ConfigMap; otherwise the labelled fallback answers |
 
 ## 13. Limits of this setup
 

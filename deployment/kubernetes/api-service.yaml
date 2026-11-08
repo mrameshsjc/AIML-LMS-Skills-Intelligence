@@ -1,6 +1,6 @@
 # Service: one stable address for all API pods; traffic goes only to READY pods.
 # Inside the cluster: http://lms-api.lms-skills.svc   From your PC: see docs/KUBERNETES_GUIDE.md
-#   kubectl -n lms-skills port-forward service/lms-api 8000:80   -> http://127.0.0.1:8000/docs
+#   kubectl -n lms-skills port-forward service/lms-api 18000:80  -> http://127.0.0.1:18000/docs
 #   minikube service lms-api -n lms-skills                        (NodePort 30800)
 apiVersion: v1
 kind: Service
