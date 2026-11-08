@@ -4,7 +4,7 @@
 # Left out: uvicorn (no API server here), mlflow (optional), faiss-cpu (NumPy search), matplotlib.
 streamlit>=1.55,<2.0
 fastapi>=0.115,<1.0
-pydantic>=2.7,<3.0
+pydantic>=2.14.3,<3.0
 pydantic-settings>=2.4,<3.0
 pandas>=3.0,<4.0
 numpy>=1.26,<3.0
