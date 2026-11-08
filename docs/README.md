@@ -11,7 +11,7 @@ Guides are added in the phase that needs them:
 | LLM_RAG_GUIDE.md (Ollama, fallback, guardrails, document search, RAG assistant **done**) | 11–13 |
 | DATABASE_GUIDE.md (SQLite **done**; MySQL later) | 9 |
 | DOCKER_GUIDE.md (**done**: build, run, stop, inspect, debug, volumes, hardening) | 1, 18 |
-| GITHUB_ACTIONS_CICD_GUIDE.md, SNYK_SECURITY_GUIDE.md | 1, 21 |
+| JENKINS_CICD_GUIDE.md (**done**: Jenkins pipeline + GitHub Actions), SNYK_SECURITY_GUIDE.md (**done**) | 1, 21 |
 | KUBERNETES_GUIDE.md (**done**: Docker vs Kubernetes, Minikube, manifests, scaling, rollout, troubleshooting) | 20 |
 | PUBLIC_DEPLOYMENT_GUIDE.md (**done**: hosting evaluation, Streamlit Community Cloud + Render, hosted LLM, reset, walkthrough, limitations); DEMO_WALKTHROUGH.md | 19, 22 |
 | TESTING_GUIDE.md (**done**), api_contract.json (the saved API contract) | 14 |

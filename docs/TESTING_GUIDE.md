@@ -13,7 +13,7 @@ How the engine is tested, what each kind of test proves, and how to run them. Al
             ├───────────────────────┤
             │  API  (106)           │  tests/api/                    each endpoint through FastAPI
             ├───────────────────────┤
-            │  unit  (420)          │  tests/unit/                   functions and services alone
+            │  unit  (436)          │  tests/unit/                   functions and services alone
             │  security  (67)       │  tests/security/               login, access rules, limits, injection
             └───────────────────────┘
 ```
@@ -32,7 +32,7 @@ Many fast tests at the bottom, fewer and broader ones at the top. A failing unit
 ## 2. Running the tests
 
 ```powershell
-pytest                              # everything: about 643 tests
+pytest                              # everything: about 659 tests
 pytest -m "not slow"                # quick run while coding (skips the ~26 tests that start scripts or train models)
 pytest tests/unit/test_chat.py -v   # one file, with each test's name
 pytest -k "learning_path"           # tests whose name contains the text

@@ -1,0 +1,31 @@
+# Jenkins on your PC (Phase 21):  docker compose -f deployment/jenkins/compose.yaml up -d --build
+# Then open http://127.0.0.1:18080 (port 8080 is often reserved by Windows). Guide: docs/JENKINS_CICD_GUIDE.md
+# The development API that the pipeline deploys appears at http://127.0.0.1:18001/docs.
+#
+# The Docker socket gives Jenkins control of Docker Desktop - needed to build and run the image,
+# and the reason this Jenkins must stay on your PC only (port bound to 127.0.0.1).
+name: lms-jenkins
+
+services:
+  jenkins:
+    build: .
+    image: lms-jenkins:local
+    container_name: lms-jenkins
+    ports:
+      - "127.0.0.1:18080:8080"         # Jenkins web UI
+    volumes:
+      - jenkins_home:/var/jenkins_home # jobs, credentials, build history survive restarts
+      - /var/run/docker.sock:/var/run/docker.sock
+    # The jenkins user needs the group that owns the Docker socket (0 on Docker Desktop).
+    # Check: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock alpine stat -c %g /var/run/docker.sock
+    group_add:
+      - "${DOCKER_GID:-0}"
+    networks: [lms-jenkins]
+    restart: unless-stopped
+
+networks:
+  lms-jenkins:
+    name: lms-jenkins                  # the development API (Jenkinsfile stage 10) joins this network
+
+volumes:
+  jenkins_home:
