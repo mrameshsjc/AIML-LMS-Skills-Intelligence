@@ -31,7 +31,7 @@ HOW TO TRY IT
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -117,11 +117,53 @@ class Settings(BaseSettings):
     # Passages scoring below this are ignored. Empty = by embedder: TF-IDF 0.08, Ollama embeddings 0.45.
     rag_min_score: float | None = Field(default=None, ge=0, le=1)
 
+    # --- Administration and retraining (Phase 16) --------------------------------------
+    # Key for admin actions (API 6), sent in the X-Admin-Key header. Empty = admin actions off.
+    # SecretStr keeps it out of logs and error messages. Generate one:
+    #   python -c "import secrets; print(secrets.token_urlsafe(32))"
+    admin_api_key: SecretStr = SecretStr("")
+    ml_min_roc_auc: float = Field(default=0.60, ge=0.5, le=1.0)  # quality gate: minimum test ROC AUC
+    ml_max_regression: float = Field(default=0.01, ge=0, le=0.5)  # allowed drop vs the current model
+    ml_min_training_rows: int = Field(default=200, ge=20)
+    # MLflow: auto = used when installed. Empty URI = sqlite file mlruns/mlflow.db in the project.
+    mlflow_enabled: Literal["auto", "true", "false"] = "auto"
+    mlflow_tracking_uri: str = ""
+    mlflow_experiment: str = "completion-model"
+
+    # --- Security (Phase 17) --------------------------------------------------------
+    # Login with roles. Off for local development; REQUIRED (enforced at start-up) when
+    # APP_PROFILE=public-demo or APP_ENV=production.
+    auth_enabled: bool = False
+    auth_secret_key: SecretStr = SecretStr("")  # signs access tokens; at least 32 characters
+    auth_token_minutes: int = Field(default=60, ge=5, le=24 * 60)
+    users_file: str = "data/users.json"  # created by scripts/create_user.py (git-ignored)
+    # Requests per minute per user (or IP address); 0 switches a limit off.
+    rate_limit_per_minute: int = Field(default=120, ge=0)
+    rate_limit_chat_per_minute: int = Field(default=20, ge=0)
+    rate_limit_admin_per_hour: int = Field(default=10, ge=0)  # retraining and uploads
+    audit_log_file: str = "logs/audit.jsonl"
+    # Browser origins allowed to call the API (comma-separated), e.g. the LMS front end. Empty = none.
+    cors_origins: str = ""
+    block_prompt_injection: bool = True  # refuse questions/uploads that try to override the assistant's rules
+
     # --- Database (Phase 9) -------------------------------------------------
     # SQLite is a single file and needs no server, which is ideal for the
     # first local version. MySQL (e.g. mysql+pymysql://user:password@host/lms_ai)
     # is planned for a later phase; this version accepts sqlite:/// URLs only.
     database_url: str = "sqlite:///./data/lms_ai.db"
+
+    def check_security(self) -> list[str]:
+        """Problems that must stop the server, plus warnings (returned as text, raised by main.py)."""
+        problems = []
+        exposed = self.app_profile == "public-demo" or self.app_env == "production"
+        if exposed and not self.auth_enabled:
+            problems.append("AUTH_ENABLED must be true for APP_PROFILE=public-demo or APP_ENV=production.")
+        if self.auth_enabled and len(self.auth_secret_key.get_secret_value()) < 32:
+            problems.append(
+                "AUTH_SECRET_KEY must have at least 32 characters when AUTH_ENABLED=true "
+                '(generate one: python -c "import secrets; print(secrets.token_urlsafe(48))").'
+            )
+        return problems
 
 
 @lru_cache

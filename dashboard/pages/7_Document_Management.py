@@ -22,7 +22,7 @@ ui.setup_page(
     "vector index, then ask about them on the assistant page.",
     "🗂️",
 )
-ui.admin_notice()
+ui.admin_page()
 settings = get_settings()
 manifest = get_index_manifest()
 
@@ -44,6 +44,7 @@ if uploaded is not None and st.button("Upload and ingest", type="primary"):
     with st.spinner("Extracting, chunking and embedding ..."):
         result = ui.safe(get_ingestion_service().ingest, uploaded.name, uploaded.getvalue(), overwrite)
     if result:
+        ui.audit("upload_document", source=result.source, status=result.status)
         st.success(
             f"{result.status.capitalize()}: {result.source} ({result.pages} pages, {result.chunks} chunks)."
         )
@@ -57,6 +58,7 @@ if uploads:
     if st.button("Delete", icon="🗑️"):
         result = ui.safe(get_ingestion_service().delete, to_delete)
         if result:
+            ui.audit("delete_document", source=result.source)
             st.success(f"Deleted {result.source}. The index was rebuilt.")
 else:
     st.caption("No uploaded documents. The approved documents in documents/ cannot be deleted here.")

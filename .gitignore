@@ -49,3 +49,8 @@ Thumbs.db
 
 # --- Streamlit secrets (never commit) ---
 .streamlit/secrets.toml
+
+# --- Security (Phase 17): audit logs and user accounts are never committed ---
+logs/
+data/users.json
+data/accounts/

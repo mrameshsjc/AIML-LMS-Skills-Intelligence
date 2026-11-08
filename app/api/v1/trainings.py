@@ -13,9 +13,9 @@ ERRORS (shared format)
 
 from fastapi import APIRouter
 
-from app.api.dependencies import TrainingRecommendationServiceDep
+from app.api.dependencies import CurrentUserDep, RepositoryDep, TrainingRecommendationServiceDep
 from app.core.config import get_settings
-from app.schemas.common import ErrorResponse, RoleRef
+from app.schemas.common import AUTH_RESPONSES, ErrorResponse, RoleRef
 from app.schemas.trainings import (
     PrerequisiteOut,
     RecommendationOut,
@@ -24,6 +24,7 @@ from app.schemas.trainings import (
     TrainingRecommendationRequest,
     TrainingRecommendationResponse,
 )
+from app.security.access import authorize_employee
 from app.services.training_recommendation import Recommendation, RecommendationResult
 
 router = APIRouter(prefix="/trainings", tags=["3. Training Recommendations"])
@@ -98,13 +99,18 @@ def to_response(result: RecommendationResult) -> TrainingRecommendationResponse:
         "Courses for **mandatory** gaps are listed first; within that, highest score first."
     ),
     responses={
+        **AUTH_RESPONSES,
         404: {"model": ErrorResponse, "description": "Employee or role not found"},
         422: {"model": ErrorResponse, "description": "Invalid input or unknown skill"},
     },
 )
 def recommend_trainings(
-    request: TrainingRecommendationRequest, service: TrainingRecommendationServiceDep
+    request: TrainingRecommendationRequest,
+    service: TrainingRecommendationServiceDep,
+    principal: CurrentUserDep,
+    repository: RepositoryDep,
 ) -> TrainingRecommendationResponse:
+    authorize_employee(principal, request.employee_id, repository)  # Phase 17: own / team data only
     result = service.recommend(
         request.employee_id,
         request.target_role_id,

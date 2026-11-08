@@ -12,10 +12,18 @@ WHAT IT CHECKS
     and E1001 it also checks the known answers (gap score 37.5, C-SQL-201 first, ...).
     It uses only Python's standard library, so it runs anywhere Python does.
 
+SECURITY (Phase 17)
+    API 7 uploads are for administrators: pass --admin-key (ADMIN_API_KEY of the
+    server), or the upload check is skipped with a WARN. On a server with login
+    switched on, pass --username/--password of an ADMIN account instead (or
+    as well): every call then sends the token. The script also checks the
+    security headers and that admin actions are refused without credentials.
+
 HOW TO RUN
     PS> uvicorn app.main:app            (in one window)
-    PS> python scripts/api_smoke_test.py
+    PS> python scripts/api_smoke_test.py --admin-key <ADMIN_API_KEY>
     PS> python scripts/api_smoke_test.py --base-url http://127.0.0.1:8000 --wait 60 --skip-upload
+    PS> python scripts/api_smoke_test.py --username admin --password <password>   (login on)
 
 EXIT CODE
     0 = every check passed (WARN lines are information, e.g. "Ollama not running")
@@ -29,6 +37,7 @@ import json
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 from dataclasses import dataclass
@@ -44,7 +53,11 @@ parser.add_argument(
     "--timeout", type=float, default=180, help="seconds per request (the first LLM call is slow)"
 )
 parser.add_argument("--skip-upload", action="store_true", help="do not upload/delete a test document (API 7)")
+parser.add_argument("--admin-key", default="", help="the server's ADMIN_API_KEY, for the API 7 upload check")
+parser.add_argument("--username", default="", help="log in first (servers with AUTH_ENABLED=true)")
+parser.add_argument("--password", default="", help="password for --username")
 args = parser.parse_args()
+TOKEN = ""  # filled in by log_in() when --username is given
 
 BASE = args.base_url.rstrip("/")
 LOCAL = urlparse(BASE).hostname in {"localhost", "127.0.0.1", "::1"}
@@ -63,10 +76,23 @@ class Reply:
 
 
 def call(
-    method: str, path: str, body: dict | None = None, multipart: tuple[str, bytes] | None = None
+    method: str,
+    path: str,
+    body: dict | None = None,
+    multipart: tuple[str, bytes] | None = None,
+    admin: bool = False,
+    form: dict | None = None,
+    anonymous: bool = False,
 ) -> Reply:
     headers = {"X-Request-ID": f"smoke-{uuid.uuid4().hex[:8]}"}
+    if TOKEN and not anonymous:
+        headers["Authorization"] = f"Bearer {TOKEN}"
+    if admin and args.admin_key:
+        headers["X-Admin-Key"] = args.admin_key
     data = None
+    if form is not None:
+        data = urllib.parse.urlencode(form).encode()
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
     if body is not None:
         data, headers["Content-Type"] = json.dumps(body).encode(), "application/json"
     elif multipart is not None:
@@ -85,9 +111,9 @@ def call(
     start = time.perf_counter()
     try:
         with OPENER.open(request, timeout=args.timeout) as response:
-            status, raw = response.status, response.read()
+            status, raw, LAST_HEADERS[:] = response.status, response.read(), [dict(response.headers)]
     except urllib.error.HTTPError as error:  # 4xx/5xx still carry a JSON body
-        status, raw = error.code, error.read()
+        status, raw, LAST_HEADERS[:] = error.code, error.read(), [dict(error.headers)]
     ms = int((time.perf_counter() - start) * 1000)
     try:
         return Reply(status, json.loads(raw or b"{}"), ms)
@@ -96,6 +122,7 @@ def call(
 
 
 results: list[tuple[str, str, int, str]] = []  # (PASS/WARN/FAIL, name, ms, detail)
+LAST_HEADERS: list[dict] = [{}]  # the response headers of the latest call
 
 
 def check(name: str, reply: Reply, *conditions: tuple[bool, str], warn: bool = False) -> None:
@@ -120,10 +147,41 @@ def wait_for_server() -> bool:
         time.sleep(2)
 
 
+def log_in() -> None:
+    global TOKEN
+    r = call("POST", "/api/v1/auth/token", form={"username": args.username, "password": args.password})
+    check("Login", r, (bool(r.body.get("access_token")), "no access_token"))
+    TOKEN = r.body.get("access_token", "")
+
+
 def run() -> None:
     e = args.employee
     health = call("GET", "/api/v1/health")
     check("Health", health, (health.body.get("status") == "ok", "status is not ok"))
+    h = {k.lower(): v for k, v in LAST_HEADERS[0].items()}
+    check(
+        "Security headers",
+        health,
+        (h.get("x-content-type-options") == "nosniff", "X-Content-Type-Options missing"),
+        (h.get("x-frame-options") == "DENY", "X-Frame-Options missing"),
+    )
+    if args.username:
+        log_in()
+    me = call("GET", "/api/v1/auth/me")
+    check(
+        f"Who am I ({me.body.get('username', '?')}, can view {me.body.get('can_view', '?')})",
+        me,
+        (not me.body.get("auth_enabled") or me.body.get("authenticated"), "login is on: pass --username"),
+    )
+    denied = call("POST", "/api/v1/ml/retrain", {}, anonymous=True)  # no key, no token
+    results.append(
+        (
+            "PASS" if denied.status in (401, 403) else "FAIL",
+            "Admin action refused without credentials",
+            denied.ms,
+            "ok" if denied.status in (401, 403) else f"HTTP {denied.status}: retraining was NOT refused",
+        )
+    )
 
     llm = call("GET", "/api/v1/health/llm")
     check("LLM status", llm, (llm.body.get("provider") == "ollama", llm.body.get("detail", "")), warn=True)
@@ -188,16 +246,18 @@ def run() -> None:
         "API 5 grounding check", r, (not warnings, f"the model went beyond the facts: {warnings}"), warn=True
     )
 
-    if not args.skip_upload:
+    if not args.skip_upload and not (args.admin_key or args.username):
+        results.append(("WARN", "API 7 upload", 0, "skipped: pass --admin-key (uploads are admin-only)"))
+    elif not args.skip_upload:
         name = f"smoke_test_{uuid.uuid4().hex[:8]}.csv"
         content = f"check,value\nsmoke test,{name}\n".encode()  # unique content: never a duplicate
-        r = call("POST", "/api/v1/rag/ingest", multipart=(name, content))
+        r = call("POST", "/api/v1/rag/ingest", multipart=(name, content), admin=True)
         check("API 7 upload", r, (r.body.get("status") == "added", f"status {r.body.get('status')}"))
         if r.status == 200:
             listed = call("GET", "/api/v1/rag/documents")
             sources = {d["source"] for d in listed.body.get("documents", [])}
             check("API 7 list documents", listed, (name in sources, f"{name} not listed"))
-            gone = call("DELETE", f"/api/v1/rag/documents/{name}")
+            gone = call("DELETE", f"/api/v1/rag/documents/{name}", admin=True)
             check(
                 "API 7 delete",
                 gone,
@@ -206,14 +266,17 @@ def run() -> None:
 
     r = call("GET", "/api/v1/learning-path/E9999")
     error = r.body.get("error", {})
+    expected = {(404, "EMPLOYEE_NOT_FOUND")}
+    if me.body.get("can_view") in ("self", "team"):  # non-admins get 403: IDs cannot be probed
+        expected = {(403, "ACCESS_DENIED")}
     results.append(
         (
-            "PASS"
-            if r.status == 404 and error.get("code") == "EMPLOYEE_NOT_FOUND" and error.get("request_id")
-            else "FAIL",
+            "PASS" if (r.status, error.get("code")) in expected and error.get("request_id") else "FAIL",
             "Error format (unknown employee)",
             r.ms,
-            "ok" if r.status == 404 else f"HTTP {r.status}: {json.dumps(r.body)[:200]}",
+            "ok"
+            if (r.status, error.get("code")) in expected
+            else f"HTTP {r.status}: {json.dumps(r.body)[:200]}",
         )
     )
 

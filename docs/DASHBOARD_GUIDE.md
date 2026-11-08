@@ -25,11 +25,11 @@ With Docker: `docker compose up -d --build` starts the API (port 8000) and the d
 | **Learning path** | The courses in order, status, which step comes after which, course progress %, the next action; **Explain** asks the LLM | API 4 |
 | **AI assistant** | Chat: answers with sources [S1]…, what was looked up ("understood as"), grounding warnings; example questions; conversation memory | API 5 |
 | **Document management** *(admin)* | Index status, documents with origin and chunks, upload and ingest, delete uploads, rebuild the index | API 7 |
-| **Model management** *(admin)* | Current version and test metrics vs baseline, the algorithm comparison, feature importance, training history, rollback, retraining | Phase 8 registry |
+| **Model management** *(admin)* | Current version and test metrics vs baseline, the algorithm comparison, feature importance, versions with gate status, retraining runs, rollback, **controlled retraining** with the quality-gate result | API 6 workflow |
 
 **The selected employee is remembered** across pages (sidebar), starting with E1001, the worked example from the requirements.
 
-**Admin pages** show a notice: in Phase 15 every page is open; Phase 17 adds login and limits them to administrators.
+**Login (Phase 17).** With `AUTH_ENABLED=true` every page asks for a login in the sidebar (the same accounts as the API, created with `scripts/create_user.py` or `scripts/create_demo_users.py`). The employee picker then lists only who the account may see: an **employee** only themselves, a **manager** their team, an **admin** everyone. **Data upload**, **Document management** and **Model management** are for administrators; others see "Administrators only". Logins, uploads, deletions, retraining and rollbacks are written to the audit log (`logs/audit.jsonl`). With login off (the local default) every page is open and the sidebar says so. Details: [`SECURITY_GUIDE.md`](SECURITY_GUIDE.md).
 
 ## 3. How it is built
 

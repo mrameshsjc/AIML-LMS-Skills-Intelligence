@@ -47,7 +47,13 @@ class CsvLmsRepository(LmsRepository):
             )
         self._employees = {
             r.employee_id: Employee(
-                r.employee_id, r.first_name, r.last_name, r.department, r.current_role_id, r.location
+                r.employee_id,
+                r.first_name,
+                r.last_name,
+                r.department,
+                r.current_role_id,
+                r.location,
+                r.manager_id if isinstance(r.manager_id, str) and r.manager_id else None,
             )
             for r in data["employees.csv"].itertuples()
         }
@@ -85,6 +91,9 @@ class CsvLmsRepository(LmsRepository):
 
     def get_employee(self, employee_id: str) -> Employee | None:
         return self._employees.get(employee_id)
+
+    def direct_reports(self, manager_id: str) -> list[str]:
+        return [e.employee_id for e in self._employees.values() if e.manager_id == manager_id]
 
     def get_employee_skills(self, employee_id: str) -> dict[str, int]:
         return dict(self._employee_skills.get(employee_id, {}))  # a copy: callers cannot change our data

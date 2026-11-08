@@ -1,0 +1,131 @@
+"""
+API 6 - ML Model Retraining: POST /api/v1/ml/retrain   (administrators only)
+plus GET /api/v1/ml/status (open: model versions and metrics, no personal data)
+
+PURPOSE
+    Run the controlled retraining workflow (app/ml/retraining.py): validate the
+    data, train, evaluate, compare with the current model, apply the quality
+    gate, register the version (and in MLflow), and promote it only if approved.
+
+ADMIN ONLY (app/api/dependencies.py: require_admin)
+    Either log in as an administrator (Authorization: Bearer <token>, Phase 17)
+    or send the administrator key:  X-Admin-Key: <ADMIN_API_KEY from .env>.
+    With login switched off and no ADMIN_API_KEY, retraining is switched off (403).
+    At most RATE_LIMIT_ADMIN_PER_HOUR admin requests per hour and IP address.
+
+AFTER A PROMOTION
+    The API loads the new model at once (the cached model is cleared): no restart.
+
+ERRORS (shared format)
+    401 ADMIN_AUTH_REQUIRED      403 ADMIN_ACTIONS_DISABLED / ADMIN_ONLY
+    409 RETRAINING_IN_PROGRESS   422 VALIDATION_ERROR      429 RATE_LIMITED
+"""
+
+from fastapi import APIRouter
+
+from app.api.dependencies import AdminDep, RetrainingServiceDep, get_completion_predictor
+from app.core.config import get_settings
+from app.ml.model_registry import current_version, list_cards
+from app.ml.retraining import PROMOTED, RetrainReport, read_history
+from app.ml.tracking import default_tracking_uri, mlflow_installed
+from app.schemas.common import ADMIN_RESPONSES, ErrorResponse
+from app.schemas.ml import (
+    DataValidationOut,
+    GateCheckOut,
+    ModelStatusResponse,
+    ModelVersionOut,
+    RetrainRequest,
+    RetrainResponse,
+    TrainingOut,
+)
+
+router = APIRouter(prefix="/ml", tags=["6. ML Model Management"])
+
+
+def to_response(r: RetrainReport) -> RetrainResponse:
+    return RetrainResponse(
+        status=r.status,
+        gate_passed=r.gate_passed,
+        previous_version=r.previous_version,
+        new_version=r.new_version,
+        current_version=r.current_version,
+        requested_by=r.requested_by,
+        reason=r.reason,
+        started_at=r.started_at,
+        data_validation=DataValidationOut(
+            errors=r.data_errors, warnings=r.data_warnings, issues=r.data_issues
+        ),
+        training=TrainingOut(rows=r.rows, algorithm=r.algorithm, cross_validation=r.cross_validation),
+        new_metrics=r.new_metrics,
+        current_metrics=r.current_metrics,
+        quality_gate=[GateCheckOut(name=c.name, passed=c.passed, detail=c.detail) for c in r.gate],
+        mlflow=r.mlflow,
+        duration_seconds=r.duration_seconds,
+        notes=r.notes,
+    )
+
+
+@router.post(
+    "/retrain",
+    response_model=RetrainResponse,
+    summary="Retrain the course-completion model (administrators only)",
+    description=(
+        "Validates the training data, builds features, compares three algorithms, and evaluates the "
+        "best on unseen test rows. Compares it with the **current** model on the same rows and applies "
+        "the **quality gate** (minimum ROC AUC, better than chance, no regression). Every run saves a "
+        "new version; only an approved one becomes current. Runs are logged to MLflow when installed.\n\n"
+        "Administrators only: an admin login (Bearer token) or the header **X-Admin-Key**."
+    ),
+    responses={
+        **ADMIN_RESPONSES,
+        409: {"model": ErrorResponse, "description": "Another retraining run is in progress"},
+    },
+)
+def retrain(
+    request: RetrainRequest,
+    service: RetrainingServiceDep,
+    who: AdminDep,
+) -> RetrainResponse:
+    report = service.retrain(requested_by=who, reason=request.reason, promote=request.promote)
+    if report.status == PROMOTED:
+        get_completion_predictor.cache_clear()  # API 3 uses the new model from the next request
+    return to_response(report)
+
+
+@router.get(
+    "/status",
+    response_model=ModelStatusResponse,
+    summary="Model versions, metrics and retraining history",
+    description="The current model, every saved version with its gate status, the latest retraining runs.",
+)
+def model_status() -> ModelStatusResponse:
+    settings = get_settings()
+    current = current_version(settings.model_dir)
+    versions = [
+        ModelVersionOut(
+            version=c["version"],
+            current=c["version"] == current,
+            status=c.get("status", "approved"),
+            algorithm=c.get("algorithm", ""),
+            trained_at=c.get("trained_at", ""),
+            test_roc_auc=c.get("test_metrics", {}).get("roc_auc"),
+            accuracy=c.get("test_metrics", {}).get("accuracy"),
+        )
+        for c in reversed(list_cards(settings.model_dir))
+    ]
+    return ModelStatusResponse(
+        current_version=current,
+        versions=versions,
+        recent_runs=read_history(settings.model_dir),
+        quality_gate={
+            "min_roc_auc": settings.ml_min_roc_auc,
+            "max_regression": settings.ml_max_regression,
+            "min_training_rows": settings.ml_min_training_rows,
+        },
+        mlflow={
+            "setting": settings.mlflow_enabled,
+            "installed": mlflow_installed(),
+            "tracking_uri": settings.mlflow_tracking_uri or default_tracking_uri(),
+        },
+        admin_actions_enabled=bool(settings.admin_api_key.get_secret_value()) or settings.auth_enabled,
+    )

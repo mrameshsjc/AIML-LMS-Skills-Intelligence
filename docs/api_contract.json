@@ -7,6 +7,11 @@
           "in": "path",
           "name": "source",
           "required": true
+        },
+        {
+          "in": "header",
+          "name": "x-admin-key",
+          "required": false
         }
       ],
       "request": null,
@@ -82,6 +87,59 @@
           "sha256",
           "index",
           "notes"
+        ],
+        "type": "object"
+      }
+    },
+    "GET /api/v1/auth/me": {
+      "api": "-",
+      "parameters": [],
+      "request": null,
+      "response": {
+        "properties": {
+          "auth_enabled": {
+            "type": "boolean"
+          },
+          "authenticated": {
+            "type": "boolean"
+          },
+          "can_view": {
+            "enum": [
+              "everyone",
+              "team",
+              "self",
+              "nobody"
+            ],
+            "type": "string"
+          },
+          "employee_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "role": {
+            "type": "string"
+          },
+          "tenant": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "role",
+          "employee_id",
+          "tenant",
+          "authenticated",
+          "can_view",
+          "auth_enabled"
         ],
         "type": "object"
       }
@@ -508,6 +566,118 @@
         "type": "object"
       }
     },
+    "GET /api/v1/ml/status": {
+      "api": "-",
+      "parameters": [],
+      "request": null,
+      "response": {
+        "$defs": {
+          "ModelVersionOut": {
+            "properties": {
+              "accuracy": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "algorithm": {
+                "type": "string"
+              },
+              "current": {
+                "type": "boolean"
+              },
+              "status": {
+                "type": "string"
+              },
+              "test_roc_auc": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "trained_at": {
+                "type": "string"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "version",
+              "current",
+              "status",
+              "algorithm",
+              "trained_at",
+              "test_roc_auc",
+              "accuracy"
+            ],
+            "type": "object"
+          }
+        },
+        "properties": {
+          "admin_actions_enabled": {
+            "type": "boolean"
+          },
+          "current_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mlflow": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "quality_gate": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "object"
+          },
+          "recent_runs": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/$defs/ModelVersionOut"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "current_version",
+          "versions",
+          "recent_runs",
+          "quality_gate",
+          "mlflow",
+          "admin_actions_enabled"
+        ],
+        "type": "object"
+      }
+    },
     "GET /api/v1/rag/documents": {
       "api": "-",
       "parameters": [],
@@ -795,6 +965,270 @@
         "type": "object"
       }
     },
+    "POST /api/v1/auth/token": {
+      "api": "-",
+      "parameters": [
+        {
+          "in": "form",
+          "name": "username",
+          "required": true
+        },
+        {
+          "in": "form",
+          "name": "password",
+          "required": true
+        }
+      ],
+      "request": null,
+      "response": {
+        "properties": {
+          "access_token": {
+            "type": "string"
+          },
+          "employee_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expires_in": {
+            "type": "integer"
+          },
+          "role": {
+            "enum": [
+              "employee",
+              "manager",
+              "admin"
+            ],
+            "type": "string"
+          },
+          "token_type": {
+            "const": "bearer",
+            "default": "bearer",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token",
+          "expires_in",
+          "role",
+          "employee_id"
+        ],
+        "type": "object"
+      }
+    },
+    "POST /api/v1/ml/retrain": {
+      "api": "6",
+      "parameters": [
+        {
+          "in": "header",
+          "name": "x-admin-key",
+          "required": false
+        }
+      ],
+      "request": {
+        "properties": {
+          "promote": {
+            "default": true,
+            "type": "boolean"
+          },
+          "reason": {
+            "default": "",
+            "maxLength": 500,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "response": {
+        "$defs": {
+          "DataValidationOut": {
+            "properties": {
+              "errors": {
+                "type": "integer"
+              },
+              "issues": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "warnings": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "errors",
+              "warnings",
+              "issues"
+            ],
+            "type": "object"
+          },
+          "GateCheckOut": {
+            "properties": {
+              "detail": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "passed": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "name",
+              "passed",
+              "detail"
+            ],
+            "type": "object"
+          },
+          "TrainingOut": {
+            "properties": {
+              "algorithm": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "cross_validation": {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "rows": {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              }
+            },
+            "required": [
+              "rows",
+              "algorithm",
+              "cross_validation"
+            ],
+            "type": "object"
+          }
+        },
+        "properties": {
+          "current_metrics": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "current_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data_validation": {
+            "$ref": "#/$defs/DataValidationOut"
+          },
+          "duration_seconds": {
+            "type": "number"
+          },
+          "gate_passed": {
+            "type": "boolean"
+          },
+          "mlflow": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "new_metrics": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "new_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "previous_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "quality_gate": {
+            "items": {
+              "$ref": "#/$defs/GateCheckOut"
+            },
+            "type": "array"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "requested_by": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "training": {
+            "$ref": "#/$defs/TrainingOut"
+          }
+        },
+        "required": [
+          "status",
+          "gate_passed",
+          "previous_version",
+          "new_version",
+          "current_version",
+          "requested_by",
+          "reason",
+          "started_at",
+          "data_validation",
+          "training",
+          "new_metrics",
+          "current_metrics",
+          "quality_gate",
+          "mlflow",
+          "duration_seconds",
+          "notes"
+        ],
+        "type": "object"
+      }
+    },
     "POST /api/v1/rag/ingest": {
       "api": "7",
       "parameters": [
@@ -806,6 +1240,11 @@
         {
           "in": "form",
           "name": "overwrite",
+          "required": false
+        },
+        {
+          "in": "header",
+          "name": "x-admin-key",
           "required": false
         }
       ],

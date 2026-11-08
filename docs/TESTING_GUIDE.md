@@ -8,12 +8,13 @@ How the engine is tested, what each kind of test proves, and how to run them. Al
             ┌───────────────────────┐
             │  smoke test (running) │  scripts/api_smoke_test.py     a deployed server, real HTTP
             ├───────────────────────┤
-            │  integration  (24)    │  tests/integration/            the APIs together, contracts
-            │  dashboard  (16)      │  tests/dashboard/              each Streamlit page (AppTest)
+            │  integration  (26)    │  tests/integration/            the APIs together, contracts
+            │  dashboard  (20)      │  tests/dashboard/              each Streamlit page (AppTest)
             ├───────────────────────┤
-            │  API  (71)            │  tests/api/                    each endpoint through FastAPI
+            │  API  (99)            │  tests/api/                    each endpoint through FastAPI
             ├───────────────────────┤
-            │  unit  (328)          │  tests/unit/                   functions and services alone
+            │  unit  (344)          │  tests/unit/                   functions and services alone
+            │  security  (64)       │  tests/security/               login, access rules, limits, injection
             └───────────────────────┘
 ```
 
@@ -24,13 +25,14 @@ Many fast tests at the bottom, fewer and broader ones at the top. A failing unit
 | Unit | `tests/unit/` | One function or service gives the right answer | The gap formula gives 37.5 for E1001; a PDF keeps its page numbers |
 | API | `tests/api/` | Each endpoint validates input, returns the documented shape and errors | `POST /ai/chat` with `employee_id: "1001"` gives 422 |
 | Integration | `tests/integration/` | The parts agree with each other; the contract is stable | API 4's step scores equal API 3's, for every employee |
+| Security | `tests/security/` | Passwords, tokens, who-may-see-whom, rate limits, audit, prompt injection, upload checks | An employee's token cannot read E1002; a forged admin token is refused |
 | Dashboard | `tests/dashboard/` | Each Streamlit page runs and shows the right numbers (AppTest, headless) | Skills page shows gap score 37.5 for E1001 |
 | Smoke | `scripts/api_smoke_test.py` | A running server works end to end | Docker container: every API answers, upload → list → delete works |
 
 ## 2. Running the tests
 
 ```powershell
-pytest                              # everything: about 439 tests
+pytest                              # everything: about 553 tests
 pytest -m "not slow"                # quick run while coding (skips the ~26 tests that start scripts or train models)
 pytest tests/unit/test_chat.py -v   # one file, with each test's name
 pytest -k "learning_path"           # tests whose name contains the text
@@ -72,8 +74,9 @@ The dashboard (Phase 15) and, later, the PHP/F3 LMS depend on the exact request 
 
 ```powershell
 uvicorn app.main:app                         # window 1
-python scripts/api_smoke_test.py             # window 2
+python scripts/api_smoke_test.py --admin-key <ADMIN_API_KEY>    # window 2
 python scripts/api_smoke_test.py --base-url http://127.0.0.1:8000 --wait 60 --skip-upload
+python scripts/api_smoke_test.py --username admin --password <password>   # a server with login on
 ```
 
 It calls every API once and prints PASS / WARN / FAIL with timings:
@@ -87,7 +90,8 @@ PASS  API 7 upload                                 142 ms  ok
 
 - **WARN** is information (no Ollama, no index yet, or a grounding warning from the model). Only **FAIL** gives exit code 1.
 - With E1001 (the default) it also checks the known answers: gap score 37.5, C-SQL-201 first, projected match 100%.
-- The upload check adds a uniquely named test document and deletes it again. Use `--skip-upload` on a server where you do not want any change.
+- The upload check adds a uniquely named test document and deletes it again. Uploads are admin-only (Phase 17): without `--admin-key` (or an admin `--username`) it is skipped with a WARN. Use `--skip-upload` on a server where you do not want any change.
+- Security checks (Phase 17): security headers present, `GET /auth/me`, and retraining **refused** without credentials. Logged in as an employee, the unknown-employee check expects `403 ACCESS_DENIED` instead of `404`.
 - CI runs the same script against the Docker container after every push.
 
 ## 6. Test doubles: testing without the real thing

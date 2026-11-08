@@ -112,3 +112,58 @@ def test_documents_page_lists_the_index(isolated):
 def test_model_page_without_a_model():
     app = run("pages/8_Model_Management.py")
     assert "No model has been trained yet" in app.info[-1].value
+
+
+# --- Login (Phase 17) ----------------------------------------------------------------------------------
+@pytest.fixture
+def login_on(monkeypatch, tmp_path):
+    monkeypatch.setenv("AUTH_ENABLED", "true")
+    monkeypatch.setenv("AUTH_SECRET_KEY", "d" * 48)
+    monkeypatch.setenv("USERS_FILE", str(tmp_path / "users.json"))
+    get_settings.cache_clear()
+    from app.security.users import UserStore
+
+    store = UserStore(tmp_path / "users.json")
+    store.save("asha", "employee-pass-1", "employee", "E1001")
+    store.save("root", "admin-pass-123", "admin")
+    return store
+
+
+def run_as(page: str, principal) -> AppTest:
+    app = AppTest.from_file(str(DASHBOARD / page), default_timeout=120)
+    if principal is not None:
+        app.session_state["principal"] = principal
+    app.run()
+    assert not app.exception, app.exception
+    return app
+
+
+def test_login_is_required_when_switched_on(login_on):
+    app = run_as("Home.py", None)
+    assert "Please log in" in app.info[-1].value and not app.metric
+
+
+def test_logging_in_with_the_form(login_on):
+    app = run_as("Home.py", None)
+    app.sidebar.text_input[0].set_value("asha")
+    app.sidebar.text_input[1].set_value("employee-pass-1")
+    app.sidebar.button[0].click().run()
+    assert not app.exception and app.session_state["principal"].username == "asha"
+    assert _metric(app, "Employees") == "100"
+
+
+def test_employee_can_pick_only_themselves(login_on):
+    from app.security.users import Principal
+
+    app = run_as("pages/2_Skills_Analysis.py", Principal("asha", "employee", "E1001"))
+    options = app.sidebar.selectbox[0].options
+    assert len(options) == 1 and options[0].startswith("E1001")
+
+
+def test_admin_pages_refuse_employees(login_on):
+    from app.security.users import Principal
+
+    app = run_as("pages/8_Model_Management.py", Principal("asha", "employee", "E1001"))
+    assert "Administrators only" in app.error[0].value
+    admin = run_as("pages/7_Document_Management.py", Principal("root", "admin", None))
+    assert not admin.error

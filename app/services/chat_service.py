@@ -42,8 +42,10 @@ from app.core.errors import ServiceUnavailableError
 from app.domain.models import JobRole, Skill
 from app.llm.base import LLMProvider, LLMRequest, LLMUnavailableError
 from app.llm.guardrails import check_grounding
+from app.llm.prompts import SYSTEM_PROMPT
 from app.rag.index import IndexNotReadyError, KnowledgeIndex
 from app.repositories.base import LmsRepository
+from app.security.prompt_injection import REFUSAL, find_injection, leaks_system_prompt, sanitize_passage
 from app.services.explanation_service import learning_path_facts
 from app.services.learning_path import LearningPathService
 from app.services.training_recommendation import CompletionModel
@@ -110,6 +112,7 @@ class ChatService:
         min_score: Callable[[KnowledgeIndex], float] = lambda index: 0.05,
         top_k: int = 4,
         completion_model: CompletionModel | None = None,
+        block_injection: bool = True,
     ) -> None:
         self.repo = repository
         self.llm = llm
@@ -117,6 +120,7 @@ class ChatService:
         self.min_score = min_score
         self.top_k = top_k
         self.paths = LearningPathService(repository, completion_model)
+        self.block_injection = block_injection  # Phase 17: prompt-injection protection
 
     # --- public -------------------------------------------------------------------------
     def ask(
@@ -125,6 +129,24 @@ class ChatService:
         start = time.perf_counter()
         question = " ".join(question.split())
         history = history or []
+        attack = find_injection(question) if self.block_injection else []
+        if attack:  # layer 2: an attack question never reaches the model
+            elapsed = int((time.perf_counter() - start) * 1000)
+            note = f"Blocked: the question looks like an attempt to {', '.join(attack)}."
+            return ChatAnswer(
+                question,
+                REFUSAL,
+                "none",
+                "none",
+                False,
+                ["blocked"],
+                [],
+                [],
+                [],
+                [note],
+                elapsed,
+                employee_id,
+            )
         facts, intents, notes = self._engine_facts(question, employee_id)
         sources = self._retrieve(self._search_text(question, history), notes)
         if sources:
@@ -147,6 +169,18 @@ class ChatService:
                 employee_id,
             )
 
+        removed = 0
+        if self.block_injection:  # layer 3: clean retrieved passages before the model sees them
+            cleaned = []
+            for s in sources:
+                text, n = sanitize_passage(s.text)
+                removed += n
+                cleaned.append(Source(s.label, s.source, s.title, s.section, s.page, s.score, text))
+            sources = cleaned
+            if removed:
+                notes.append(
+                    f"{removed} sentence(s) that looked like instructions were removed from the passages."
+                )
         context = facts + [f"[{s.label}] {s.title}, {self._where(s)}: {s.text}" for s in sources]
         instruction = (
             f"Question from the employee: {question}\n"
@@ -157,6 +191,10 @@ class ChatService:
         except LLMUnavailableError as error:  # only with LLM_PROVIDER=ollama; "auto" falls back instead
             raise ServiceUnavailableError("LLM_UNAVAILABLE", str(error)) from error
 
+        answer_text = result.text
+        if not result.is_fallback and leaks_system_prompt(answer_text, SYSTEM_PROMPT):  # layer 4
+            answer_text = REFUSAL
+            notes.append("The model's answer repeated its hidden instructions and was replaced.")
         warnings: list[str] = []
         if not result.is_fallback:
             warnings = check_grounding(result.text, context)
@@ -166,7 +204,7 @@ class ChatService:
                 warnings.append(f"The answer cites sources that do not exist: {', '.join(unknown)}.")
         return ChatAnswer(
             question=question,
-            answer=result.text,
+            answer=answer_text,
             provider=result.provider,
             model=result.model,
             is_fallback=result.is_fallback,

@@ -16,10 +16,10 @@ import re
 
 from fastapi import APIRouter
 
-from app.api.dependencies import RoleMatchingServiceDep
+from app.api.dependencies import CurrentUserDep, RepositoryDep, RoleMatchingServiceDep
 from app.core.config import get_settings
 from app.core.errors import InvalidInputError
-from app.schemas.common import ErrorResponse, RoleRef
+from app.schemas.common import AUTH_RESPONSES, ErrorResponse, RoleRef
 from app.schemas.roles import (
     RelatedRoleOut,
     RoleMatchOut,
@@ -27,6 +27,7 @@ from app.schemas.roles import (
     RoleMatchResponse,
     SkillShortfall,
 )
+from app.security.access import authorize_employee
 from app.services.role_matching import RoleMatch, RoleMatchResult
 from app.services.skill_analysis import BELOW, MET, MISSING
 
@@ -108,11 +109,18 @@ def to_response(result: RoleMatchResult) -> RoleMatchResponse:
         "(TF-IDF + cosine similarity), with the employee's match for each."
     ),
     responses={
+        **AUTH_RESPONSES,
         404: {"model": ErrorResponse, "description": "Employee or role not found"},
         422: {"model": ErrorResponse, "description": "Invalid input"},
     },
 )
-def match_roles(request: RoleMatchRequest, service: RoleMatchingServiceDep) -> RoleMatchResponse:
+def match_roles(
+    request: RoleMatchRequest,
+    service: RoleMatchingServiceDep,
+    principal: CurrentUserDep,
+    repository: RepositoryDep,
+) -> RoleMatchResponse:
+    authorize_employee(principal, request.employee_id, repository)  # Phase 17: own / team data only
     for role_id in request.role_ids or []:
         if not ROLE_ID.match(role_id):
             raise InvalidInputError("INVALID_ROLE_ID", f"'{role_id}' is not a role ID like R004.")

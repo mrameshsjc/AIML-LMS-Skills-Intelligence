@@ -1,4 +1,4 @@
-"""Model management: versions, metrics, comparison, rollback and retraining of the completion model."""
+"""Model management: versions, metrics, comparison, rollback and controlled retraining (Phase 15-16)."""
 
 import sys
 from pathlib import Path
@@ -9,33 +9,53 @@ if str(ROOT) not in sys.path:
 
 import streamlit as st  # noqa: E402
 
-from app.api.dependencies import get_completion_predictor  # noqa: E402
+from app.api.dependencies import get_completion_predictor, get_retraining_service  # noqa: E402
 from app.core.config import get_settings  # noqa: E402
 from app.ml.evaluate import feature_importance  # noqa: E402
 from app.ml.model_registry import current_version, list_cards, load_current, set_current  # noqa: E402
-from app.ml.train import run_training  # noqa: E402
+from app.ml.retraining import PROMOTED, read_history  # noqa: E402
 from dashboard.components import data, ui  # noqa: E402
 
 ui.setup_page(
     "ML model management",
     "The course-completion model used by recommendations (API 3): versions, test metrics, the algorithm "
-    "comparison, rollback and retraining. Trained on SYNTHETIC data: it shows the method, not real accuracy.",
+    "comparison, rollback and controlled retraining. Trained on SYNTHETIC data: it shows the method, "
+    "not real accuracy.",
     "🤖",
 )
-ui.admin_notice()
+ui.admin_page()
 settings = get_settings()
 cards = list_cards(settings.model_dir)
 current = current_version(settings.model_dir)
 
 
 def retrain_button(label: str) -> None:
+    """The same controlled workflow as API 6: validate, train, evaluate, compare, quality gate, promote."""
+    reason = st.text_input("Reason (kept in the history)", key=f"reason_{label}")
     if st.button(label, type="primary"):
-        with st.spinner("Building features, comparing three algorithms, training and evaluating ..."):
-            report = run_training(settings.data_dir, settings.model_dir)
-        get_completion_predictor.cache_clear()
-        st.success(
-            f"Saved version {report.version}: {report.best_model}, "
-            f"test ROC AUC {report.test_metrics['roc_auc']}. Restart the API (uvicorn) so it uses it."
+        with st.spinner(
+            "Validating data, comparing algorithms, training, evaluating, applying the quality gate ..."
+        ):
+            user = ui.current_user()
+            who = user.username if user and user.authenticated else "dashboard admin"
+            report = ui.safe(get_retraining_service().retrain, who, reason)
+        if report is not None:
+            ui.audit("retrain", status=report.status, new_version=report.new_version)
+        if report is None:
+            return
+        if report.status == PROMOTED:
+            get_completion_predictor.cache_clear()
+            st.success(f"Version {report.new_version} passed the quality gate and is now current.")
+        else:
+            st.warning(
+                f"Result: {report.status.replace('_', ' ')}. Current version: {report.current_version}."
+            )
+        gate = [{"Check": c.name, "Passed": c.passed, "Detail": c.detail} for c in report.gate]
+        st.dataframe(gate, hide_index=True)
+        for note in report.notes:
+            st.caption(f"ⓘ {note}")
+        st.caption(
+            "The API (a separate process) loads a new current model after a restart, or at once via API 6."
         )
 
 
@@ -44,7 +64,7 @@ if not cards:
     retrain_button("Train the first model")
     st.stop()
 
-card = next(c for c in cards if c["version"] == current)
+card = next((c for c in cards if c["version"] == current), cards[-1])
 metrics = card["test_metrics"]
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Current version", current)
@@ -70,20 +90,28 @@ with right:
         importance = feature_importance(loaded[0]).head(10)
         st.bar_chart(importance.set_index(importance.columns[0]), horizontal=True)
 
-st.subheader("Training history")
+st.subheader("Model versions")
 st.dataframe(data.model_versions_table(cards, current), hide_index=True)
+runs = read_history(settings.model_dir)
+if runs:
+    st.subheader("Retraining runs")
+    st.dataframe(runs, hide_index=True)
 
 st.subheader("Controls")
 a, b = st.columns(2)
 with a:
     versions = [c["version"] for c in reversed(cards)]
-    chosen = st.selectbox("Use version", versions, index=versions.index(current))
+    chosen = st.selectbox(
+        "Use version", versions, index=versions.index(current) if current in versions else 0
+    )
     if st.button("Switch version (rollback)") and chosen != current:
         set_current(chosen, settings.model_dir)
         get_completion_predictor.cache_clear()
+        ui.audit("switch_model_version", version=chosen)
         st.success(f"Version {chosen} is now current. Restart the API so it uses it.")
 with b:
     st.caption(
-        "Retraining builds a NEW version; nothing is overwritten. Phase 16 adds API 6 and MLflow tracking."
+        f"Retraining saves a NEW version; nothing is overwritten. Quality gate: ROC AUC ≥ "
+        f"{settings.ml_min_roc_auc}, no drop of more than {settings.ml_max_regression} vs the current model."
     )
     retrain_button("Retrain now")

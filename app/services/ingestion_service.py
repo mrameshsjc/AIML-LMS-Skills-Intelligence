@@ -57,6 +57,8 @@ from app.rag.document_loader import SUPPORTED, DocumentError, load_document
 from app.rag.embeddings import Embedder
 from app.rag.index import IndexNotReadyError, IndexReport, build_index, read_manifest
 from app.rag.vector_store import VectorStore
+from app.security.prompt_injection import find_injection
+from app.security.uploads import content_problem
 
 _LOCK = threading.Lock()
 
@@ -97,6 +99,7 @@ class IngestionService:
         overlap: int = 120,
         max_bytes: int = 10 * 1024 * 1024,
         on_change: Callable[[], None] = lambda: None,
+        block_injection: bool = True,
     ) -> None:
         self.documents_dir = resolve_folder(documents_dir)
         self.upload_dir = resolve_folder(upload_dir)
@@ -107,6 +110,7 @@ class IngestionService:
         self.overlap = overlap
         self.max_bytes = max_bytes
         self.on_change = on_change  # e.g. tell the API to reload the index
+        self.block_injection = block_injection  # Phase 17: refuse documents with hidden instructions
 
     # --- upload / update ---------------------------------------------------------------------
     def ingest(self, filename: str, content: bytes, overwrite: bool = False) -> IngestResult:
@@ -124,6 +128,9 @@ class IngestionService:
                 "FILE_TOO_LARGE",
                 f"{name} is {_size(len(content))}; the limit is {_size(self.max_bytes)}.",
             )
+        problem = content_problem(suffix, content)  # Phase 17: the content must match the extension
+        if problem:
+            raise InvalidInputError("FILE_CONTENT_MISMATCH", f"{name} was refused: {problem}.")
         if (self.documents_dir / name).exists():
             raise ConflictError(
                 "DOCUMENT_IS_APPROVED",
@@ -147,6 +154,14 @@ class IngestionService:
         except DocumentError as error:
             temp.unlink(missing_ok=True)
             raise InvalidInputError("INVALID_DOCUMENT", str(error).replace(temp.name, name)) from error
+        found = find_injection("\n".join(p.text for p in document.pages)) if self.block_injection else []
+        if found:  # Phase 17: text written to manipulate the assistant, not to inform it
+            temp.unlink(missing_ok=True)
+            raise InvalidInputError(
+                "INJECTION_SUSPECTED",
+                f"{name} was refused: it contains text that tries to instruct the AI assistant "
+                f"({', '.join(sorted(set(found)))}). Remove it and upload again.",
+            )
 
         status = "updated" if target.exists() else "added"
         with _LOCK:

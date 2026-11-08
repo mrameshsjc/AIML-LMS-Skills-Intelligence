@@ -14,6 +14,9 @@ from app.main import app
 from app.rag.embeddings import TfidfEmbedder
 from app.rag.index import build_index
 from app.rag.vector_store import NumpyVectorStore
+from tests.conftest import TEST_ADMIN_KEY
+
+ADMIN = {"X-Admin-Key": TEST_ADMIN_KEY}  # uploads and deletions are for administrators (Phase 17)
 
 client = TestClient(app)
 
@@ -64,7 +67,10 @@ def ingest_env(tmp_path, monkeypatch):
 
 def _upload(name: str, content: bytes, overwrite: bool = False):
     return client.post(
-        "/api/v1/rag/ingest", files={"file": (name, content)}, data={"overwrite": str(overwrite).lower()}
+        "/api/v1/rag/ingest",
+        files={"file": (name, content)},
+        data={"overwrite": str(overwrite).lower()},
+        headers=ADMIN,
     )
 
 
@@ -85,9 +91,9 @@ def test_upload_list_chat_and_delete(ingest_env):
     answer = client.post("/api/v1/ai/chat", json={"question": "How long is Kafka Essentials?"}).json()
     assert answer["sources"][0]["source"] == "internal_trainings.csv"  # the new document is used at once
 
-    deleted = client.delete("/api/v1/rag/documents/internal_trainings.csv")
+    deleted = client.delete("/api/v1/rag/documents/internal_trainings.csv", headers=ADMIN)
     assert deleted.status_code == 200 and deleted.json()["status"] == "deleted"
-    assert client.delete("/api/v1/rag/documents/internal_trainings.csv").status_code == 404
+    assert client.delete("/api/v1/rag/documents/internal_trainings.csv", headers=ADMIN).status_code == 404
 
 
 def test_upload_errors(ingest_env):
@@ -98,4 +104,4 @@ def test_upload_errors(ingest_env):
     assert _upload("copy.csv", CSV + b"x,y,1\n").json()["error"]["code"] == "DUPLICATE_DOCUMENT"
     assert _upload("faq.md", b"# x\n\ny").json()["error"]["code"] == "DOCUMENT_IS_APPROVED"
     assert _upload("tool.exe", b"MZ").status_code == 422
-    assert client.delete("/api/v1/rag/documents/faq.md").status_code == 409
+    assert client.delete("/api/v1/rag/documents/faq.md", headers=ADMIN).status_code == 409

@@ -25,6 +25,10 @@ class LmsRepository(ABC):
     def get_employee(self, employee_id: str) -> Employee | None:
         """The employee, or None if unknown."""
 
+    def direct_reports(self, manager_id: str) -> list[str]:
+        """IDs of the employees whose manager_id is manager_id (Phase 17: a manager's team)."""
+        return []
+
     @abstractmethod
     def get_employee_skills(self, employee_id: str) -> dict[str, int]:
         """{skill_id: current level} for the employee (empty if none)."""

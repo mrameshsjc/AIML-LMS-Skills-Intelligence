@@ -5,7 +5,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | | |
 | --- | --- |
 | Project folder / Git repo | `AIML-LMS-Skills-Intelligence` |
-| Current phase | **Phase 15 – Streamlit dashboard** (Phases 1–14 on GitHub, CI green) |
+| Current phase | **Phase 17 – Security: login, roles, rate limits, audit log, prompt-injection protection** (Phases 1–16 on GitHub, CI green) |
 | Python | 3.11 |
 | LMS integration | Not in this project. The architecture is API-ready for it (later phase). |
 
@@ -13,7 +13,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 
 ---
 
-## 1. What is built so far (Phases 1–15)
+## 1. What is built so far (Phases 1–17)
 
 | Item | File(s) | Why it exists |
 | --- | --- | --- |
@@ -77,8 +77,16 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | **Phase 15:** dashboard | `dashboard/Home.py` + 8 pages, `.streamlit/config.toml` | Home, data upload, skills, roles, recommendations, learning path, AI assistant, documents, models |
 | **Phase 15:** same services | `dashboard/components/` (data.py, ui.py) | Pages use the API's own services, so the numbers always match Swagger |
 | **Phase 15:** tests + docs | `tests/unit/test_dashboard_data.py`, `tests/dashboard/test_pages.py`, `docs/DASHBOARD_GUIDE.md` | 9 helper tests + 16 AppTest page tests; dashboard guide; `dashboard` service in Docker Compose |
+| **Phase 16:** API 6 | `POST /api/v1/ml/retrain` (admin key), `GET /api/v1/ml/status` | Validate → train → evaluate → compare with the current model → quality gate → register → promote only if approved |
+| **Phase 16:** MLflow + security | `app/ml/retraining.py`, `app/ml/tracking.py`, `app/core/security.py`, `scripts/retrain.py` | Runs, metrics and approved versions in MLflow (alias `champion`); `X-Admin-Key` protects admin actions |
+| **Phase 16:** tests + docs | `tests/unit/test_retraining.py`, `tests/api/test_ml_api.py`, ML guide section 7 | 15 + 6 checks; all seven APIs documented |
+| **Phase 17:** login + roles | `app/security/` (passwords, users, tokens, access), `app/api/v1/auth.py`, `scripts/create_user.py` | JWT login; employees see only themselves, managers their team, admins everyone; tenants kept apart |
+| **Phase 17:** admin protection | `app/api/dependencies.py` (`require_admin`) | API 6 and API 7 upload/delete: admin login or `X-Admin-Key`; dashboard pages 1, 7, 8 admin-only |
+| **Phase 17:** abuse + audit | `app/security/rate_limit.py`, `audit.py`, `app/main.py` | Rate limits (429 + Retry-After), security headers, CORS, audit log, refuses to start with unsafe settings |
+| **Phase 17:** AI + upload safety | `app/security/prompt_injection.py`, `uploads.py` | 4 prompt-injection layers in the assistant and uploads; renamed executables refused |
+| **Phase 17:** tests + docs | `tests/security/`, `tests/api/test_auth_api.py`, `docs/SECURITY_GUIDE.md` | 64 + 14 + 4 dashboard checks; security guide |
 
-APIs 1 (`/skills/analyze`), 2 (`/roles/match`), 3 (`/trainings/recommend`), 4 (`/learning-path/{id}`), 5 (`/ai/chat`) and 7 (`/rag/ingest`) are live. API 6 (`/ml/retrain`) comes in Phase 16. Full reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
+**All seven APIs are live:** 1 (`/skills/analyze`), 2 (`/roles/match`), 3 (`/trainings/recommend`), 4 (`/learning-path/{id}`), 5 (`/ai/chat`), 6 (`/ml/retrain`, admin) and 7 (`/rag/ingest`, admin). With `AUTH_ENABLED=true` they need a login (`/auth/token`). Full reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
 
 ## 2. Folder structure
 
@@ -131,6 +139,8 @@ AIML-LMS-Skills-Intelligence/
 │   ├── integration/              # business flow, HTTP journey, API contract (24)  [Phase 14 ✓]
 │   ├── api/test_api_contract.py  # OpenAPI = contract; error format of every endpoint (20)  [Phase 14 ✓]
 │   ├── dashboard/test_pages.py   # every Streamlit page with AppTest (16)          [Phase 15 ✓]
+│   ├── unit/test_retraining.py, api/test_ml_api.py # 15 + 6 checks            [Phase 16 ✓]
+│   ├── security/, api/test_auth_api.py # 64 + 14 checks (login, roles, limits, injection) [Phase 17 ✓]
 │   ├── unit/  integration/  security/
 ├── reports/                      # generated charts and reports (not in Git)   [Phase 4]
 ├── deployment/                   # docker/, kubernetes/, cloud/                (later, 18–20)
@@ -226,7 +236,7 @@ AIML-LMS-Skills-Intelligence/
 ## 5. Tests and code quality
 
 ```powershell
-pytest -v              # expected: 439 passed (328 unit + 71 API + 24 integration + 16 dashboard)
+pytest -v              # expected: 465 passed (344 unit + 79 API + 26 integration + 16 dashboard)
 pytest -m "not slow"   # quick run (skips tests that start scripts or train models)
 ruff check .           # expected: All checks passed!
 ruff format --check .  # expected: N files already formatted
@@ -460,6 +470,31 @@ streamlit run dashboard/Home.py      # opens http://localhost:8501
 
 Nine pages: **Home** (totals, completion, gaps, top recommendations), **Data upload**, **Skills analysis**, **Role matching**, **Recommendations**, **Learning path** (with an LLM explanation), **AI assistant** (chat with sources), **Document management** and **Model management** (admin). The selected employee is remembered across pages; E1001 is the default. The dashboard uses the same services as the API, so it does not need uvicorn running. Guide: [`docs/DASHBOARD_GUIDE.md`](docs/DASHBOARD_GUIDE.md).
 
+## 5o. API 6: controlled retraining with MLflow (Phase 16)
+
+```powershell
+pip install -r requirements.txt     # adds mlflow
+python -c "import secrets; print(secrets.token_urlsafe(32))"   # put the output in .env: ADMIN_API_KEY=...
+python scripts/retrain.py --reason "first run"                 # or API 6 / the dashboard's Model page
+mlflow ui --backend-store-uri sqlite:///mlruns/mlflow.db        # see the runs at http://127.0.0.1:5000
+```
+
+In Swagger: **6. ML Model Management → POST /api/v1/ml/retrain** with your key in `x-admin-key`. The response shows the **quality gate** (minimum ROC AUC 0.60, better than chance, no drop versus the current model on the same test rows) and whether the new version was **promoted**. Every run saves a new version; only approved ones become current; old versions stay for rollback. `GET /api/v1/ml/status` lists versions and runs. Guide: [`docs/ML_MODEL_GUIDE.md`](docs/ML_MODEL_GUIDE.md) section 7.
+
+## 5p. Security: login, roles, rate limits, audit (Phase 17)
+
+Locally nothing changes: login is **off** by default and the sidebar / log say so. To try login:
+
+```powershell
+pip install -r requirements.txt                                   # adds pyjwt
+python -c "import secrets; print(secrets.token_urlsafe(48))"      # .env: AUTH_SECRET_KEY=<output>, AUTH_ENABLED=true
+python scripts/create_demo_users.py                               # employee (E1001), manager (E1064), admin; passwords shown once
+uvicorn app.main:app --reload                                     # Swagger: the Authorize button
+python scripts/api_smoke_test.py --username admin --password <admin password>
+```
+
+Log in as `employee` and `GET /api/v1/learning-path/E1002` gives **403**; as `manager` you see E1064's team; only `admin` (or `X-Admin-Key`) may retrain or upload. Every API call is written to `logs/audit.jsonl`. The assistant refuses "ignore your instructions…" questions and uploads with hidden instructions. Guide: [`docs/SECURITY_GUIDE.md`](docs/SECURITY_GUIDE.md).
+
 ## 6. Run with Docker
 
 Docker Desktop must be running.
@@ -559,6 +594,9 @@ See the results in the repository's **Actions** tab. Never commit `.env`, passwo
 | `RAG_CHUNK_SIZE` / `RAG_CHUNK_OVERLAP` / `RAG_TOP_K` | `800` / `120` / `4` | Chunk size and overlap (characters), results per search |
 | `RAG_UPLOAD_DIR` / `RAG_MAX_UPLOAD_MB` | `data/uploads/documents` / `10` | Where API 7 stores uploads; largest upload |
 | `RAG_MIN_SCORE` | empty | Minimum passage similarity for the assistant (empty = TF-IDF 0.08, Ollama 0.45) |
+| `ADMIN_API_KEY` | empty | Key for admin actions (API 6, header `X-Admin-Key`). Empty = admin actions off. Keep it only in `.env` |
+| `ML_MIN_ROC_AUC` / `ML_MAX_REGRESSION` / `ML_MIN_TRAINING_ROWS` | `0.60` / `0.01` / `200` | The retraining quality gate |
+| `MLFLOW_ENABLED` / `MLFLOW_TRACKING_URI` / `MLFLOW_EXPERIMENT` | `auto` / empty / `completion-model` | MLflow if installed; empty URI = `mlruns/mlflow.db` |
 
 ## 9. Troubleshooting
 
@@ -576,10 +614,12 @@ See the results in the repository's **Actions** tab. Never commit `.env`, passwo
 | The assistant says it has no information | Check the passage scores with `scripts/search_documents.py`; see `RAG_MIN_SCORE` in the LLM guide |
 | A contract test fails | Unintended: fix the code. Intended API change: `python scripts/update_api_contract.py`, review and commit `docs/api_contract.json` |
 | Dashboard: `No module named 'app'` | Start it from the project folder: `streamlit run dashboard/Home.py` |
+| API 6 answers 403 `ADMIN_ACTIONS_DISABLED` | Set `ADMIN_API_KEY` in `.env` and restart uvicorn |
+| Retraining says `rejected_by_quality_gate` | Working as intended: the new model was not good enough; the current one stays. See `quality_gate` for the reason |
 
 ## 10. Roadmap
 
-Phase 1 ✓ → 2 synthetic datasets ✓ → 3 data validation ✓ → 4 cleaning, EDA, quality report, upload service ✓ → 5 skills analysis API ✓ → 6 role matching API ✓ → 7 recommendations API ✓ → 8 ML completion model ✓ → 9 database (SQLite) ✓ → 10 learning path API ✓ → 11 Ollama LLM ✓ → 12 embeddings + FAISS ✓ → 13 RAG + chat ✓ → 14 all APIs tested together ✓ → 15 Streamlit dashboard ✓ → 16 MLflow retraining → 17 security → 18 Docker hardening → 19 public demo → 20 Kubernetes → 21 full CI/CD with Snyk → 22 submission package.
+Phase 1 ✓ → 2 synthetic datasets ✓ → 3 data validation ✓ → 4 cleaning, EDA, quality report, upload service ✓ → 5 skills analysis API ✓ → 6 role matching API ✓ → 7 recommendations API ✓ → 8 ML completion model ✓ → 9 database (SQLite) ✓ → 10 learning path API ✓ → 11 Ollama LLM ✓ → 12 embeddings + FAISS ✓ → 13 RAG + chat ✓ → 14 all APIs tested together ✓ → 15 Streamlit dashboard ✓ → 16 MLflow retraining ✓ → 17 security → 18 Docker hardening → 19 public demo → 20 Kubernetes → 21 full CI/CD with Snyk → 22 submission package.
 
 The full plan, API contracts and database design are in the project blueprint (Enterprise LMS AI Intelligence Engine – Analysis & Technical Blueprint).
 

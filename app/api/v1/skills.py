@@ -17,10 +17,11 @@ ERRORS (shared format, see app/core/errors.py)
 
 from fastapi import APIRouter
 
-from app.api.dependencies import SkillAnalysisServiceDep
+from app.api.dependencies import CurrentUserDep, RepositoryDep, SkillAnalysisServiceDep
 from app.core.config import get_settings
-from app.schemas.common import ErrorResponse, RoleRef
+from app.schemas.common import AUTH_RESPONSES, ErrorResponse, RoleRef
 from app.schemas.skills import ProfileSkillOut, SkillAnalysisRequest, SkillAnalysisResponse, SkillGapOut
+from app.security.access import authorize_employee
 from app.services.skill_analysis import SkillAnalysisResult
 
 router = APIRouter(prefix="/skills", tags=["1. Skills Analysis"])
@@ -81,6 +82,7 @@ def to_response(result: SkillAnalysisResult) -> SkillAnalysisResponse:
         "**match_percentage** = 100 x sum(weight x min(current, required)) / sum(weight x required)."
     ),
     responses={
+        **AUTH_RESPONSES,
         404: {"model": ErrorResponse, "description": "Employee or role not found"},
         422: {"model": ErrorResponse, "description": "Invalid input (field format, unknown skill, level)"},
     },
@@ -88,7 +90,10 @@ def to_response(result: SkillAnalysisResult) -> SkillAnalysisResponse:
 def analyze_skills(
     request: SkillAnalysisRequest,
     service: SkillAnalysisServiceDep,
+    principal: CurrentUserDep,
+    repository: RepositoryDep,
 ) -> SkillAnalysisResponse:
+    authorize_employee(principal, request.employee_id, repository)  # Phase 17: own / team data only
     overrides = {s.skill: s.level for s in request.current_skills or []}
     result = service.analyze(request.employee_id, request.target_role_id, overrides)
     return to_response(result)
