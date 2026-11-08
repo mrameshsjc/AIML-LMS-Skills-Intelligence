@@ -153,6 +153,7 @@ pipeline {
                 // Replace the previous development container with this build's image, hardened exactly
                 // like compose.yaml (read-only, no capabilities, non-root). Its data volumes are kept.
                 sh '''
+                    set +x   # do not print the commands: they contain the admin key
                     DEV_ADMIN_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
                     echo "$DEV_ADMIN_KEY" > .dev-admin-key
                     docker rm -f "$DEV_CONTAINER" >/dev/null 2>&1 || true
@@ -164,6 +165,7 @@ pipeline {
                         -v lms-dev-logs:/app/logs \
                         -e APP_PROFILE=compose -e DATA_SOURCE=database -e DATABASE_URL=sqlite:///./data/db/lms_ai.db \
                         -e ADMIN_API_KEY="$DEV_ADMIN_KEY" \
+                        -e OLLAMA_BASE_URL=http://host.docker.internal:11434 --add-host host.docker.internal:host-gateway \
                         "$IMAGE:$IMAGE_TAG"
                     echo "Development API: http://127.0.0.1:$DEV_PORT/docs (on the Jenkins host)"
                 '''
@@ -174,6 +176,8 @@ pipeline {
             when { expression { params.DEPLOY_DEV } }
             steps {
                 sh '''
+                    set +x   # the command line contains the admin key
+                    echo "Smoke test of the development API (admin key from stage 10)"
                     "$VENV/bin/python" scripts/api_smoke_test.py --base-url "http://$DEV_CONTAINER:8000" --wait 120 \
                         --admin-key "$(cat .dev-admin-key)"
                 '''
