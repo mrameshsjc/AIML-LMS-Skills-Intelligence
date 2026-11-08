@@ -15,7 +15,9 @@ class TokenResponse(BaseModel):
 
 class MeResponse(BaseModel):
     username: str
-    role: str = Field(description="employee, manager, admin - or anonymous when login is switched off.")
+    role: str = Field(
+        description="employee, manager, admin - anonymous when login is off, guest in the public demo."
+    )
     employee_id: str | None
     tenant: str
     authenticated: bool = Field(description="False when AUTH_ENABLED=false (local development).")

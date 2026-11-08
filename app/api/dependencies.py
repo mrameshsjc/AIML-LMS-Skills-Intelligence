@@ -16,8 +16,9 @@ WHY
     - @lru_cache loads the data once, on the first request, and reuses it.
 
 SECURITY (Phase 17)
-    CurrentUserDep   who is calling: the logged-in user (JWT), or an anonymous
-                     local user when AUTH_ENABLED=false (local development).
+    CurrentUserDep   who is calling: the logged-in user (JWT), an anonymous local
+                     user when AUTH_ENABLED=false (local development), or a read-only
+                     "guest" when GUEST_ACCESS=true (public demo, Phase 19).
     AdminDep         administrators only: an admin login OR the X-Admin-Key header.
     ChatLimitDep     the stricter rate limit for the (slow, costly) assistant.
 """
@@ -242,6 +243,10 @@ def get_current_user(request: Request, token: TokenDep) -> Principal:
     settings = get_settings()
     if not settings.auth_enabled:
         principal = Principal("anonymous", "anonymous", None, settings.rag_tenant, authenticated=False)
+    elif not token and settings.guest_access:
+        # Public demo (Phase 19): visitors browse the synthetic data read-only; admin actions still
+        # need an admin login (require_admin does not accept guests).
+        principal = Principal("guest", "guest", None, settings.rag_tenant, authenticated=False)
     elif not token:
         raise UnauthorizedError(
             "AUTH_REQUIRED",

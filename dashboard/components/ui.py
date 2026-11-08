@@ -14,12 +14,19 @@ LOGIN (Phase 17)
     themselves, managers their team, administrators everyone; pages 1, 7 and 8
     are for administrators. With login off (local default) everything is open.
 
+PUBLIC DEMO (Phase 19, GUEST_ACCESS=true)
+    Visitors browse without an account as a read-only "guest" (synthetic data);
+    the sidebar offers an admin login. Document and model pages show their
+    information to everyone; uploading, retraining, rollback and reset stay
+    admin-only. The assistant is rate-limited per browser session.
+
 Services come from app.api.dependencies, the same wiring the API uses, so the
 dashboard and Swagger always show the same numbers.
 """
 
 from __future__ import annotations
 
+import secrets
 from collections.abc import Callable
 from typing import TypeVar
 
@@ -43,6 +50,10 @@ def setup_page(title: str, intro: str, icon: str = "🎓") -> None:
     st.set_page_config(page_title=f"{title} – LMS Skills Intelligence", page_icon=icon, layout="wide")
     st.title(title)
     st.caption(intro)
+    problems = get_settings().check_security()  # the same start-up rules as the API (Phase 17/19)
+    if problems:
+        st.error("Unsafe settings - the dashboard will not run:\n\n- " + "\n- ".join(problems))
+        st.stop()
     _sidebar_status()
     _login_box()
 
@@ -59,9 +70,12 @@ def _sidebar_status() -> None:
         st.markdown("**LMS Skills Intelligence Engine**")
         st.caption(f"Version {settings.app_version} · synthetic data only")
         provider, _, detail = _llm_status()
-        llm = "Ollama " + settings.ollama_model if provider == "ollama" else "fallback (no LLM)"
+        llm = {
+            "ollama": f"Ollama {settings.ollama_model}",
+            "hosted": f"hosted {settings.hosted_llm_model}",
+        }.get(provider, "fallback (no LLM)")
         st.caption(f"Data: {settings.data_source} · LLM: {llm}")
-        if provider != "ollama":
+        if provider not in ("ollama", "hosted"):
             st.caption(f"ⓘ {detail[:140]}")
 
 
@@ -70,7 +84,16 @@ def current_user() -> Principal | None:
     settings = get_settings()
     if not settings.auth_enabled:
         return Principal("anonymous", "anonymous", None, settings.rag_tenant, authenticated=False)
-    return st.session_state.get("principal")
+    principal = st.session_state.get("principal")
+    if principal is None and settings.guest_access:  # public demo: read-only visitor
+        return Principal("guest", "guest", None, settings.rag_tenant, authenticated=False)
+    return principal
+
+
+def is_admin() -> bool:
+    """May this session change things (upload, retrain, reset)? Always true in the open local mode."""
+    user = current_user()
+    return not get_settings().auth_enabled or (user is not None and user.is_admin)
 
 
 def audit(action: str, **details) -> None:
@@ -107,7 +130,12 @@ def _login_box() -> None:
             st.session_state.clear()
             st.rerun()
         return
-    with st.sidebar.form("login"):
+    if settings.guest_access:  # public demo: browse as a guest, log in only to administer
+        st.sidebar.caption("👀 Guest: read-only demo with synthetic data. No account needed.")
+        area = st.sidebar.expander("Administrator login")
+    else:
+        area = st.sidebar
+    with area.form("login"):
         st.markdown("**Log in**")
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
@@ -129,22 +157,47 @@ def _login_box() -> None:
             st.session_state.pop("employee_id", None)
             audit("login", role=user.role)
             st.rerun()
+    if settings.guest_access:
+        return
     st.info("Please log in (sidebar) to use the dashboard. Accounts are created with scripts/create_user.py.")
     st.stop()
 
 
 def admin_page() -> None:
-    """Administrators only (data upload, documents, model management)."""
+    """Administrators only (data upload)."""
+    if not admin_section():
+        st.stop()
+
+
+def admin_section() -> bool:
+    """Show who may use the admin controls below; True if this session may.
+
+    Pages call it before their controls: guests and employees still see the information above.
+    """
     user = current_user()
-    if user is None or not user.authenticated:
+    if not get_settings().auth_enabled:
         st.info(
-            "Administrator page. Login is switched off (local mode), so it is open; "
-            "with AUTH_ENABLED=true only administrators can open it.",
+            "Administrator controls. Login is switched off (local mode), so they are open; "
+            "with AUTH_ENABLED=true only administrators can use them.",
             icon="🔒",
         )
-    elif not user.is_admin:
-        st.error(f"Administrators only. You are signed in as {user.username} ({user.role}).", icon="🔒")
-        st.stop()
+        return True
+    if user is not None and user.is_admin:
+        return True
+    who = f"You are signed in as {user.username} ({user.role})." if user and user.authenticated else ""
+    st.error(f"Administrators only. {who} Log in as an administrator in the sidebar.".strip(), icon="🔒")
+    return False
+
+
+def chat_allowed() -> bool:
+    """The assistant's rate limit for this browser session (RATE_LIMIT_CHAT_PER_MINUTE)."""
+    session = st.session_state.setdefault("session_key", secrets.token_hex(8))
+    try:
+        LIMITER.check("chat", f"dashboard:{session}", get_settings().rate_limit_chat_per_minute, 60)
+    except RateLimitedError as error:
+        st.warning(error.message)
+        return False
+    return True
 
 
 def repository() -> LmsRepository:

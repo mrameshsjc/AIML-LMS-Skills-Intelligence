@@ -171,7 +171,10 @@ def run() -> None:
     check(
         f"Who am I ({me.body.get('username', '?')}, can view {me.body.get('can_view', '?')})",
         me,
-        (not me.body.get("auth_enabled") or me.body.get("authenticated"), "login is on: pass --username"),
+        (
+            not me.body.get("auth_enabled") or me.body.get("authenticated") or me.body.get("role") == "guest",
+            "login is on: pass --username",
+        ),
     )
     denied = call("POST", "/api/v1/ml/retrain", {}, anonymous=True)  # no key, no token
     results.append(
@@ -184,7 +187,12 @@ def run() -> None:
     )
 
     llm = call("GET", "/api/v1/health/llm")
-    check("LLM status", llm, (llm.body.get("provider") == "ollama", llm.body.get("detail", "")), warn=True)
+    check(
+        "LLM status",
+        llm,
+        (llm.body.get("provider") in ("ollama", "hosted"), llm.body.get("detail", "")),
+        warn=True,
+    )
     rag = call("GET", "/api/v1/health/rag")
     check(
         "Document index status", rag, (rag.body.get("ready") is True, rag.body.get("detail", "")), warn=True

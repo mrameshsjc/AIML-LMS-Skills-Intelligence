@@ -111,7 +111,7 @@ def test_documents_page_lists_the_index(isolated):
 
 def test_model_page_without_a_model():
     app = run("pages/8_Model_Management.py")
-    assert "No model has been trained yet" in app.info[-1].value
+    assert any("No model has been trained yet" in i.value for i in app.info)
 
 
 # --- Login (Phase 17) ----------------------------------------------------------------------------------
@@ -167,3 +167,32 @@ def test_admin_pages_refuse_employees(login_on):
     assert "Administrators only" in app.error[0].value
     admin = run_as("pages/7_Document_Management.py", Principal("root", "admin", None))
     assert not admin.error
+
+
+# --- Public demo: guests (Phase 19) --------------------------------------------------------------------
+@pytest.fixture
+def guest_on(login_on, monkeypatch):
+    monkeypatch.setenv("GUEST_ACCESS", "true")
+    get_settings.cache_clear()
+    return login_on
+
+
+def test_guest_browses_without_logging_in(guest_on):
+    app = run_as("pages/2_Skills_Analysis.py", None)
+    assert len(app.sidebar.selectbox[0].options) == 100  # every synthetic employee
+    assert _metric(app, "Gap score") == "37.5"
+
+
+def test_guest_sees_documents_but_not_the_upload(guest_on, isolated):
+    build_index("documents", isolated / "store" / "default", TfidfEmbedder(), NumpyVectorStore)
+    app = run_as("pages/7_Document_Management.py", None)
+    assert _metric(app, "Documents") == "8"
+    assert "Administrators only" in app.error[0].value
+    assert "Delete" not in [b.label for b in app.button]  # only the sidebar's admin login button remains
+
+
+def test_fallback_answers_are_labelled(guest_on):
+    app = run_as("pages/6_AI_Assistant.py", None)
+    app.chat_input[0].set_value("Which skills are required for an AI Engineer?").run()
+    assert not app.exception
+    assert any("Fallback mode" in i.value for i in app.info)

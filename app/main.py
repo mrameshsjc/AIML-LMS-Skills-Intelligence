@@ -43,7 +43,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api.v1 import ai_chat, auth, health, learning_path, ml_training, rag, roles, skills, trainings
+from app.api.v1 import (
+    admin,
+    ai_chat,
+    auth,
+    health,
+    learning_path,
+    ml_training,
+    rag,
+    roles,
+    skills,
+    trainings,
+)
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.core.logging_config import request_id_var, setup_logging
@@ -166,6 +177,11 @@ def create_app() -> FastAPI:
             response.headers.update(SECURITY_HEADERS)
             if is_api:
                 response.headers.update(API_ONLY_HEADERS)
+            elif current.frame_ancestors:  # Phase 19: e.g. the Hugging Face page shows /docs in a frame
+                del response.headers["X-Frame-Options"]
+                response.headers["Content-Security-Policy"] = (
+                    f"frame-ancestors 'self' {current.frame_ancestors}"
+                )
             return response
         finally:
             # `finally` runs whether the request succeeded or failed, so every
@@ -259,6 +275,7 @@ def create_app() -> FastAPI:
     app.include_router(ai_chat.router, prefix=settings.api_v1_prefix)
     app.include_router(rag.router, prefix=settings.api_v1_prefix)
     app.include_router(ml_training.router, prefix=settings.api_v1_prefix)
+    app.include_router(admin.router, prefix=settings.api_v1_prefix)
 
     # CORS: which OTHER websites may call this API from a browser. None by default; the LMS
     # front end's address goes in CORS_ORIGINS (comma-separated) in the integration project.

@@ -6,10 +6,21 @@ of volumes becomes a working system; a second start changes nothing.
 import sqlite3
 
 import pytest
+from pydantic import SecretStr
 
 from app.core.config import Settings
-from app.core.prepare import ensure_database, ensure_folders, ensure_index, prepare
+from app.core.prepare import (
+    ensure_admin_account,
+    ensure_database,
+    ensure_folders,
+    ensure_index,
+    ensure_model,
+    prepare,
+    reset_demo,
+)
+from app.ml.model_registry import current_version
 from app.rag.index import read_manifest
+from app.security.users import UserStore
 
 
 @pytest.fixture
@@ -24,6 +35,7 @@ def settings(tmp_path):
         audit_log_file=str(tmp_path / "logs" / "audit.jsonl"),
         embedding_provider="tfidf",
         vector_backend="numpy",
+        mlflow_enabled="false",
     )
 
 
@@ -67,3 +79,35 @@ def test_prepare_can_be_switched_off(settings):
     assert prepare(settings.model_copy(update={"prepare_on_start": False})) == [
         "Start step skipped (PREPARE_ON_START=false)."
     ]
+
+
+# --- Phase 19: admin account, first model, reset -------------------------------------------------
+def test_admin_account_is_created_once_from_the_secret(settings):
+    assert ensure_admin_account(settings).startswith("skipped")
+    with_secret = settings.model_copy(update={"bootstrap_admin_password": SecretStr("long-enough-pass-1")})
+    assert ensure_admin_account(with_secret).startswith("created admin")
+    assert UserStore(settings.users_file).authenticate("admin", "long-enough-pass-1").role == "admin"
+    assert ensure_admin_account(with_secret) == "ready (admin)"
+
+
+@pytest.mark.slow
+def test_first_model_is_trained_only_when_asked(settings, tmp_path):
+    assert ensure_model(settings).startswith("skipped")
+    on = settings.model_copy(update={"prepare_train_model": True})
+    assert ensure_model(on).startswith("promoted: version 1")
+    assert current_version(tmp_path / "models") == 1 and ensure_model(on).startswith("ready")
+
+
+def test_reset_puts_the_demo_back_to_the_start(settings, tmp_path):
+    prepare(settings)
+    upload = tmp_path / "uploads" / "documents" / "extra.md"
+    upload.write_text("# Extra\n\nAn uploaded document.", encoding="utf-8")
+    (tmp_path / "models" / "leftover.txt").write_text("x", encoding="utf-8")
+    store = UserStore(settings.users_file)
+    store.save("root", "long-enough-pass-1", "admin")
+    lines = reset_demo(settings)
+    assert lines[0].startswith("Removed:") and not upload.exists()
+    assert not (tmp_path / "models" / "leftover.txt").exists()
+    assert any(line.startswith("Database: created") for line in lines)  # rebuilt from the sample
+    assert read_manifest(tmp_path / "store" / "default")["chunk_count"] > 0
+    assert store.get("root") is not None  # accounts survive a reset

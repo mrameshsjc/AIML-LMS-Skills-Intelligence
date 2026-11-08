@@ -160,3 +160,41 @@ def test_audit_log_records_who_but_never_secrets(auth_on):
 def test_me_in_open_local_mode():
     me = client.get("/api/v1/auth/me").json()
     assert me["authenticated"] is False and me["can_view"] == "everyone" and me["auth_enabled"] is False
+
+
+# --- Public demo: guest access (Phase 19) --------------------------------------------------------
+@pytest.fixture
+def guest_on(auth_on, monkeypatch):
+    monkeypatch.setenv("GUEST_ACCESS", "true")
+    get_settings.cache_clear()
+    yield auth_on
+    get_settings.cache_clear()
+
+
+def test_guest_uses_apis_1_to_5_without_an_account(guest_on):
+    assert client.post("/api/v1/skills/analyze", json={"employee_id": "E1002"}).status_code == 200
+    assert client.get("/api/v1/learning-path/E1001").status_code == 200
+    chat = client.post("/api/v1/ai/chat", json={"question": "Which skills are required for an AI Engineer?"})
+    assert chat.status_code == 200, chat.text
+    me = client.get("/api/v1/auth/me").json()
+    assert me["role"] == "guest" and me["can_view"] == "everyone" and me["authenticated"] is False
+
+
+def test_guest_cannot_upload_retrain_or_reset(guest_on):
+    for method, url, kwargs in [
+        ("post", "/api/v1/rag/ingest", {"files": {"file": ("a.md", b"# a")}}),
+        ("post", "/api/v1/ml/retrain", {"json": {}}),
+        ("post", "/api/v1/admin/reset-demo", {}),
+    ]:
+        response = getattr(client, method)(url, **kwargs)
+        assert response.status_code == 401 and response.json()["error"]["code"] == "ADMIN_AUTH_REQUIRED"
+
+
+def test_framing_allowed_only_for_pages_when_configured(auth_on, monkeypatch):
+    monkeypatch.setenv("FRAME_ANCESTORS", "https://huggingface.co")
+    get_settings.cache_clear()
+    page = client.get("/docs")
+    assert "X-Frame-Options" not in page.headers
+    assert page.headers["Content-Security-Policy"] == "frame-ancestors 'self' https://huggingface.co"
+    api = client.get("/api/v1/health")
+    assert api.headers["X-Frame-Options"] == "DENY"  # JSON answers are never framed

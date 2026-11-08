@@ -1,4 +1,7 @@
-"""Model management: versions, metrics, comparison, rollback and controlled retraining (Phase 15-16)."""
+"""Model management: versions, metrics, comparison, rollback and controlled retraining (Phase 15-16).
+
+Phase 19: everyone sees the metrics; retraining, rollback and the demo reset are for administrators.
+"""
 
 import sys
 from pathlib import Path
@@ -9,8 +12,14 @@ if str(ROOT) not in sys.path:
 
 import streamlit as st  # noqa: E402
 
-from app.api.dependencies import get_completion_predictor, get_retraining_service  # noqa: E402
+from app.api.dependencies import (  # noqa: E402
+    get_completion_predictor,
+    get_knowledge_index,
+    get_repository,
+    get_retraining_service,
+)
 from app.core.config import get_settings  # noqa: E402
+from app.core.prepare import reset_demo  # noqa: E402
 from app.ml.evaluate import feature_importance  # noqa: E402
 from app.ml.model_registry import current_version, list_cards, load_current, set_current  # noqa: E402
 from app.ml.retraining import PROMOTED, read_history  # noqa: E402
@@ -23,7 +32,6 @@ ui.setup_page(
     "not real accuracy.",
     "🤖",
 )
-ui.admin_page()
 settings = get_settings()
 cards = list_cards(settings.model_dir)
 current = current_version(settings.model_dir)
@@ -61,7 +69,8 @@ def retrain_button(label: str) -> None:
 
 if not cards:
     st.info("No model has been trained yet. Recommendations work without one (the score uses three parts).")
-    retrain_button("Train the first model")
+    if ui.admin_section():
+        retrain_button("Train the first model")
     st.stop()
 
 card = next((c for c in cards if c["version"] == current), cards[-1])
@@ -98,6 +107,8 @@ if runs:
     st.dataframe(runs, hide_index=True)
 
 st.subheader("Controls")
+if not ui.admin_section():
+    st.stop()
 a, b = st.columns(2)
 with a:
     versions = [c["version"] for c in reversed(cards)]
@@ -115,3 +126,21 @@ with b:
         f"{settings.ml_min_roc_auc}, no drop of more than {settings.ml_max_regression} vs the current model."
     )
     retrain_button("Retrain now")
+
+st.subheader("Reset the demo")
+st.caption(
+    "Back to the starting state: uploaded documents, model versions, the database and the document index are "
+    "removed and rebuilt from the synthetic sample data (and a first model is trained if PREPARE_TRAIN_MODEL "
+    "is on). Accounts and the audit log are kept."
+)
+confirm = st.checkbox("I want to reset the demo data")
+if st.button("Reset demo data", disabled=not confirm):
+    with st.spinner("Resetting ..."):
+        steps = ui.safe(reset_demo, settings)
+    if steps is not None:
+        for cache in (get_completion_predictor, get_repository, get_knowledge_index):
+            cache.cache_clear()
+        ui.audit("reset_demo")
+        st.success("The demo data was reset.")
+        for line in steps:
+            st.caption(line)

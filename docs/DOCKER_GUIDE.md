@@ -161,7 +161,7 @@ docker compose exec api python scripts/build_index.py     # rebuild the index wi
 | Measure | Where | Why |
 | --- | --- | --- |
 | Two-stage build | `Dockerfile` | The final image has the finished libraries only, no build leftovers |
-| Non-root user 10001, no login shell | `Dockerfile` | A break-in gets an ordinary user, not root |
+| Non-root user 10001 (build arg `APP_UID`; 1000 on Hugging Face), no login shell | `Dockerfile` | A break-in gets an ordinary user, not root |
 | Code owned by root, read-only for the app | `Dockerfile` | The app cannot be made to change its own code |
 | Read-only root filesystem | `compose.yaml` `read_only: true` | Only the volumes and `/tmp` are writable |
 | All Linux capabilities dropped, `no-new-privileges` | `compose.yaml` | No raw network access, no `setuid` tricks |
@@ -191,3 +191,13 @@ The override sets `APP_ENV=production` and `AUTH_ENABLED=true`. Compose refuses 
 - SQLite suits one machine; several API replicas need MySQL (the integration project).
 - The image is large (expect well over 1 GB) because of scikit-learn, FAISS, Streamlit and MLflow. A slimmer API-only image without Streamlit and MLflow is possible later.
 - Docker Desktop's default memory limit may be too small for `--profile llm`: *Settings → Resources → Memory*.
+
+## 11. Public demo image (Phase 19)
+
+The same Dockerfile builds the Hugging Face Space images. `scripts/prepare_hf_space.py` copies it with `ARG APP_UID=1000` (Hugging Face runs every container as user 1000), the service's command on port 7860, and public-demo defaults. See [`PUBLIC_DEPLOYMENT_GUIDE.md`](PUBLIC_DEPLOYMENT_GUIDE.md). To try the demo settings locally:
+
+```powershell
+docker build --build-arg APP_UID=1000 -t lms-demo .
+docker run --rm -p 127.0.0.1:8000:8000 -e APP_PROFILE=public-demo -e AUTH_ENABLED=true -e GUEST_ACCESS=true `
+  -e AUTH_SECRET_KEY=<48-char secret> -e BOOTSTRAP_ADMIN_PASSWORD=<12+ chars> -e PREPARE_TRAIN_MODEL=true lms-demo
+```

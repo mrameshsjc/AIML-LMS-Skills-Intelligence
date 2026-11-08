@@ -81,7 +81,7 @@ def login(request: Request, form: Annotated[OAuth2PasswordRequestForm, Depends()
     responses={401: {"model": ErrorResponse, "description": "Not logged in, or the token is not valid"}},
 )
 def me(principal: CurrentUserDep) -> MeResponse:
-    if not principal.authenticated or principal.is_admin:
+    if not principal.authenticated or principal.is_admin:  # local mode, guest (synthetic demo), admin
         scope = "everyone"
     elif principal.employee_id is None:
         scope = "nobody"

@@ -84,7 +84,7 @@ def health() -> HealthResponse:
 class LlmStatusResponse(BaseModel):
     setting: str = Field(examples=["auto"], description="LLM_PROVIDER: auto, ollama or fallback.")
     provider: str = Field(
-        examples=["ollama"], description="Who answers now: ollama, auto (= fallback) or fallback."
+        examples=["ollama"], description="Who answers now: ollama, hosted, auto (= fallback) or fallback."
     )
     model: str = Field(examples=["llama3.2:3b"])
     available: bool = Field(description="True if requests needing the LLM can be answered.")
