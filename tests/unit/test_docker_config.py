@@ -120,3 +120,8 @@ def test_secrets_and_generated_files_stay_out_of_the_image(pattern):
 
 def test_sample_data_and_documents_stay_in():
     assert "!data/sample" in IGNORE and "!documents/*.md" in IGNORE
+
+
+def test_dockerfile_is_sent_with_the_build_context():
+    # minikube image build sends only the non-ignored files; an ignored Dockerfile is "not found" (Phase 20)
+    assert "Dockerfile" not in IGNORE

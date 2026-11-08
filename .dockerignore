@@ -46,7 +46,7 @@ notebooks
 data_science
 deployment
 migrations
-Dockerfile
+# (Dockerfile itself is NOT ignored: `minikube image build` must send it with the files - Phase 20)
 compose.yaml
 docker-compose*.yml
 **/*.md

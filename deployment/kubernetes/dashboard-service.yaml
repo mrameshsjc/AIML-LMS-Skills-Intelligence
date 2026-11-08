@@ -1,5 +1,5 @@
 # Service for the dashboard.
-#   kubectl -n lms-skills port-forward service/lms-dashboard 8501:80   -> http://127.0.0.1:8501
+#   kubectl -n lms-skills port-forward service/lms-dashboard 18501:80  -> http://127.0.0.1:18501
 #   minikube service lms-dashboard -n lms-skills                         (NodePort 30501)
 apiVersion: v1
 kind: Service
