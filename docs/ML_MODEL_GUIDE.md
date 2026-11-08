@@ -8,6 +8,7 @@ This guide explains every algorithm the engine uses: why it was chosen, what the
 | TF-IDF + cosine similarity | Related roles (API 2) | 6 | Done |
 | Hybrid scoring | Course recommendations (API 3) | 7 | Done |
 | Greedy selection + topological sort | Learning path order (API 4) | 10 | Done |
+| Controlled retraining + MLflow | Model updates with a quality gate (API 6) | 16 | Done |
 | Logistic Regression / Random Forest | Course completion prediction (API 3) | 8 | Done |
 | Sentence embeddings + FAISS | Document search for the AI assistant | 12 | Planned |
 | LLM (Ollama) + RAG | AI assistant answers | 11–13 | Planned |
@@ -224,3 +225,61 @@ In the synthetic data, as in real LMS data, a skill record is sometimes lower th
 **Limits:**
 - The plan is sequential. It does not schedule courses in parallel or by calendar dates.
 - "Completing a course brings the skill to `level_to`" is an assumption. Real progress should be confirmed by assessment.
+
+## 7. Controlled retraining and MLflow (Phase 16)
+
+**Goal:** retrain the completion model when new LMS data arrives, but let a new model into production **only if it is good enough**. A model that quietly got worse would make every recommendation worse without anyone noticing.
+
+### The workflow (`app/ml/retraining.py`)
+
+```
+new data → validate → features → train (3 algorithms, 5-fold CV) → evaluate on unseen test rows
+        → compare with the CURRENT model on the SAME rows → quality gate
+        → register the version (always) → promote (only if approved) → MLflow → history
+```
+
+| Step | What happens | Stops when |
+| --- | --- | --- |
+| 1. Validate data | The checks from scripts 03–06 | Any error, so no model is trained on broken data |
+| 2. Features | Training table as in section 5 | Fewer than `ML_MIN_TRAINING_ROWS` (200), or one outcome under 10 % |
+| 3–4. Train, evaluate | Best of three algorithms; test metrics | – |
+| 5. Compare | The current model is evaluated on the **same** test rows | – (skipped if there is no current model) |
+| 6. Quality gate | `minimum_quality`: ROC AUC ≥ `ML_MIN_ROC_AUC` (0.60). `better_than_chance`: ROC AUC > 0.5. `no_regression`: not more than `ML_MAX_REGRESSION` (0.01) below the current model | – |
+| 7. Register | A new version is **always** saved, with `status: approved` or `rejected` in its card | – |
+| 8. Promote | Only an approved version becomes current (and only if `promote=true`) | – |
+| 9. MLflow | Parameters, metrics, the model card, the model file; approved models registered | Never blocks: a tracking error is reported, the model is kept |
+| 10. History | One line in `models/retraining_history.jsonl` | – |
+
+**Why compare on the same rows?** Each run draws its own test rows. Comparing the new model's score on its rows with the old model's score on *other* rows would mix model quality with luck. Evaluating both on the new test rows makes the comparison fair.
+
+**Why save rejected versions?** The history should show every attempt, not only the successes: what was tried, when, by whom, and why it failed.
+
+**Results:** with the sample data, the first run is promoted (ROC AUC 0.693, the gate's floor is 0.60). A second run on the same data gives the same model (same seed), so `no_regression` passes with a change of +0.000. With `ML_MIN_ROC_AUC=0.95` the run is `rejected_by_quality_gate`: the new version is saved, but the current model stays in use.
+
+### MLflow (`app/ml/tracking.py`)
+
+MLflow keeps the **experiment record**:
+
+| MLflow concept | What the engine stores |
+| --- | --- |
+| Experiment | `completion-model` (`MLFLOW_EXPERIMENT`) |
+| Run | One per retraining: tags (status, requested_by, local_version), parameters (algorithm, seed, features, row counts), metrics (test metrics, each algorithm's CV ROC AUC, the current model's score), `model_card.json`, the model file |
+| Registered model | `completion_model`: one MLflow version per **approved** model, tagged `local_version`, with the alias **`champion`** on the version in use |
+
+The **API keeps loading models from `models/`**. That is fast, works offline and needs no MLflow server; MLflow is the history and audit trail around it. The `local_version` tag links the two.
+
+**Store:** by default a SQLite file `mlruns/mlflow.db`, with model files in `mlruns/artifacts` (git-ignored). Set `MLFLOW_TRACKING_URI` for a shared MLflow server.
+
+**View the runs:**
+```powershell
+mlflow ui --backend-store-uri sqlite:///mlruns/mlflow.db      # then open http://127.0.0.1:5000
+```
+
+**Without MLflow** (`MLFLOW_ENABLED=auto` and the package not installed, or `false`), retraining works exactly the same and the result says that MLflow was not used.
+
+### Who may retrain
+Only an administrator. API 6 requires the header `X-Admin-Key` matching `ADMIN_API_KEY`. Without a configured key, retraining through the API is switched off. The dashboard's Model page and `scripts/retrain.py` run on the server itself; Phase 17 adds login to the dashboard.
+
+**After a promotion via API 6**, the API uses the new model from the next request, with no restart. After retraining from the dashboard or the script (separate processes), restart the API.
+
+**Code:** `app/ml/retraining.py`, `app/ml/tracking.py`, `app/core/security.py`. **Tests:** `tests/unit/test_retraining.py` (the gate, rejection paths, history, lock, a real MLflow store when installed), `tests/api/test_ml_api.py`.

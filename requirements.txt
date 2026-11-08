@@ -31,3 +31,6 @@ python-multipart>=0.0.9,<1.0  # lets FastAPI read file uploads (multipart/form-d
 
 # Phase 15: dashboard
 streamlit>=1.55,<2.0          # the web dashboard (streamlit run dashboard/Home.py)
+
+# Phase 16: experiment tracking and model registry for retraining (API 6)
+mlflow>=3.0,<4.0              # optional at runtime: without it, retraining works and simply is not tracked

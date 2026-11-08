@@ -31,7 +31,7 @@ HOW TO TRY IT
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -116,6 +116,19 @@ class Settings(BaseSettings):
     rag_max_upload_mb: float = Field(default=10, gt=0, le=100)
     # Passages scoring below this are ignored. Empty = by embedder: TF-IDF 0.08, Ollama embeddings 0.45.
     rag_min_score: float | None = Field(default=None, ge=0, le=1)
+
+    # --- Administration and retraining (Phase 16) --------------------------------------
+    # Key for admin actions (API 6), sent in the X-Admin-Key header. Empty = admin actions off.
+    # SecretStr keeps it out of logs and error messages. Generate one:
+    #   python -c "import secrets; print(secrets.token_urlsafe(32))"
+    admin_api_key: SecretStr = SecretStr("")
+    ml_min_roc_auc: float = Field(default=0.60, ge=0.5, le=1.0)  # quality gate: minimum test ROC AUC
+    ml_max_regression: float = Field(default=0.01, ge=0, le=0.5)  # allowed drop vs the current model
+    ml_min_training_rows: int = Field(default=200, ge=20)
+    # MLflow: auto = used when installed. Empty URI = sqlite file mlruns/mlflow.db in the project.
+    mlflow_enabled: Literal["auto", "true", "false"] = "auto"
+    mlflow_tracking_uri: str = ""
+    mlflow_experiment: str = "completion-model"
 
     # --- Database (Phase 9) -------------------------------------------------
     # SQLite is a single file and needs no server, which is ideal for the

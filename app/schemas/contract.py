@@ -29,6 +29,7 @@ from pydantic import BaseModel
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.schemas.common import ErrorResponse
 from app.schemas.learning_path import LearningPathResponse
+from app.schemas.ml import ModelStatusResponse, RetrainRequest, RetrainResponse
 from app.schemas.rag import DocumentListResponse, IngestResponse
 from app.schemas.roles import RoleMatchRequest, RoleMatchResponse
 from app.schemas.skills import SkillAnalysisRequest, SkillAnalysisResponse
@@ -60,7 +61,15 @@ ENDPOINTS: list[tuple[str, str, str, type[BaseModel] | None, type[BaseModel], li
         ],
     ),
     ("5", "POST", "/api/v1/ai/chat", ChatRequest, ChatResponse, []),
-    # API 6 (POST /api/v1/ml/retrain) is added in Phase 16.
+    (
+        "6",
+        "POST",
+        "/api/v1/ml/retrain",
+        RetrainRequest,
+        RetrainResponse,
+        [{"name": "x-admin-key", "in": "header", "required": False}],
+    ),
+    ("-", "GET", "/api/v1/ml/status", None, ModelStatusResponse, []),
     (
         "7",
         "POST",
