@@ -6,7 +6,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | --- | --- |
 | Project folder / Git repo | `AIML-LMS-Skills-Intelligence` |
 | Current phase | **Phase 19 – Public cloud deployment: Streamlit Community Cloud + Render, guest access, hosted LLM option, demo reset** (Phases 1–18 on GitHub, CI green) |
-| Public demo | Dashboard, API and Swagger URLs: added here after deployment and verification ([`docs/PUBLIC_DEPLOYMENT_GUIDE.md`](docs/PUBLIC_DEPLOYMENT_GUIDE.md)) |
+| **Live demo** | Dashboard: **https://lms-skills-intelligence.streamlit.app** · API: **https://lms-skills-api.onrender.com/api/v1** · Swagger: **https://lms-skills-api.onrender.com/docs** (synthetic data, no account needed; the API wakes in about a minute after a quiet period) |
 | Python | 3.11 |
 | LMS integration | Not in this project. The architecture is API-ready for it (later phase). |
 
