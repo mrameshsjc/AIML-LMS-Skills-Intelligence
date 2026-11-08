@@ -33,7 +33,7 @@ LMS in the integration project.
 | Browser attacks | Security headers (`nosniff`, `X-Frame-Options: DENY`, `no-referrer`, `no-store` + strict CSP on API answers); CORS closed unless `CORS_ORIGINS` is set |
 | Stack traces leaking internals | Unexpected errors return `INTERNAL_ERROR` only; details go to the server log |
 
-## 2. Two modes
+## 2. Three modes
 
 | | `AUTH_ENABLED=false` (default) | `AUTH_ENABLED=true` |
 | --- | --- | --- |
@@ -42,6 +42,8 @@ LMS in the integration project.
 | APIs 6, 7 (write) | `X-Admin-Key` only (switched off if `ADMIN_API_KEY` is empty) | Admin login **or** `X-Admin-Key` |
 | Dashboard | Open | Sidebar login; pages 1, 7, 8 for admins |
 | Start-up | Warning in the log | Requires `AUTH_SECRET_KEY` ≥ 32 characters |
+
+**Public demo (Phase 19): `AUTH_ENABLED=true` + `GUEST_ACCESS=true`.** Visitors without an account become a read-only **guest**: they may use APIs 1–5 and the dashboard pages for every *synthetic* employee, see the documents and the model metrics, and nothing else. Admin actions still need an admin login: guests get `401 ADMIN_AUTH_REQUIRED` from the API and "Administrators only" in the dashboard. Use guest access **only with synthetic data**. On hosts whose disk resets (Hugging Face Spaces), `BOOTSTRAP_ADMIN_PASSWORD` (a secret, 12+ characters) recreates the `admin` account at every start. Details: [`PUBLIC_DEPLOYMENT_GUIDE.md`](PUBLIC_DEPLOYMENT_GUIDE.md).
 
 Health checks (`/api/v1/health*`) and `GET /api/v1/ml/status` (model versions, no personal data) stay open in both modes, so Docker and Kubernetes can probe the service.
 
@@ -154,3 +156,15 @@ Useful questions: who retrained the model (`path` `/api/v1/ml/retrain`), who vie
 - Rate limits and the audit log are per process and local files (see sections 7–8).
 - Prompt-injection detection is pattern-based and English-only; it reduces risk, it does not remove it.
 - No multi-factor login; no password reset flow (an admin re-runs `create_user.py`).
+
+## 12. Public demo additions (Phase 19)
+
+| Control | Where |
+| --- | --- |
+| Guest access, read-only, synthetic data only | `GUEST_ACCESS`, `app/api/dependencies.py`, `dashboard/components/ui.py` |
+| Admin account from a secret at start | `BOOTSTRAP_ADMIN_PASSWORD`, `app/core/prepare.py` |
+| Demo reset, admin only | `POST /api/v1/admin/reset-demo`, dashboard Model management, `python -m app.core.prepare --reset` |
+| Hosted LLM only with explicit approval | `LLM_PROVIDER=hosted` refused at start-up without `LLM_ALLOW_REMOTE=true`; the API key is a secret and never appears in errors |
+| Assistant rate limit in the dashboard | per browser session (`RATE_LIMIT_CHAT_PER_MINUTE`) |
+| Framing of pages only by named sites | `FRAME_ANCESTORS` (API JSON is never framed) |
+| Start-up checks extended | guest access without login, short bootstrap password, hosted LLM without approval. The dashboard applies the same checks |

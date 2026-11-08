@@ -43,6 +43,12 @@ def show(message: dict) -> None:
             f"{answer.provider} {answer.model} · {answer.duration_ms / 1000:.1f} s · "
             f"understood as: {', '.join(answer.intents) or '–'}"
         )
+        if answer.is_fallback:  # never let a fallback look like an LLM answer
+            st.info(
+                "Fallback mode - no language model is available right now. This answer lists the "
+                "matching LMS facts and document passages; it was not written by an AI model.",
+                icon="ℹ️",
+            )
         for warning in answer.grounding_warnings:
             st.warning(warning)
         if answer.sources:
@@ -63,7 +69,7 @@ for message in messages:
     show(message)
 
 question = st.chat_input("Ask a question") or st.session_state.pop("pending", None)
-if question:
+if question and ui.chat_allowed():
     history = [(m["role"], m["content"]) for m in messages]
     messages.append({"role": "user", "content": question})
     show(messages[-1])

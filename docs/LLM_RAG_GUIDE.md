@@ -130,6 +130,20 @@ These are simple checks, not guarantees. They make the most common failures visi
 ### Testing without a model
 `tests/unit/test_llm.py` starts a **fake Ollama server**: a tiny real HTTP server on a random port that answers `/api/tags` and `/api/chat` like Ollama. The real HTTP code is tested, including a missing model, Ollama not running, timeouts and empty answers, with no model download. The API tests use `LLM_PROVIDER=fallback`, so CI never needs Ollama.
 
+## 7b. Hosted inference for the public demo (Phase 19)
+
+`LLM_PROVIDER=hosted` sends the same guarded prompt (system rules, redacted facts, question) to any **OpenAI-compatible** `/chat/completions` service: `app/llm/hosted_provider.py`. It is used for the public demo, where the free host has no GPU for Ollama.
+
+| Setting | Meaning |
+| --- | --- |
+| `LLM_PROVIDER=hosted` | Hosted model first; the labelled fallback if it fails |
+| `LLM_ALLOW_REMOTE=true` | Required: prompts leave the machine (the server refuses to start without it) |
+| `HOSTED_LLM_BASE_URL` | e.g. `https://router.huggingface.co/v1` |
+| `HOSTED_LLM_MODEL` | a chat model the service offers |
+| `HOSTED_LLM_API_KEY` | the service's token; a secret, never in Git, never shown in errors |
+
+`GET /api/v1/health/llm` reports whether it is configured, without a test call: that would spend quota on every page view. Errors such as an invalid key (401), used-up quota (402), unknown model (404) or rate limit (429) become readable notes, and the answer comes from the fallback, marked `is_fallback: true`. Setup: [`PUBLIC_DEPLOYMENT_GUIDE.md`](PUBLIC_DEPLOYMENT_GUIDE.md) section 7.
+
 ## 8. Docker
 
 Inside a container, `localhost` is the container itself, so Compose points the API at Ollama on your PC through `OLLAMA_BASE_URL=http://host.docker.internal:11434`. Ollama must be running on Windows. Running Ollama in its own container is optional: `docker compose --profile llm up -d` (see `DOCKER_GUIDE.md` section 7).

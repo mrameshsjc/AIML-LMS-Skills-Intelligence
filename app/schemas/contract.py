@@ -26,6 +26,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from app.schemas.admin import ResetDemoResponse
 from app.schemas.auth import MeResponse, TokenResponse
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.schemas.common import ErrorResponse
@@ -98,6 +99,7 @@ ENDPOINTS: list[tuple[str, str, str, type[BaseModel] | None, type[BaseModel], li
         ],
     ),
     ("-", "GET", "/api/v1/rag/documents", None, DocumentListResponse, []),
+    ("-", "POST", "/api/v1/admin/reset-demo", None, ResetDemoResponse, [ADMIN_KEY]),
     (
         "-",
         "DELETE",

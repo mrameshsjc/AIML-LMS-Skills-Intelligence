@@ -22,7 +22,6 @@ ui.setup_page(
     "vector index, then ask about them on the assistant page.",
     "🗂️",
 )
-ui.admin_page()
 settings = get_settings()
 manifest = get_index_manifest()
 
@@ -38,6 +37,8 @@ if manifest:
         st.caption(f"Skipped at the last build: {warning}")
 
 st.subheader("Upload a document")
+if not ui.admin_section():  # Phase 19: everyone sees the documents; only admins change them
+    st.stop()
 uploaded = st.file_uploader("PDF, Word, text, CSV or Markdown", type=["pdf", "docx", "txt", "csv", "md"])
 overwrite = st.checkbox("Replace an uploaded document with the same name")
 if uploaded is not None and st.button("Upload and ingest", type="primary"):

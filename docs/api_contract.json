@@ -793,6 +793,39 @@
         "type": "object"
       }
     },
+    "POST /api/v1/admin/reset-demo": {
+      "api": "-",
+      "parameters": [
+        {
+          "in": "header",
+          "name": "x-admin-key",
+          "required": false
+        }
+      ],
+      "request": null,
+      "response": {
+        "properties": {
+          "requested_by": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "status",
+          "requested_by",
+          "steps"
+        ],
+        "type": "object"
+      }
+    },
     "POST /api/v1/ai/chat": {
       "api": "5",
       "parameters": [],

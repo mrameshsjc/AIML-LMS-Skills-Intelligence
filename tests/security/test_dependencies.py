@@ -140,3 +140,44 @@ def test_unsafe_settings_are_reported(monkeypatch):
     finally:
         monkeypatch.undo()
         get_settings.cache_clear()
+
+
+# --- Public demo (Phase 19) ----------------------------------------------------------------------
+@pytest.fixture
+def guest_on(auth_on, monkeypatch):
+    monkeypatch.setenv("GUEST_ACCESS", "true")
+    get_settings.cache_clear()
+    yield auth_on
+    get_settings.cache_clear()
+
+
+def test_guest_browses_without_a_token(guest_on):
+    request = fake_request()
+    principal = deps.get_current_user(request, None)
+    assert (principal.role, principal.authenticated) == ("guest", False)
+    assert request.state.user == "guest"
+    assert (
+        deps.get_current_user(fake_request(), token_for(guest_on, "asha")).username == "asha"
+    )  # login still works
+
+
+def test_guest_cannot_do_admin_actions(guest_on):
+    with pytest.raises(UnauthorizedError) as error:
+        deps.require_admin(fake_request(), None, None)
+    assert error.value.code == "ADMIN_AUTH_REQUIRED"
+
+
+def test_public_demo_settings_are_checked(monkeypatch):
+    from app.core.config import Settings
+
+    assert any("GUEST_ACCESS" in p for p in Settings(guest_access=True).check_security())
+    short = Settings(auth_enabled=True, auth_secret_key=SECRET, bootstrap_admin_password="short")
+    assert any("BOOTSTRAP_ADMIN_PASSWORD" in p for p in short.check_security())
+    demo = Settings(
+        app_profile="public-demo",
+        auth_enabled=True,
+        auth_secret_key=SECRET,
+        guest_access=True,
+        bootstrap_admin_password="long-enough-pass-1",
+    )
+    assert demo.check_security() == []

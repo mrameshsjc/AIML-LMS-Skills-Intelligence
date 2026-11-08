@@ -4,6 +4,8 @@ Choosing the provider (Phase 11).
 LLM_PROVIDER in .env decides:
     auto      try Ollama; if it cannot answer, use the fallback and say so (default)
     ollama    Ollama only; if it cannot answer, the request fails with a clear error
+    hosted    an OpenAI-compatible inference service (public demo, Phase 19), with the
+              labelled fallback; needs LLM_ALLOW_REMOTE=true (see hosted_provider.py)
     fallback  never call a model (CI, tests, machines without Ollama)
 
 "auto" is the friendly default for learning: the engine works on any
@@ -15,6 +17,7 @@ from __future__ import annotations
 from app.core.config import Settings
 from app.llm.base import LLMProvider, LLMRequest, LLMResult, LLMUnavailableError, ProviderStatus
 from app.llm.fallback_provider import FallbackProvider
+from app.llm.hosted_provider import HostedProvider
 from app.llm.ollama_provider import OllamaProvider
 
 
@@ -52,6 +55,18 @@ class AutoProvider(LLMProvider):
 def build_provider(settings: Settings) -> LLMProvider:
     if settings.llm_provider == "fallback":
         return FallbackProvider()
+    if settings.llm_provider == "hosted":
+        if not settings.llm_allow_remote:  # also refused at start-up (Settings.check_security)
+            raise ValueError("LLM_PROVIDER=hosted needs LLM_ALLOW_REMOTE=true.")
+        hosted = HostedProvider(
+            base_url=settings.hosted_llm_base_url,
+            model=settings.hosted_llm_model,
+            api_key=settings.hosted_llm_api_key.get_secret_value(),
+            timeout_seconds=min(settings.llm_timeout_seconds, 60),
+            temperature=settings.llm_temperature,
+            max_tokens=settings.llm_max_tokens,
+        )
+        return AutoProvider(hosted)
     ollama = OllamaProvider(
         base_url=settings.ollama_base_url,
         model=settings.ollama_model,

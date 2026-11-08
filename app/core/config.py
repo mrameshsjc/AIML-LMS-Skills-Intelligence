@@ -89,7 +89,8 @@ class Settings(BaseSettings):
 
     # --- Language model (Phase 11) ----------------------------------------------
     # auto = Ollama when it is running, otherwise the no-LLM fallback (labelled).
-    llm_provider: Literal["auto", "ollama", "fallback"] = "auto"
+    # hosted = an OpenAI-compatible inference service (Phase 19, public demo), with the same fallback.
+    llm_provider: Literal["auto", "ollama", "hosted", "fallback"] = "auto"
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2:3b"
     llm_timeout_seconds: float = Field(default=120, gt=0, le=600)  # the first call loads the model: slow
@@ -97,6 +98,11 @@ class Settings(BaseSettings):
     llm_max_tokens: int = Field(default=512, ge=16, le=4096)
     # Ollama must run on this machine (or the Compose network) unless an external host is approved.
     llm_allow_remote: bool = False
+    # Hosted inference (Phase 19): any OpenAI-compatible /chat/completions service, e.g. the
+    # Hugging Face router. Used ONLY with LLM_PROVIDER=hosted and LLM_ALLOW_REMOTE=true.
+    hosted_llm_base_url: str = "https://router.huggingface.co/v1"
+    hosted_llm_model: str = ""  # e.g. meta-llama/Llama-3.1-8B-Instruct (must be available on the service)
+    hosted_llm_api_key: SecretStr = SecretStr("")  # a secret: Space secret / environment variable only
 
     # --- Knowledge documents and search (Phase 12) ---------------------------------
     documents_dir: str = "documents"  # the documents the assistant may use
@@ -151,6 +157,18 @@ class Settings(BaseSettings):
     # and the document index if they are missing. Only ONE service should do it (the api); others set false.
     prepare_on_start: bool = True
 
+    # --- Public demo (Phase 19) ---
+    # guest_access: with login ON, visitors without an account browse the SYNTHETIC data read-only
+    # (APIs 1-5, dashboard). Admin actions still need an admin login. Only for synthetic demo data.
+    guest_access: bool = False
+    # Creates this admin account at start-up if it does not exist (hosts whose disk resets on
+    # restart, e.g. Hugging Face Spaces). The password comes from a secret, never from Git.
+    bootstrap_admin_username: str = "admin"
+    bootstrap_admin_password: SecretStr = SecretStr("")
+    prepare_train_model: bool = False  # start step: train a first model if there is none (demo metrics)
+    # Sites allowed to show the app in a frame, e.g. https://huggingface.co (the Space page). Empty = none.
+    frame_ancestors: str = ""
+
     # --- Database (Phase 9) -------------------------------------------------
     # SQLite is a single file and needs no server, which is ideal for the
     # first local version. MySQL (e.g. mysql+pymysql://user:password@host/lms_ai)
@@ -187,6 +205,18 @@ class Settings(BaseSettings):
             problems.append(
                 "AUTH_SECRET_KEY must have at least 32 characters when AUTH_ENABLED=true "
                 '(generate one: python -c "import secrets; print(secrets.token_urlsafe(48))").'
+            )
+        if self.guest_access and not self.auth_enabled:
+            problems.append(
+                "GUEST_ACCESS=true needs AUTH_ENABLED=true (otherwise every page is open anyway)."
+            )
+        password = self.bootstrap_admin_password.get_secret_value()
+        if password and len(password) < 12:
+            problems.append("BOOTSTRAP_ADMIN_PASSWORD must have at least 12 characters.")
+        if self.llm_provider == "hosted" and not self.llm_allow_remote:
+            problems.append(
+                "LLM_PROVIDER=hosted sends prompts to an outside service: set LLM_ALLOW_REMOTE=true "
+                "only if that is approved (synthetic demo data)."
             )
         return problems
 

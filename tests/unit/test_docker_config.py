@@ -28,7 +28,8 @@ OUR_SERVICES = ["api", "dashboard", "mlflow"]  # built from our image (ollama is
 # --- Dockerfile ------------------------------------------------------------------------------------
 def test_image_runs_as_a_fixed_non_root_user():
     users = re.findall(r"^USER\s+(\S+)", DOCKERFILE, re.MULTILINE)
-    assert users and users[-1] == "10001:10001"
+    assert users and users[-1] == "${APP_UID}:${APP_UID}"
+    assert re.search(r"^ARG APP_UID=10001$", DOCKERFILE, re.MULTILINE)  # not root (0) by default
 
 
 def test_two_stages_and_a_fixed_base_image():
@@ -50,7 +51,7 @@ def test_healthcheck_and_start_step():
 
 
 def test_only_volume_folders_are_writable():
-    chown = re.search(r"chown -R 10001:10001 ([^\n]+)", DOCKERFILE).group(1).split()
+    chown = re.search(r"chown -R \$\{APP_UID\}:\$\{APP_UID\} ([^\n]+)", DOCKERFILE).group(1).split()
     assert set(chown) == {
         "data/uploads",
         "data/accounts",

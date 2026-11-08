@@ -47,6 +47,9 @@ RUN pip install --upgrade pip \
 FROM ${PYTHON_IMAGE} AS runtime
 
 ARG APP_VERSION=dev
+# The user ID the app runs as. 10001 by default; Hugging Face Spaces always run containers as
+# user 1000, so the Space build uses APP_UID=1000 (scripts/prepare_hf_space.py, Phase 19).
+ARG APP_UID=10001
 LABEL org.opencontainers.image.title="LMS Skills Intelligence Engine" \
       org.opencontainers.image.description="Skills gaps, role matching, training recommendations, learning paths, LLM + RAG assistant (synthetic data)" \
       org.opencontainers.image.source="https://github.com/mrameshsjc/AIML-LMS-Skills-Intelligence" \
@@ -60,8 +63,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     HOME=/home/appuser
 
 # The user the app runs as: fixed IDs, no login shell.
-RUN groupadd --gid 10001 appuser \
-    && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin appuser
+RUN groupadd --gid ${APP_UID} appuser \
+    && useradd --uid ${APP_UID} --gid ${APP_UID} --create-home --shell /usr/sbin/nologin appuser
 
 WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
@@ -77,9 +80,9 @@ COPY .streamlit ./.streamlit
 # The ONLY writable places - each is a volume in compose.yaml. Creating them here,
 # owned by appuser, means a new named volume starts with the right owner.
 RUN mkdir -p data/uploads/documents data/accounts data/db vector_store models logs mlruns \
-    && chown -R 10001:10001 data/uploads data/accounts data/db vector_store models logs mlruns
+    && chown -R ${APP_UID}:${APP_UID} data/uploads data/accounts data/db vector_store models logs mlruns
 
-USER 10001:10001
+USER ${APP_UID}:${APP_UID}
 
 EXPOSE 8000 8501 5000
 

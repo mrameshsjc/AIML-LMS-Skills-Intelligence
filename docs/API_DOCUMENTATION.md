@@ -8,6 +8,7 @@ The engine exposes seven business endpoints under `/api/v1`. They are stable con
 | – | `GET /api/v1/health/llm` | Live (Phase 11): is Ollama running, is the model installed? |
 | – | `GET /api/v1/health/rag` | Live (Phase 12): is the document index built, what does it contain? |
 | – | `POST /api/v1/auth/token`, `GET /api/v1/auth/me` | Live (Phase 17): login and "who am I" |
+| – | `POST /api/v1/admin/reset-demo` | Live (Phase 19): reset the demo data, administrators only |
 | 1 | `POST /api/v1/skills/analyze` | **Live (Phase 5)** |
 | 2 | `POST /api/v1/roles/match` | **Live (Phase 6)** |
 | 3 | `POST /api/v1/trainings/recommend` | **Live (Phase 7)** |
@@ -26,6 +27,8 @@ Full details: [`SECURITY_GUIDE.md`](SECURITY_GUIDE.md).
 | --- | --- | --- |
 | `AUTH_ENABLED=false` (local default) | open | header `X-Admin-Key: <ADMIN_API_KEY>` |
 | `AUTH_ENABLED=true` | header `Authorization: Bearer <token>`; employee = own data, manager = team, admin = everyone | admin's token **or** `X-Admin-Key` |
+
+**Public demo (`GUEST_ACCESS=true`, Phase 19):** without a token the caller is a read-only `guest` who may use APIs 1–5 for every synthetic employee; admin endpoints still need an admin login or `X-Admin-Key`.
 
 Get a token: `POST /api/v1/auth/token` with a **form** body `username=...&password=...` (in Swagger: the **Authorize** button).
 
@@ -536,3 +539,20 @@ Invoke-RestMethod -Uri http://127.0.0.1:8000/api/v1/ml/status
 python scripts/retrain.py --reason "New training history"       # the same workflow from the command line
 ```
 In Swagger UI: **6. ML Model Management → POST /api/v1/ml/retrain → Try it out**, and enter the key in the `x-admin-key` field.
+
+## Demo administration – reset (Phase 19)
+
+`POST /api/v1/admin/reset-demo` — **administrators only** (admin login or `X-Admin-Key`)
+
+Puts the demo back to its starting state. Uploaded documents, model versions, the database and the document index are removed and rebuilt from the synthetic sample; a first model is trained when `PREPARE_TRAIN_MODEL=true`. Accounts and the audit log are kept. The API uses the rebuilt data from the next request.
+
+```json
+{"status": "reset", "requested_by": "admin", "steps": ["Removed: ...", "Folders: ...", "Database: created and loaded from data/sample: 2014 rows in 11 tables", "Document index: built: 8 documents, 132 chunks (tfidf/numpy). ...", "Admin account: ready (admin)", "Model: promoted: version 1, test ROC AUC 0.693"]}
+```
+
+| HTTP | Code | When |
+| --- | --- | --- |
+| 401 | `ADMIN_AUTH_REQUIRED` | No admin login or key (also for guests) |
+| 403 | `ADMIN_ONLY` / `ADMIN_ACTIONS_DISABLED` | Logged in but not an admin / admin actions off |
+| 409 | `RESET_IN_PROGRESS` | Another reset is running |
+| 429 | `RATE_LIMITED` | Admin rate limit |

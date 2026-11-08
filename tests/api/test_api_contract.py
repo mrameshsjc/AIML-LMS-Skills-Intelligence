@@ -98,6 +98,7 @@ ERROR_CASES = [
         "ADMIN_AUTH_REQUIRED",
     ),
     ("post", "/api/v1/ml/retrain", {"json": {}}, 401, "ADMIN_AUTH_REQUIRED"),
+    ("post", "/api/v1/admin/reset-demo", {}, 401, "ADMIN_AUTH_REQUIRED"),
     ("post", "/api/v1/auth/token", {"data": {"username": "a", "password": "b"}}, 403, "AUTH_DISABLED"),
     ("get", "/api/v1/no-such-endpoint", {}, 404, "NOT_FOUND"),
 ]

@@ -20,7 +20,7 @@ def test_no_value_is_actually_a_comment():
 
 
 def test_no_secret_has_a_value():
-    for key in ("ADMIN_API_KEY", "AUTH_SECRET_KEY"):
+    for key in ("ADMIN_API_KEY", "AUTH_SECRET_KEY", "BOOTSTRAP_ADMIN_PASSWORD", "HOSTED_LLM_API_KEY"):
         assert VALUES.get(key, "") == "", key
 
 
