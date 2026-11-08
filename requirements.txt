@@ -4,7 +4,7 @@
 
 fastapi>=0.115,<1.0           # web framework that builds the API and Swagger UI
 uvicorn[standard]>=0.30,<1.0  # server that runs the FastAPI app
-pydantic>=2.7,<3.0            # data validation (used by FastAPI and our schemas)
+pydantic>=2.14.3,<3.0            # data validation (used by FastAPI and our schemas)
 pydantic-settings>=2.4,<3.0   # reads settings from environment variables / .env
 
 # Phase 3: data processing
