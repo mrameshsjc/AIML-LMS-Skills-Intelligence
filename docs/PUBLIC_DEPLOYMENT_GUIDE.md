@@ -8,152 +8,152 @@ How to put the LMS Skills Intelligence Engine on the internet as a **free public
 
 ## 1. The recommendation
 
-**Two Hugging Face Spaces (free "CPU basic"), built from this repository's Dockerfile, plus an optional hosted LLM:**
+**Dashboard on Streamlit Community Cloud + API on a Render free web service. Both are free and both deploy straight from the GitHub repository:**
 
 ```
  Visitor's browser
    │
-   ├── https://<user>-lms-skills-dashboard.hf.space   Streamlit dashboard  ← PUBLIC DASHBOARD URL
-   │        (Space 1: own copy of the engine, guest access, admin login)
+   ├── https://<app-name>.streamlit.app               Streamlit dashboard   ← PUBLIC DASHBOARD URL
+   │        Streamlit Community Cloud, from GitHub (branch main), dashboard/Home.py
+   │        guest access, admin login, its own copy of the data, index and model
    │
-   └── https://<user>-lms-skills-api.hf.space         FastAPI             ← API BASE URL
-            /docs  Swagger UI                                             ← SWAGGER URL
-            (Space 2: own copy of the engine, guest access, admin login)
+   └── https://lms-skills-api.onrender.com            FastAPI               ← API BASE URL (/api/v1)
+            /docs  Swagger UI                                               ← SWAGGER URL
+            Render free web service, from GitHub (render.yaml), API-only install
 
- Optional, outside both Spaces: an OpenAI-compatible hosted LLM (LLM_PROVIDER=hosted).
+ Optional, outside both: an OpenAI-compatible hosted LLM (LLM_PROVIDER=hosted).
  Without it, the assistant answers in a clearly labelled fallback mode.
 ```
 
-Why two Spaces: a Space exposes **one** port, and the requirements say "Do not assume one hosting provider can run every service". Each Space runs the same image with a different command. The dashboard calls the engine's services directly, so it does not need the API Space to be awake.
+**Why two hosts:** the requirements say "Do not assume one hosting provider can run every service". Streamlit Community Cloud runs only Streamlit apps, so it can't run FastAPI. Render runs FastAPI, but its free tier is too small for the dashboard as well. The dashboard calls the engine's services directly, so it doesn't depend on the API being awake.
 
-Why no LLM inside a Space: a free Space has no GPU, and Ollama with a useful model on 2 CPUs would answer in tens of seconds or run out of memory. As the requirements say, the LLM is separated from the application. It is reached through the configurable provider interface and is optional.
+**Why no LLM on either host:** free tiers have no GPU, and Ollama with a useful model doesn't fit in their memory. As the requirements say, the LLM is separated from the application. It is reached through the configurable provider interface and is optional (section 7).
+
+**Bonus:** both hosts **redeploy automatically** when you push to `main`, so the demo always shows the latest merged code.
 
 ## 2. Hosting options evaluated
 
-Facts checked in November 2026; free tiers change, so check them again before relying on them.
+Facts checked in November 2026; free tiers change often, so check them again before relying on them.
 
-| Criterion | Hugging Face Spaces | Streamlit Community Cloud | Render | Railway |
+| Criterion | Streamlit Community Cloud | Render | Hugging Face Spaces | Railway |
 | --- | --- | --- | --- | --- |
 | Python | ✅ | ✅ | ✅ | ✅ |
-| FastAPI | ✅ (Docker Space) | ❌ Streamlit apps only | ✅ | ✅ |
-| Streamlit | ✅ | ✅ (its purpose) | ✅ | ✅ |
-| Runs our Dockerfile | ✅ | ❌ | ✅ | ✅ |
-| CPU / RAM (free) | **2 vCPU / 16 GB** | about 0.08–2 cores / 0.7–2.7 GB | 0.1 CPU / 512 MB | Free plan: 1 vCPU / 0.5 GB |
-| Persistent storage (free) | ❌ resets on restart (paid buckets) | ❌ | ❌ | volumes, inside the small credit |
-| GPU | paid hardware only | ❌ | ❌ | ❌ |
-| Sleep when idle | yes, wakes on visit | after 12 h without traffic | after 15 min; about 1 min to wake | runs while credit lasts |
-| LLM hosting on free tier | ❌ (no GPU); hosted inference separately | ❌ | ❌ | ❌ |
-| Cost | free (CPU basic), no card | free | free tier; paid bandwidth reduced Aug 2026 | $1/month free credit, $5 trial; Hobby $5/month |
-| Public URL | `https://<user>-<space>.hf.space`, instant | `https://<app>.streamlit.app` | `https://<name>.onrender.com` | `https://<name>.up.railway.app` |
-| Fits this project? | **Yes**: memory for pandas, scikit-learn, FAISS, the index and the model | Dashboard only; too little memory is likely | 512 MB is too small | 0.5 GB is too small on the free plan |
+| FastAPI | ❌ Streamlit apps only | ✅ | ✅ (Docker Space) | ✅ |
+| Streamlit | ✅ (its purpose) | ✅ | ✅ | ✅ |
+| Free for our case | ✅ | ✅ (web service) | ❌ **Docker and Gradio Spaces now need PRO**; only static pages are free | ⚠️ $1/month credit |
+| CPU / RAM (free) | about 0.08–2 cores / 0.7–2.7 GB | 0.1 CPU / 512 MB | – (paid) | 1 vCPU / 0.5 GB |
+| Persistent storage (free) | ❌ | ❌ | – | volumes, inside the small credit |
+| GPU | ❌ | ❌ | paid | ❌ |
+| Sleep when idle | after 12 h without traffic | after 15 min; about 1 min to wake | – | while credit lasts |
+| LLM hosting on free tier | ❌ | ❌ | ❌ | ❌ |
+| Deploys from GitHub | ✅ auto on push | ✅ auto on push (`render.yaml`) | upload or Git push | ✅ |
+| Public URL | `https://<app>.streamlit.app` | `https://<name>.onrender.com` | `https://<user>-<space>.hf.space` | `https://<name>.up.railway.app` |
+| Role here | **Dashboard** | **API + Swagger** | Only with a PRO plan (`scripts/prepare_hf_space.py` is kept for that case) | Not used: credit too small |
 
 **Other options considered:**
-- **Oracle Cloud Always Free VM** (2 Arm CPUs / 12 GB since June 2026): always on and runs Docker Compose with everything, even a small Ollama model. But it needs a credit card, idle VMs can be reclaimed, and you run the server yourself.
-- **Cloudflare Tunnel from your PC**: a quick temporary link for a live presentation, only while your PC runs.
-
-**Decision:** Hugging Face Spaces has the most memory on a free tier, runs our existing Dockerfile unchanged except for the user ID, and gives a shareable URL at once. Its weak point, a disk that resets on restart, is handled by the start step (section 5).
+- **Oracle Cloud Always Free VM** (2 Arm CPUs / 12 GB since June 2026): always on and could run everything with Docker Compose. But it needs a credit card, idle VMs can be reclaimed, and you run the server yourself.
+- **Cloudflare Tunnel from your PC**: a temporary link for a live presentation, only while your PC runs.
 
 ## 3. What the public demo runs
 
-`scripts/prepare_hf_space.py` builds a Space folder with these defaults (`DEMO_ENV` in the script). Space **Variables** can override any of them:
-
-| Setting | Demo value | Why |
+| Setting | Value | Why |
 | --- | --- | --- |
-| `APP_PROFILE` | `public-demo` | The server refuses to start without login and a strong secret |
-| `AUTH_ENABLED` | `true` | Admin actions need an admin login |
-| `GUEST_ACCESS` | `true` | Visitors browse the synthetic data without an account (read-only) |
-| `DATA_SOURCE` | `database` | The SQLite database is built from the sample on every start |
+| `APP_PROFILE` | `public-demo` | The engine refuses to start without login and a strong secret |
+| `AUTH_ENABLED` + `GUEST_ACCESS` | `true` + `true` | Visitors browse the synthetic data read-only without an account; admin actions need an admin login |
 | `PREPARE_TRAIN_MODEL` | `true` | A first model is trained at start, so model metrics are visible |
-| `EMBEDDING_PROVIDER` | `tfidf` | No Ollama on the Space; TF-IDF search needs no model |
+| `PREPARE_IN_DASHBOARD` | `true` (dashboard only) | Streamlit Cloud has no start command: the dashboard runs the start step once itself |
+| `EMBEDDING_PROVIDER` / `VECTOR_BACKEND` | `tfidf` / `numpy` | No Ollama and no FAISS on the free hosts; search still works |
 | `LLM_PROVIDER` | `fallback` | Labelled fallback answers; switch to `hosted` in section 7 |
-| `RATE_LIMIT_PER_MINUTE` / `_CHAT_` / `_ADMIN_PER_HOUR` | 60 / 10 / 10 | Stricter limits for the public |
+| Rate limits | API 60/min, assistant 10/min, admin 10/hour | Stricter limits for the public |
 | `RAG_MAX_UPLOAD_MB` | 2 | Small uploads only (admins) |
-| `FRAME_ANCESTORS` | `https://huggingface.co` | Lets the Space page show Swagger UI in its frame |
-| user ID | 1000 | Hugging Face runs every container as user 1000 |
+| Install | `dashboard/requirements.txt` / `requirements-api.txt` | Slim lists without MLflow, FAISS and the other side's server, to fit the free memory |
 
-**Secrets** (never in Git, never in the image; set in the Space settings):
+**Secrets** (never in Git; entered in each host's settings):
 
-| Secret | Required | What |
-| --- | --- | --- |
-| `AUTH_SECRET_KEY` | yes | Signs login tokens; `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
-| `BOOTSTRAP_ADMIN_PASSWORD` | yes (to administer) | The `admin` account is created from it at every start (12+ characters) |
-| `HOSTED_LLM_API_KEY` | only for section 7 | Token of the hosted LLM service |
-| `ADMIN_API_KEY` | optional | Lets scripts call admin endpoints with `X-Admin-Key` |
-
-## 4. Deploy, step by step (PowerShell)
-
-### 4.1 One-time setup
-
-1. Create a free account at https://huggingface.co (username below: `<user>`).
-2. Create an access token with **write** permission: *Settings → Access Tokens → Create new token → Write*. Keep it private.
-3. Create **two Spaces**: *New → Space*.
-   - Name `lms-skills-dashboard`, SDK **Docker**, template **Blank**, hardware **CPU basic (free)**, visibility **Public**.
-   - Name `lms-skills-api`, the same choices.
-4. In **each** Space: *Settings → Variables and secrets → New secret*. Add `AUTH_SECRET_KEY` (a different value per Space is fine) and `BOOTSTRAP_ADMIN_PASSWORD`.
-5. Install the Hugging Face command-line tool in your venv and log in:
-
-```powershell
-pip install huggingface_hub          # deployment tool only - not part of requirements.txt
-hf auth login                         # paste the write token (older versions: huggingface-cli login)
-```
-
-### 4.2 Build and upload the two Spaces
-
-From the project folder, on an up-to-date `development` or `main` branch:
-
-```powershell
-python scripts/prepare_hf_space.py dashboard --out ..\hf-lms-dashboard
-python scripts/prepare_hf_space.py api --out ..\hf-lms-api
-
-hf upload <user>/lms-skills-dashboard ..\hf-lms-dashboard . --repo-type space --commit-message "Deploy dashboard"
-hf upload <user>/lms-skills-api ..\hf-lms-api . --repo-type space --commit-message "Deploy API"
-```
-
-`hf upload` sends the PDF and Word sample documents correctly; a plain `git push` would need Git LFS for them. Hugging Face then **builds the image**, which takes about 5–10 minutes the first time. Follow it on the Space page (*Logs → Build*, then *Container*).
-
-The container log shows the start step:
-
-```
-prepare | Database: created and loaded from data/sample: 2014 rows in 11 tables
-prepare | Document index: built: 8 documents, 132 chunks (tfidf/numpy). ...
-prepare | Admin account: created admin (password from BOOTSTRAP_ADMIN_PASSWORD)
-prepare | Model: promoted: version 1, test ROC AUC 0.693
-```
-
-### 4.3 If the Space does not start
-
-| Log message | Fix |
+| Secret | What |
 | --- | --- |
-| `Unsafe security settings: AUTH_SECRET_KEY must have at least 32 characters` | Add the `AUTH_SECRET_KEY` secret, then *Settings → Restart Space* |
-| `BOOTSTRAP_ADMIN_PASSWORD must have at least 12 characters` | Use a longer password |
-| `Permission denied` on `/app/...` | The Space Dockerfile must have `ARG APP_UID=1000`: regenerate it with the script |
-| Build fails while installing requirements | Read the build log; usually a temporary download problem: *Factory rebuild* |
-| Dashboard upload gives 403 inside the Space page | Open the direct `https://<user>-lms-skills-dashboard.hf.space` address (browser cookie rules in frames) |
+| `AUTH_SECRET_KEY` | Signs login tokens. Streamlit: you generate it. Render: generated for you |
+| `BOOTSTRAP_ADMIN_PASSWORD` | The private password of the `admin` account, recreated at every start (12+ characters) |
+| `HOSTED_LLM_API_KEY` | Only for section 7 |
 
-## 5. Data on a free Space: reset on restart (by design)
+Generate values on your PC:
 
-A free Space's disk is **not persistent**: every restart, rebuild or wake-up starts from a clean disk. The start step (`app/core/prepare.py`) rebuilds what the demo needs: the database, the index, the admin account and a first model. That takes well under a minute.
+```powershell
+python -c "import secrets; print(secrets.token_urlsafe(48))"   # AUTH_SECRET_KEY
+python -c "import secrets; print(secrets.token_urlsafe(16))"   # BOOTSTRAP_ADMIN_PASSWORD (keep it private)
+```
+
+## 4. Deploy, step by step
+
+**First:** merge Phase 19 into `development`, then `development` into **`main`** (pull request on GitHub, green CI). Both hosts deploy from `main`.
+
+### 4A. Dashboard on Streamlit Community Cloud
+
+1. Go to **https://share.streamlit.io** and click **Continue with GitHub**. Allow Streamlit to see your repositories.
+2. Click **Create app** → **Deploy a public app from GitHub** (or "Yup, I have an app").
+3. Fill in:
+   - **Repository:** `mrameshsjc/AIML-LMS-Skills-Intelligence`
+   - **Branch:** `main`
+   - **Main file path:** `dashboard/Home.py`
+   - **App URL:** choose a name, e.g. `lms-skills-intelligence` → `https://lms-skills-intelligence.streamlit.app`
+4. Open **Advanced settings**:
+   - **Python version:** `3.11` (the version CI tests with)
+   - **Secrets:** paste the contents of `deployment/cloud/streamlit/secrets.toml.example` and replace the two placeholder values with your generated secrets.
+5. Click **Deploy**. The first start installs the libraries (several minutes), then shows "First start: building the database, the document index and a first model …" for about half a minute. After that the dashboard appears.
+
+Later changes: *your app → ⋮ → Settings → Secrets* (the app restarts by itself). *Reboot app* also gives a fresh start.
+
+### 4B. API + Swagger on Render
+
+1. Go to **https://render.com** and sign up with **GitHub**.
+2. Click **New +** → **Blueprint** → connect the repository `mrameshsjc/AIML-LMS-Skills-Intelligence`.
+3. Render reads `render.yaml` and shows the service **`lms-skills-api`** (free plan). It asks for **`BOOTSTRAP_ADMIN_PASSWORD`**: paste your admin password. `AUTH_SECRET_KEY` is generated automatically.
+4. Click **Apply** (or **Deploy Blueprint**). Watch the service's **Logs**: first `pip install -r requirements-api.txt`, then the start step:
+   ```
+   prepare | Document index: built: 8 documents, 132 chunks (tfidf/numpy). ...
+   prepare | Admin account: created admin (password from BOOTSTRAP_ADMIN_PASSWORD)
+   prepare | Model: promoted: version 1, test ROC AUC 0.693
+   ```
+   then `Uvicorn running`. The status turns **Live**.
+5. Your API is at `https://lms-skills-api.onrender.com` (Render shows the exact address at the top; a suffix is added if the name is taken). Swagger UI is at `/docs`.
+
+If the name `lms-skills-api` is taken, Render adds a suffix to the address; use the address it shows.
+
+### 4C. If something does not start
+
+| Where | Message | Fix |
+| --- | --- | --- |
+| Streamlit | "Unsafe settings - the dashboard will not run: AUTH_SECRET_KEY …" | Secrets missing or too short: *Settings → Secrets*, then *Reboot app* |
+| Streamlit | `ModuleNotFoundError` | The app must use `dashboard/requirements.txt`; check the main file path is `dashboard/Home.py`, then *Reboot app* |
+| Streamlit | "Error installing requirements" | Choose Python 3.11 (*Settings*, or delete and redeploy the app with Advanced settings) |
+| Render | `RuntimeError: Unsafe security settings: BOOTSTRAP_ADMIN_PASSWORD must have at least 12 characters` | *Environment* tab → fix the value → *Manual Deploy* |
+| Render | `Ran out of memory (used over 512MB)` | Settings → *Environment*: set `PREPARE_TRAIN_MODEL=false` (no first model), redeploy |
+| Render | First request takes about a minute | The free service was asleep after 15 minutes without traffic; normal |
+
+## 5. Data on free hosts: reset on restart (by design)
+
+Neither free host keeps files after a restart or redeploy. The start step (`app/core/prepare.py`) rebuilds what the demo needs: the document index, the admin account and a first model. It runs in well under a minute.
 
 | What happens to | On restart | Kept? |
 | --- | --- | --- |
-| Synthetic data, documents, first model | rebuilt from the image | ✅ always present |
+| Synthetic data, documents, first model | rebuilt from the repository | ✅ always present |
 | Uploaded documents, retrained models | gone | ❌ |
 | Admin account | recreated from the secret | ✅ |
-| Audit log | gone | ❌ (use a paid storage bucket or an external log service to keep it) |
+| Audit log | gone | ❌ (an external log service would keep it) |
 
 **Reset mechanism** (requirement "Provide a reset mechanism for demo data"):
-- **Dashboard:** log in as admin → *Model management* → *Reset the demo* (tick the box, click the button).
+- **Dashboard:** log in as admin (sidebar) → *Model management* → *Reset the demo*.
 - **API:** `POST /api/v1/admin/reset-demo` as admin (Swagger: *8. Demo administration*).
-- **Space:** *Settings → Restart Space*.
+- **Hosts:** Streamlit *Reboot app*; Render *Manual Deploy → Restart service*.
 - **Locally / Docker:** `python -m app.core.prepare --reset`.
 
 ## 6. Verify the deployment (before you call it deployed)
 
 ```powershell
-# API Space: every API over real HTTP, as a guest (no account)
-python scripts/api_smoke_test.py --base-url https://<user>-lms-skills-api.hf.space --wait 120 --skip-upload
+# API: every endpoint over real HTTP, as a guest (no account). --wait covers Render waking up.
+python scripts/api_smoke_test.py --base-url https://lms-skills-api.onrender.com --wait 120 --skip-upload
 # and as the administrator (includes the API 7 upload check)
-python scripts/api_smoke_test.py --base-url https://<user>-lms-skills-api.hf.space --username admin --password <BOOTSTRAP_ADMIN_PASSWORD>
+python scripts/api_smoke_test.py --base-url https://lms-skills-api.onrender.com --username admin --password <BOOTSTRAP_ADMIN_PASSWORD>
 ```
 
 Then in a **private browser window** (no cookies, like a real visitor):
@@ -161,10 +161,10 @@ Then in a **private browser window** (no cookies, like a real visitor):
 - [ ] Dashboard opens without login; the sidebar says "Guest: read-only demo"
 - [ ] E1001 → Skills analysis shows gap score 37.5 for Data Engineer
 - [ ] Role matching, Recommendations (C-SQL-201 first) and Learning path work
-- [ ] AI assistant answers "How many learning hours do I have per year?" with sources, and shows the **Fallback mode** note (or a hosted model's name)
+- [ ] AI assistant answers "How many learning hours do I have per year?" with sources and the **Fallback mode** note
 - [ ] Documents page lists 8 documents; the upload area says "Administrators only"
 - [ ] Model management shows the metrics; retraining and reset say "Administrators only"
-- [ ] `https://<user>-lms-skills-api.hf.space/docs` opens Swagger UI; `POST /api/v1/skills/analyze` with `{"employee_id": "E1001", "target_role_id": "R004"}` returns 200
+- [ ] `https://lms-skills-api.onrender.com/docs` opens Swagger UI; `POST /api/v1/skills/analyze` with `{"employee_id": "E1001", "target_role_id": "R004"}` returns 200
 - [ ] `POST /api/v1/ml/retrain` without login returns **401**
 - [ ] Admin login in the dashboard sidebar works; the reset works
 
@@ -172,47 +172,37 @@ Take the **screenshots** for the submission during this check: dashboard home, s
 
 ## 7. Optional: a hosted LLM instead of the fallback
 
-The engine talks to any service with an **OpenAI-compatible** `/chat/completions` endpoint (`app/llm/hosted_provider.py`). It must be configured explicitly, and prompts then leave the Space. That's acceptable here only because the demo data is synthetic.
+The engine talks to any service with an **OpenAI-compatible** `/chat/completions` endpoint (`app/llm/hosted_provider.py`). It must be configured explicitly, and prompts then leave the host. That's acceptable here only because the demo data is synthetic.
 
-In the Space *Settings → Variables and secrets*:
+Add to the Streamlit secrets and/or the Render environment:
 
-| Name | Kind | Example |
-| --- | --- | --- |
-| `LLM_PROVIDER` | variable | `hosted` |
-| `LLM_ALLOW_REMOTE` | variable | `true` (required approval; the server refuses `hosted` without it) |
-| `HOSTED_LLM_BASE_URL` | variable | `https://router.huggingface.co/v1` (Hugging Face) or another provider's OpenAI-compatible URL |
-| `HOSTED_LLM_MODEL` | variable | a chat model the service offers, e.g. `meta-llama/Llama-3.1-8B-Instruct` |
-| `HOSTED_LLM_API_KEY` | **secret** | the service's token |
+| Name | Value |
+| --- | --- |
+| `LLM_PROVIDER` | `hosted` |
+| `LLM_ALLOW_REMOTE` | `true` (required approval; the engine refuses `hosted` without it) |
+| `HOSTED_LLM_BASE_URL` | the service's OpenAI-compatible URL, e.g. `https://router.huggingface.co/v1` |
+| `HOSTED_LLM_MODEL` | a chat model the service offers |
+| `HOSTED_LLM_API_KEY` | the service's token (a **secret**) |
 
-Then restart the Space. **Cost:** Hugging Face Inference Providers currently include monthly credits only for PRO accounts ($2/month); free accounts must buy credits. Some other providers have free tiers with daily limits; check their terms. When the quota runs out or the service fails, answers switch to the labelled fallback automatically, and the reason is in the answer's notes. Locally, keep using Ollama (`LLM_PROVIDER=auto`).
+**Cost:** Hugging Face Inference Providers currently include monthly credits only for PRO accounts ($2/month). Some other providers have free tiers with daily limits; check their terms. When the quota runs out or the service fails, answers switch to the labelled fallback automatically, with the reason in the answer's notes. Locally, keep using Ollama (`LLM_PROVIDER=auto`).
 
 ## 8. Security of the public demo
 
 | Requirement | How it is met |
 | --- | --- |
-| Never expose database credentials / API tokens; never commit `.env` | SQLite has no credentials; tokens and passwords are Space **secrets**; `.env` is git-ignored and docker-ignored; settings are `SecretStr` |
+| Never expose database credentials / API tokens; never commit `.env` | SQLite/CSV have no credentials; tokens and passwords are host **secrets**; `.env` and `.streamlit/secrets.toml` are git-ignored; settings are `SecretStr` |
 | Protect admin operations | Upload, delete, retrain, rollback and reset need an admin login (or `X-Admin-Key`); guests get 401 or "Administrators only" |
 | Prevent public users from triggering expensive retraining | Retraining is admin-only and limited to 10 admin actions per hour per IP |
 | Restrict document uploads; file size limits; no executables | Admin-only, 2 MB in the demo, extension allow-list, content must match the extension, prompt-injection check |
 | Rate limiting | API 60/min, assistant 10/min per visitor (per browser session in the dashboard), admin 10/hour, login 10/min |
 | Avoid storing sensitive user information | Guests are not identified; the audit log keeps request metadata only and is wiped on restart |
-| Only synthetic demo data | The image contains only `data/sample` and the sample documents |
+| Only synthetic demo data | The repository contains only `data/sample` and the sample documents |
 | Clear message when AI inference is unavailable; never pretend a fallback came from an LLM | The assistant shows "Fallback mode - no language model…"; API answers carry `provider: "fallback"` and `is_fallback: true` |
-| Demo credentials without exposing admin credentials | Visitors need **no** credentials (guest access). The admin password exists only as a Space secret: never publish it |
+| Demo credentials without exposing admin credentials | Visitors need **no** credentials (guest access); the admin password exists only as a host secret: never publish it |
 
 ## 9. Updating the demo
 
-After merging new work:
-
-```powershell
-git checkout main; git pull
-python scripts/prepare_hf_space.py dashboard --out ..\hf-lms-dashboard
-python scripts/prepare_hf_space.py api --out ..\hf-lms-api
-hf upload <user>/lms-skills-dashboard ..\hf-lms-dashboard . --repo-type space --commit-message "Update"
-hf upload <user>/lms-skills-api ..\hf-lms-api . --repo-type space --commit-message "Update"
-```
-
-Phase 21 (CI/CD) can run these steps automatically from GitHub Actions with the token stored as a GitHub secret.
+Merge into `main`: both hosts redeploy automatically. To restart without a code change: Streamlit *Reboot app*; Render *Manual Deploy*.
 
 ## 10. Final public deliverables
 
@@ -221,9 +211,9 @@ Fill this table in **after** section 6 passes:
 | Deliverable | Value |
 | --- | --- |
 | GitHub repository | https://github.com/mrameshsjc/AIML-LMS-Skills-Intelligence |
-| Public dashboard URL | `https://<user>-lms-skills-dashboard.hf.space` *(after deployment)* |
-| API base URL | `https://<user>-lms-skills-api.hf.space/api/v1` *(after deployment)* |
-| Swagger URL | `https://<user>-lms-skills-api.hf.space/docs` *(after deployment)* |
+| Public dashboard URL | `https://<app-name>.streamlit.app` *(after deployment)* |
+| API base URL | `https://lms-skills-api.onrender.com/api/v1` *(after deployment)* |
+| Swagger URL | `https://lms-skills-api.onrender.com/docs` *(after deployment)* |
 | Demo credentials | None needed: guest access. The admin login is private |
 | Deployment documentation | this guide, `docs/DOCKER_GUIDE.md`, `docs/SECURITY_GUIDE.md` |
 | Screenshots | taken during section 6 (Phase 22 adds them to the README) |
@@ -238,14 +228,14 @@ Fill this table in **after** section 6 passes:
 6. **AI assistant:** ask "What are my current skill gaps?" (answers from E1001's data) and "How many learning hours do I have per year?" (answers from the learning policy, with the source passage shown).
 7. **Documents:** the 8 indexed documents the assistant can cite.
 8. **Model management:** the completion model's test ROC AUC and accuracy against a baseline, the algorithm comparison and feature importance. The data is synthetic, so the metrics show the method, not real-world accuracy.
-9. **Swagger** (API Space `/docs`): try the same analysis as JSON.
+9. **Swagger** (`/docs` on the API): try the same analysis as JSON.
 
 ## 12. Known limitations
 
-- **Free hosting:** the Space sleeps when idle (the first visit waits for it to start) and forgets uploads and retrained models on restart.
+- **Free hosting:** the API sleeps after 15 minutes (first request about a minute); the dashboard sleeps after 12 hours. Both forget uploads and retrained models on restart.
 - **No LLM by default:** the public assistant uses the labelled fallback unless a hosted LLM is configured (section 7). Ollama runs only locally or in Docker Compose.
-- **TF-IDF search** in the demo matches words, not meaning (no embedding model on the Space).
-- **Rate limits are approximate:** behind the Hugging Face proxy the visitor's address comes from the forwarded header, which a determined user can change. The limits are in memory, per Space.
-- **Two separate copies:** the dashboard and API Spaces have their own data; an upload in one does not appear in the other.
+- **TF-IDF search** in the demo matches words, not meaning (no embedding model on the free hosts).
+- **Rate limits are approximate:** behind the hosts' proxies the visitor's address comes from a forwarded header that a determined user can change, and the limits are in memory, per process.
+- **Two separate copies:** the dashboard and the API have their own data; an upload in one does not appear in the other.
 - **Synthetic data only:** the metrics demonstrate the method, not real-world accuracy.
-- **Dashboard uploads inside the huggingface.co page** may be blocked by browser cookie rules; use the direct `.hf.space` address.
+- **Hugging Face Spaces:** prepared (`scripts/prepare_hf_space.py`), but Docker Spaces need a PRO plan since 2026.

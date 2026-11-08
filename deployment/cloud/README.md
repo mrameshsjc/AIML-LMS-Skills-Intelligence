@@ -2,13 +2,8 @@
 
 | Path | Use |
 | --- | --- |
-| `huggingface/README.dashboard.md`, `huggingface/README.api.md` | The text shown on each Hugging Face Space page |
-
-The Space folders are generated, not stored here:
-
-```powershell
-python scripts/prepare_hf_space.py dashboard --out ..\hf-lms-dashboard
-python scripts/prepare_hf_space.py api --out ..\hf-lms-api
-```
+| `../../render.yaml` (project root) | Render Blueprint: the API + Swagger UI as a free web service |
+| `streamlit/secrets.toml.example` | What to paste into Streamlit Community Cloud → app → Settings → Secrets |
+| `huggingface/README.*.md` | Space page texts, only if you use Hugging Face Spaces (Docker Spaces need a PRO plan since 2026) |
 
 Step-by-step deployment: `docs/PUBLIC_DEPLOYMENT_GUIDE.md`.

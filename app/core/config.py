@@ -166,6 +166,9 @@ class Settings(BaseSettings):
     bootstrap_admin_username: str = "admin"
     bootstrap_admin_password: SecretStr = SecretStr("")
     prepare_train_model: bool = False  # start step: train a first model if there is none (demo metrics)
+    # Streamlit Community Cloud has no start command: the dashboard runs the start step itself, once
+    # per process, when this is true (Phase 19). Off by default (Compose prepares in the api container).
+    prepare_in_dashboard: bool = False
     # Sites allowed to show the app in a frame, e.g. https://huggingface.co (the Space page). Empty = none.
     frame_ancestors: str = ""
 

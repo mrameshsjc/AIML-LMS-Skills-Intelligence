@@ -194,7 +194,7 @@ The override sets `APP_ENV=production` and `AUTH_ENABLED=true`. Compose refuses 
 
 ## 11. Public demo image (Phase 19)
 
-The same Dockerfile builds the Hugging Face Space images. `scripts/prepare_hf_space.py` copies it with `ARG APP_UID=1000` (Hugging Face runs every container as user 1000), the service's command on port 7860, and public-demo defaults. See [`PUBLIC_DEPLOYMENT_GUIDE.md`](PUBLIC_DEPLOYMENT_GUIDE.md). To try the demo settings locally:
+The same Dockerfile builds Hugging Face Space images (a PRO plan is needed for Docker Spaces since 2026; the free demo uses Streamlit Community Cloud + Render, which install from the slim requirement files instead). `scripts/prepare_hf_space.py` copies it with `ARG APP_UID=1000` (Hugging Face runs every container as user 1000), the service's command on port 7860, and public-demo defaults. See [`PUBLIC_DEPLOYMENT_GUIDE.md`](PUBLIC_DEPLOYMENT_GUIDE.md). To try the demo settings locally:
 
 ```powershell
 docker build --build-arg APP_UID=1000 -t lms-demo .
