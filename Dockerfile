@@ -1,53 +1,94 @@
-# Dockerfile: recipe for building the API container image.
+# syntax=docker/dockerfile:1
+# Dockerfile: the recipe for the container image (Phase 1, hardened in Phase 18).
+# One image runs every service: the API (default), the dashboard and the MLflow UI.
 #
-# Build:  docker build -t aiml-lms-skills-intelligence:dev .
-# Run:    docker run --rm -p 8000:8000 aiml-lms-skills-intelligence:dev
+#   PS> docker build -t aiml-lms-skills-intelligence:dev .
+#   PS> docker run --rm -p 127.0.0.1:8000:8000 aiml-lms-skills-intelligence:dev
+#   Everyday use is Docker Compose (compose.yaml) - see docs/DOCKER_GUIDE.md.
 #
-# WHY python:3.11-slim
-#   Same Python version as local development (avoids "works on my machine").
-#   "slim" is a small Debian image: much smaller than the full image and more
-#   compatible with ML libraries (numpy, faiss) than the even smaller Alpine.
+# HARDENING (Phase 18)
+#   - Two stages: libraries are installed in a "builder" stage; the final image
+#     gets only the finished virtual environment (no pip caches, no build files).
+#   - Runs as a normal user with a fixed ID (10001), never as root. Kubernetes
+#     (Phase 20) can then verify "runAsNonRoot".
+#   - The code and the sample data belong to root and are READ-ONLY for the app:
+#     even a compromised app cannot change its own code. Only the folders that
+#     are mounted as volumes are writable.
+#   - No secrets in the image: .env, accounts and keys are excluded by
+#     .dockerignore and arrive as environment variables at run time.
+#   - Works with a read-only root filesystem (compose.yaml: read_only: true).
+#
+# WHY python:3.11-slim-bookworm
+#   The same Python version as CI; "slim" is a small Debian image that works
+#   with ML wheels (numpy, faiss, scikit-learn), unlike Alpine. The tag is
+#   fixed to a Debian release (bookworm) so a rebuild does not silently switch
+#   operating system. For fully repeatable builds pin the digest as well:
+#   docker build --build-arg PYTHON_IMAGE=python:3.11-slim-bookworm@sha256:<digest> .
 
-FROM python:3.11-slim
+ARG PYTHON_IMAGE=python:3.11-slim-bookworm
 
-# PYTHONDONTWRITEBYTECODE: do not write .pyc files inside the container.
-# PYTHONUNBUFFERED: print logs immediately so `docker logs` shows them live.
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
+# ---------- Stage 1: install the Python libraries --------------------------------------------------
+FROM ${PYTHON_IMAGE} AS builder
+
+ENV PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-WORKDIR /app
+# A virtual environment in /opt/venv is easy to copy into the final stage as one folder.
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy requirements FIRST and install them in their own layer. Docker caches
-# this layer, so changing your code does not reinstall every library.
+# Requirements first, in their own layer: Docker reuses this layer (no reinstall)
+# as long as requirements.txt does not change, even when the code changes.
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install --upgrade pip \
+    && pip install -r requirements.txt
 
-# Now copy the application code and the synthetic sample data the API serves.
+# ---------- Stage 2: the image that runs -----------------------------------------------------------
+FROM ${PYTHON_IMAGE} AS runtime
+
+ARG APP_VERSION=dev
+LABEL org.opencontainers.image.title="LMS Skills Intelligence Engine" \
+      org.opencontainers.image.description="Skills gaps, role matching, training recommendations, learning paths, LLM + RAG assistant (synthetic data)" \
+      org.opencontainers.image.source="https://github.com/mrameshsjc/AIML-LMS-Skills-Intelligence" \
+      org.opencontainers.image.version="${APP_VERSION}"
+
+# PYTHONDONTWRITEBYTECODE: no .pyc files (the code folder is read-only anyway).
+# PYTHONUNBUFFERED: logs appear immediately in `docker logs`.
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/venv/bin:$PATH" \
+    HOME=/home/appuser
+
+# The user the app runs as: fixed IDs, no login shell.
+RUN groupadd --gid 10001 appuser \
+    && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin appuser
+
+WORKDIR /app
+COPY --from=builder /opt/venv /opt/venv
+
+# Application code and read-only content (owned by root: the app can read, not change, them).
 COPY app ./app
 COPY data/sample ./data/sample
-# Phase 12: knowledge documents and the scripts that index them
-# (inside the container: python scripts/build_index.py)
 COPY documents ./documents
 COPY scripts ./scripts
-# Phase 15: the Streamlit dashboard (the compose service "dashboard" runs it from this image)
 COPY dashboard ./dashboard
 COPY .streamlit ./.streamlit
 
-# Run as a normal user, not root: if the app were ever compromised, the
-# attacker would have far fewer permissions inside the container.
-RUN useradd --create-home appuser \
-    && mkdir -p /app/data /app/vector_store /app/models /app/logs /app/data/accounts \
-    && chown -R appuser:appuser /app
-USER appuser
+# The ONLY writable places - each is a volume in compose.yaml. Creating them here,
+# owned by appuser, means a new named volume starts with the right owner.
+RUN mkdir -p data/uploads/documents data/accounts data/db vector_store models logs mlruns \
+    && chown -R 10001:10001 data/uploads data/accounts data/db vector_store models logs mlruns
 
-EXPOSE 8000
+USER 10001:10001
 
-# Docker checks this every 30 s and marks the container healthy/unhealthy.
-# Python's urllib is used because curl is not installed in the slim image.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+EXPOSE 8000 8501 5000
+
+# Docker checks the API every 30 s ("healthy" / "unhealthy"). The first start may build
+# the document index, hence the longer start period. Python's urllib: no curl in slim images.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
     CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=4).status == 200 else 1)"
 
-# 0.0.0.0 = accept connections from outside the container (needed for -p 8000:8000).
+# Start step (app/core/prepare.py): folders, database and document index on first start,
+# then it becomes the command below. 0.0.0.0 = accept connections from outside the container.
+ENTRYPOINT ["python", "-m", "app.core.prepare"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

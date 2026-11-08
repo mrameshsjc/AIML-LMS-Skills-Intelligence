@@ -32,7 +32,7 @@ Many fast tests at the bottom, fewer and broader ones at the top. A failing unit
 ## 2. Running the tests
 
 ```powershell
-pytest                              # everything: about 553 tests
+pytest                              # everything: about 585 tests
 pytest -m "not slow"                # quick run while coding (skips the ~26 tests that start scripts or train models)
 pytest tests/unit/test_chat.py -v   # one file, with each test's name
 pytest -k "learning_path"           # tests whose name contains the text

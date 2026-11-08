@@ -5,7 +5,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | | |
 | --- | --- |
 | Project folder / Git repo | `AIML-LMS-Skills-Intelligence` |
-| Current phase | **Phase 17 – Security: login, roles, rate limits, audit log, prompt-injection protection** (Phases 1–16 on GitHub, CI green) |
+| Current phase | **Phase 18 – Docker and Docker Compose: hardened image, start step, persistent volumes** (Phases 1–17 on GitHub, CI green) |
 | Python | 3.11 |
 | LMS integration | Not in this project. The architecture is API-ready for it (later phase). |
 
@@ -13,7 +13,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 
 ---
 
-## 1. What is built so far (Phases 1–17)
+## 1. What is built so far (Phases 1–18)
 
 | Item | File(s) | Why it exists |
 | --- | --- | --- |
@@ -25,7 +25,7 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | Tests | `tests/api/test_health.py` | 6 automated API checks |
 | Setup checker | `scripts/verify_phase1.py` | One command: PASS/FAIL for setup, server, health, Swagger, tests, lint |
 | Full folder structure | every folder + its `README.md` | Shows where each later phase's code goes |
-| Docker | `Dockerfile`, `docker-compose.yml`, `.dockerignore` | Run anywhere with one command |
+| Docker | `Dockerfile`, `compose.yaml`, `.dockerignore` | Run anywhere with one command (hardened in Phase 18) |
 | CI/CD | `.github/workflows/ci.yml` | Lint, test and build on every push |
 | Code quality | `pyproject.toml`, `.pre-commit-config.yaml` | Ruff lint + format, automatic before commits |
 | **Phase 2:** data generator | `scripts/generate_synthetic_data.py` | Creates 11 consistent CSV files from a fixed seed |
@@ -85,6 +85,10 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | **Phase 17:** abuse + audit | `app/security/rate_limit.py`, `audit.py`, `app/main.py` | Rate limits (429 + Retry-After), security headers, CORS, audit log, refuses to start with unsafe settings |
 | **Phase 17:** AI + upload safety | `app/security/prompt_injection.py`, `uploads.py` | 4 prompt-injection layers in the assistant and uploads; renamed executables refused |
 | **Phase 17:** tests + docs | `tests/security/`, `tests/api/test_auth_api.py`, `docs/SECURITY_GUIDE.md` | 64 + 14 + 4 dashboard checks; security guide |
+| **Phase 18:** hardened image | `Dockerfile`, `.dockerignore` | Two stages, non-root user 10001, read-only code, no secrets, pinned base image |
+| **Phase 18:** Compose | `compose.yaml`, `deployment/docker/compose.prod.yaml` | api + dashboard (+ mlflow, ollama profiles); 7 persistent volumes; read-only, no capabilities, localhost ports, limits |
+| **Phase 18:** start step | `app/core/prepare.py` | Empty volumes become a working system: database + document index on first start |
+| **Phase 18:** tests + docs | `tests/unit/test_docker_config.py`, `test_prepare.py`, CI hardened run, `docs/DOCKER_GUIDE.md` | 26 + 6 checks; PowerShell guide to build, run, stop, inspect, debug |
 
 **All seven APIs are live:** 1 (`/skills/analyze`), 2 (`/roles/match`), 3 (`/trainings/recommend`), 4 (`/learning-path/{id}`), 5 (`/ai/chat`), 6 (`/ml/retrain`, admin) and 7 (`/rag/ingest`, admin). With `AUTH_ENABLED=true` they need a login (`/auth/token`). Full reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
 
@@ -141,12 +145,13 @@ AIML-LMS-Skills-Intelligence/
 │   ├── dashboard/test_pages.py   # every Streamlit page with AppTest (16)          [Phase 15 ✓]
 │   ├── unit/test_retraining.py, api/test_ml_api.py # 15 + 6 checks            [Phase 16 ✓]
 │   ├── security/, api/test_auth_api.py # 64 + 14 checks (login, roles, limits, injection) [Phase 17 ✓]
+│   ├── unit/test_docker_config.py, test_prepare.py # 26 + 6 checks            [Phase 18 ✓]
 │   ├── unit/  integration/  security/
 ├── reports/                      # generated charts and reports (not in Git)   [Phase 4]
 ├── deployment/                   # docker/, kubernetes/, cloud/                (later, 18–20)
 ├── docs/                         # guides, added per phase
 ├── .github/workflows/ci.yml      # GitHub Actions: lint, test, Docker build    [Phase 1 ✓]
-├── Dockerfile  docker-compose.yml  .dockerignore                              [Phase 1 ✓]
+├── Dockerfile  compose.yaml  .dockerignore   # hardened, start step, volumes   [Phases 1, 18 ✓]
 ├── requirements.txt  requirements-dev.txt  pyproject.toml  .pre-commit-config.yaml
 ├── .env.example  .gitignore
 └── README.md
@@ -495,27 +500,27 @@ python scripts/api_smoke_test.py --username admin --password <admin password>
 
 Log in as `employee` and `GET /api/v1/learning-path/E1002` gives **403**; as `manager` you see E1064's team; only `admin` (or `X-Admin-Key`) may retrain or upload. Every API call is written to `logs/audit.jsonl`. The assistant refuses "ignore your instructions…" questions and uploads with hidden instructions. Guide: [`docs/SECURITY_GUIDE.md`](docs/SECURITY_GUIDE.md).
 
-## 6. Run with Docker
+## 6. Run with Docker (hardened in Phase 18)
 
-Docker Desktop must be running.
+Docker Desktop must be running. Full guide with build, run, stop, inspect and debug commands: [`docs/DOCKER_GUIDE.md`](docs/DOCKER_GUIDE.md).
 
 ```powershell
-docker compose up --build -d   # build the image and start in the background
-docker compose ps              # wait until STATUS shows (healthy)
-docker compose logs -f api     # follow logs (Ctrl+C to stop following)
-docker compose down            # stop and remove the container (data volume is kept)
+docker compose up --build -d          # build the image, start api + dashboard (first start about a minute)
+docker compose ps                     # wait until both show (healthy)
+docker compose logs api | Select-String prepare   # the start step: database + index created on first start
+docker compose down                   # stop (volumes - your data - are kept; add -v for a fresh start)
+docker compose --profile mlflow up -d # optional: MLflow UI at http://127.0.0.1:5000
 ```
 
-Then open http://127.0.0.1:8000/docs (API) and http://127.0.0.1:8501 (dashboard). Both containers use the same image and share the data, index and model volumes.
+Then open http://127.0.0.1:8000/docs (API) and http://127.0.0.1:8501 (dashboard). On the first start the API container prepares its empty volumes by itself: the SQLite database with the synthetic data and the document index. No manual `build_index.py` is needed.
 
-Inside Docker, build the document index once: `docker compose exec api python scripts/build_index.py`.
-
-| Docker term | Meaning here |
+| | |
 | --- | --- |
-| Image | The packaged app (Python 3.11 + libraries + code), built from `Dockerfile` |
-| Container | A running copy of the image |
-| Volumes `lms_data`, `lms_index`, `lms_models` | Uploads, the document index and model versions; they survive container restarts and are shared by both containers |
-| Health check | Docker calls `/api/v1/health` every 30 s and shows `healthy` or `unhealthy` |
+| Services | `api`, `dashboard`; optional `mlflow` (profile `mlflow`) and `ollama` (profile `llm`) |
+| Volumes | database, document index, uploads, model versions, MLflow runs, accounts, audit log |
+| Hardening | non-root user 10001, two-stage image, read-only filesystem, no Linux capabilities, ports on 127.0.0.1 only, memory limits, rotated logs, no secrets in the image |
+| Shared server | `docker compose -f compose.yaml -f deployment/docker/compose.prod.yaml up -d` (login on, secret required) |
+| CI | builds the image, checks the non-root user, runs it hardened on empty volumes, smoke test |
 
 ## 7. GitHub and CI/CD
 

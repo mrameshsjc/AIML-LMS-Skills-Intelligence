@@ -1,0 +1,23 @@
+# Production-style override (Phase 18): login ON, secrets REQUIRED. Use it on any server other people reach.
+#
+#   PS> docker compose -f compose.yaml -f deployment/docker/compose.prod.yaml up -d
+#
+# Compose refuses to start ("required variable ... is missing a value") until .env defines:
+#   AUTH_SECRET_KEY   python -c "import secrets; print(secrets.token_urlsafe(48))"
+# Then create accounts INSIDE the running container (they are stored on the lms_accounts volume):
+#   PS> docker compose exec api python scripts/create_user.py admin --role admin
+# The app itself also refuses to start in production without login (Phase 17, Settings.check_security).
+
+x-prod-env: &prod-env
+  APP_ENV: production
+  AUTH_ENABLED: "true"
+  AUTH_SECRET_KEY: ${AUTH_SECRET_KEY:?set AUTH_SECRET_KEY in .env (see deployment/docker/compose.prod.yaml)}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+services:
+  api:
+    environment:
+      <<: *prod-env
+  dashboard:
+    environment:
+      <<: *prod-env

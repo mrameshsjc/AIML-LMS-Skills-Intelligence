@@ -132,7 +132,7 @@ These are simple checks, not guarantees. They make the most common failures visi
 
 ## 8. Docker
 
-Inside a container, `localhost` is the container itself, so Compose points the API at Ollama on your PC through `OLLAMA_BASE_URL=http://host.docker.internal:11434`. Ollama must be running on Windows. Running Ollama in its own container is optional and comes with the Docker hardening in Phase 18.
+Inside a container, `localhost` is the container itself, so Compose points the API at Ollama on your PC through `OLLAMA_BASE_URL=http://host.docker.internal:11434`. Ollama must be running on Windows. Running Ollama in its own container is optional: `docker compose --profile llm up -d` (see `DOCKER_GUIDE.md` section 7).
 
 ## 9. Troubleshooting
 
@@ -230,7 +230,7 @@ With **TF-IDF**, the right document is in the top 3 for 7 of 8 test questions (t
 Scores are relative: TF-IDF scores are lower (0.1–0.4 is a good match) than neural embedding scores (often 0.5–0.8). Phase 13 sets a minimum score below which the assistant says it has no information.
 
 ### 10.7 Docker
-The image contains `documents/` and `scripts/`; the index lives on the `lms_index` volume:
+The image contains `documents/` and `scripts/`; the index lives on the `lms_index` volume. Since Phase 18 the API container builds the index by itself on the first start (`app/core/prepare.py`). Rebuild it by hand after installing an Ollama embedding model:
 ```powershell
 docker compose up -d --build
 docker compose exec api python scripts/build_index.py
