@@ -2,7 +2,7 @@
 
 How to put the LMS Skills Intelligence Engine on the internet as a **free public demo** that anyone can use in a browser. Visitors install nothing: no Python, no Docker, no Ollama. All data is **synthetic**.
 
-> **Status:** this guide and the code are ready. The public URLs exist only after you complete section 4. Until the demo has been deployed **and** checked with section 6, do not list it as deployed.
+> **Status (8 November 2026): deployed.** Dashboard https://lms-skills-intelligence.streamlit.app · API https://lms-skills-api.onrender.com/api/v1 · Swagger https://lms-skills-api.onrender.com/docs. Checked: API smoke test as a guest (13 passed, 0 failed; the one warning is the expected no-LLM fallback), the dashboard in guest mode with the fallback LLM, and the E1001 results (gap score 37.5, learning path 62.5 % → 100 %, C-SQL-201 next). Re-run section 6 after each deployment.
 
 ---
 
@@ -98,7 +98,7 @@ python -c "import secrets; print(secrets.token_urlsafe(16))"   # BOOTSTRAP_ADMIN
    - **App URL:** choose a name, e.g. `lms-skills-intelligence` → `https://lms-skills-intelligence.streamlit.app`
 4. Open **Advanced settings**:
    - **Python version:** `3.11` (the version CI tests with)
-   - **Secrets:** paste the contents of `deployment/cloud/streamlit/secrets.toml.example` and replace the two placeholder values with your generated secrets.
+   - **Secrets:** paste the **whole** contents of `deployment/cloud/streamlit/secrets.toml.example` (all 13 lines, not only the two secrets) and replace the two placeholder values with your generated secrets. If only the two secrets are saved, login, guest mode and the fallback settings are missing and the dashboard runs in **open local mode**: the sidebar then says "Login is off". Check that it says "Guest: read-only demo".
 5. Click **Deploy**. The first start installs the libraries (several minutes), then shows "First start: building the database, the document index and a first model …" for about half a minute. After that the dashboard appears.
 
 Later changes: *your app → ⋮ → Settings → Secrets* (the app restarts by itself). *Reboot app* also gives a fresh start.
@@ -124,6 +124,7 @@ If the name `lms-skills-api` is taken, Render adds a suffix to the address; use 
 | Where | Message | Fix |
 | --- | --- | --- |
 | Streamlit | "Unsafe settings - the dashboard will not run: AUTH_SECRET_KEY …" | Secrets missing or too short: *Settings → Secrets*, then *Reboot app* |
+| Streamlit | Sidebar says "Login is off (AUTH_ENABLED=false)" | Not the whole secrets block was saved: paste all lines of `secrets.toml.example` in *Settings → Secrets* (with your two values), save |
 | Streamlit | `ModuleNotFoundError` | The app must use `dashboard/requirements.txt`; check the main file path is `dashboard/Home.py`, then *Reboot app* |
 | Streamlit | "Error installing requirements" | Choose Python 3.11 (*Settings*, or delete and redeploy the app with Advanced settings) |
 | Render | `RuntimeError: Unsafe security settings: BOOTSTRAP_ADMIN_PASSWORD must have at least 12 characters` | *Environment* tab → fix the value → *Manual Deploy* |
@@ -206,14 +207,12 @@ Merge into `main`: both hosts redeploy automatically. To restart without a code 
 
 ## 10. Final public deliverables
 
-Fill this table in **after** section 6 passes:
-
 | Deliverable | Value |
 | --- | --- |
 | GitHub repository | https://github.com/mrameshsjc/AIML-LMS-Skills-Intelligence |
-| Public dashboard URL | `https://<app-name>.streamlit.app` *(after deployment)* |
-| API base URL | `https://lms-skills-api.onrender.com/api/v1` *(after deployment)* |
-| Swagger URL | `https://lms-skills-api.onrender.com/docs` *(after deployment)* |
+| Public dashboard URL | https://lms-skills-intelligence.streamlit.app |
+| API base URL | https://lms-skills-api.onrender.com/api/v1 |
+| Swagger URL | https://lms-skills-api.onrender.com/docs |
 | Demo credentials | None needed: guest access. The admin login is private |
 | Deployment documentation | this guide, `docs/DOCKER_GUIDE.md`, `docs/SECURITY_GUIDE.md` |
 | Screenshots | taken during section 6 (Phase 22 adds them to the README) |
