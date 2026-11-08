@@ -1,0 +1,41 @@
+# Storage that survives pod restarts and redeployments (Phase 20).
+#
+# PersistentVolume (PV)        a piece of storage in the cluster: here a folder inside the
+#                              Minikube machine (/data is kept when Minikube restarts).
+# PersistentVolumeClaim (PVC)  the app's REQUEST for storage; Kubernetes binds it to the PV.
+#                              Pods mount the claim, never the PV directly.
+#
+# One volume holds the database, the document index, uploads, model versions, MLflow runs,
+# accounts and the audit log, each in its own sub-folder (see the deployments' volumeMounts).
+#
+# ReadWriteOnce = writable from ONE node. Minikube has one node, so all pods (2+ API replicas
+# and the dashboard) share it. A multi-node cluster needs ReadWriteMany storage (NFS, EFS, ...).
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: lms-data-pv
+  labels:
+    app.kubernetes.io/part-of: lms-skills-intelligence
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain      # deleting the claim keeps the data
+  storageClassName: lms-manual
+  hostPath:
+    path: /data/lms-skills
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lms-data
+  labels:
+    app.kubernetes.io/part-of: lms-skills-intelligence
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: lms-manual
+  volumeName: lms-data-pv
+  resources:
+    requests:
+      storage: 2Gi

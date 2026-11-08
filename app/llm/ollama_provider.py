@@ -46,7 +46,8 @@ from urllib.parse import urlparse
 from app.llm.base import LLMProvider, LLMRequest, LLMResult, LLMUnavailableError, ProviderStatus
 from app.llm.prompts import build_messages
 
-LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "host.docker.internal", "ollama"}
+# host.docker.internal / host.minikube.internal: this PC as seen from Docker / Minikube (Phases 18, 20)
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "host.docker.internal", "host.minikube.internal", "ollama"}
 
 # An opener with an EMPTY proxy table: requests go straight to Ollama, never through a proxy.
 _DIRECT = urllib.request.build_opener(urllib.request.ProxyHandler({}))

@@ -1,0 +1,26 @@
+# HorizontalPodAutoscaler: more API pods when they are busy, fewer when quiet (Phase 20).
+# Needs the metrics add-on:  minikube addons enable metrics-server
+#   kubectl -n lms-skills get hpa          (TARGETS shows current CPU against 70 %)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: lms-api
+  labels:
+    app.kubernetes.io/part-of: lms-skills-intelligence
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: lms-api
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70        # % of the pod's CPU request (250m)
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 120   # wait 2 minutes of low load before removing pods

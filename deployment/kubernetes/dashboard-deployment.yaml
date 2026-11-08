@@ -1,0 +1,136 @@
+# Deployment: the Streamlit dashboard, one pod (Phase 20).
+# ONE replica: Streamlit keeps each visitor's session in the pod's memory, so several replicas
+# would need "sticky sessions". The same two init steps as the API prepare the shared volume
+# (whichever pod comes first builds; the others find everything ready).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lms-dashboard
+  labels:
+    app.kubernetes.io/name: lms-skills
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/part-of: lms-skills-intelligence
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5           # old versions kept for `kubectl rollout undo`
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lms-skills
+      app.kubernetes.io/component: dashboard
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lms-skills
+        app.kubernetes.io/component: dashboard
+        app.kubernetes.io/part-of: lms-skills-intelligence
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: volume-permissions
+          image: aiml-lms-skills-intelligence
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c"]
+          args:
+            - mkdir -p /volume/db /volume/vector_store /volume/uploads /volume/models /volume/mlruns
+              /volume/accounts /volume/logs && chown -R 10001:10001 /volume
+          securityContext:          # the only step that runs as root, and only to set folder owners
+            runAsNonRoot: false
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+              add: [CHOWN, DAC_OVERRIDE]    # set owners; create sub-folders even after the first run
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+          volumeMounts:
+            - {name: data, mountPath: /volume}
+        - name: prepare
+          image: aiml-lms-skills-intelligence
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "app.core.prepare"]
+          envFrom:
+            - configMapRef: {name: lms-config}
+            - secretRef: {name: lms-secrets}
+          env:
+            - {name: PREPARE_ON_START, value: "true"}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: {cpu: 250m, memory: 256Mi}
+            limits: {cpu: "1", memory: 1Gi}
+          volumeMounts:
+            - {name: data, mountPath: /app/data/db, subPath: db}
+            - {name: data, mountPath: /app/vector_store, subPath: vector_store}
+            - {name: data, mountPath: /app/data/uploads, subPath: uploads}
+            - {name: data, mountPath: /app/models, subPath: models}
+            - {name: data, mountPath: /app/mlruns, subPath: mlruns}
+            - {name: data, mountPath: /app/data/accounts, subPath: accounts}
+            - {name: data, mountPath: /app/logs, subPath: logs}
+            - {name: tmp, mountPath: /tmp}
+            - {name: home, mountPath: /home/appuser}
+      containers:
+        - name: dashboard
+          image: aiml-lms-skills-intelligence
+          imagePullPolicy: IfNotPresent
+          command: ["streamlit", "run", "dashboard/Home.py", "--server.port=8501", "--server.address=0.0.0.0",
+                    "--server.headless=true", "--browser.gatherUsageStats=false"]
+          ports:
+            - {name: http, containerPort: 8501}
+          envFrom:
+            - configMapRef: {name: lms-config}
+            - secretRef: {name: lms-secrets}
+          env:
+            - {name: PREPARE_ON_START, value: "false"}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: {cpu: 200m, memory: 384Mi}
+            limits: {cpu: "1", memory: 1Gi}
+          readinessProbe:
+            httpGet: {path: /_stcore/health, port: http}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: {path: /_stcore/health, port: http}
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - {name: data, mountPath: /app/data/db, subPath: db}
+            - {name: data, mountPath: /app/vector_store, subPath: vector_store}
+            - {name: data, mountPath: /app/data/uploads, subPath: uploads}
+            - {name: data, mountPath: /app/models, subPath: models}
+            - {name: data, mountPath: /app/mlruns, subPath: mlruns}
+            - {name: data, mountPath: /app/data/accounts, subPath: accounts}
+            - {name: data, mountPath: /app/logs, subPath: logs}
+            - {name: tmp, mountPath: /tmp}
+            - {name: home, mountPath: /home/appuser}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: lms-data}
+        - name: tmp
+          emptyDir: {}
+        - name: home
+          emptyDir: {}

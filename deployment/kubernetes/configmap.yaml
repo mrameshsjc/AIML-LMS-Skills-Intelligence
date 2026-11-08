@@ -1,0 +1,31 @@
+# ConfigMap: the NON-secret settings, given to every pod as environment variables.
+# Secrets (keys, passwords) are in the Secret "lms-secrets", never here.
+# After a change: kubectl apply -k deployment/kubernetes, then
+#                 kubectl -n lms-skills rollout restart deployment   (pods read settings at start)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lms-config
+  labels:
+    app.kubernetes.io/part-of: lms-skills-intelligence
+data:
+  APP_PROFILE: kubernetes
+  LOG_LEVEL: INFO
+  # Login on; visitors may browse the synthetic data read-only (an admin comes from the Secret).
+  AUTH_ENABLED: "true"
+  GUEST_ACCESS: "true"
+  # Data on the persistent volume (mounted below /app in the pods)
+  DATA_SOURCE: database
+  DATABASE_URL: sqlite:///./data/db/lms_ai.db
+  USERS_FILE: data/accounts/users.json
+  AUDIT_LOG_FILE: logs/audit.jsonl
+  MLFLOW_TRACKING_URI: sqlite:////app/mlruns/mlflow.db
+  PREPARE_TRAIN_MODEL: "true"
+  # Ollama on your PC, as seen from Minikube. Not running? The labelled fallback answers.
+  OLLAMA_BASE_URL: http://host.minikube.internal:11434
+  LLM_PROVIDER: auto
+  EMBEDDING_PROVIDER: auto
+  # Limits per pod (each replica counts on its own)
+  RATE_LIMIT_PER_MINUTE: "120"
+  RATE_LIMIT_CHAT_PER_MINUTE: "20"
+  RATE_LIMIT_ADMIN_PER_HOUR: "10"

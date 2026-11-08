@@ -1,0 +1,8 @@
+# A namespace keeps everything of the engine together and apart from other apps in the cluster:
+#   kubectl get all -n lms-skills        kubectl delete namespace lms-skills  (removes it all)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lms-skills
+  labels:
+    app.kubernetes.io/part-of: lms-skills-intelligence

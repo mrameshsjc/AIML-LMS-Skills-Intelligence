@@ -34,12 +34,12 @@ from app.core.errors import ForbiddenError, UnauthorizedError
 from app.core.security import check_admin_key
 from app.llm.base import LLMProvider
 from app.llm.factory import build_provider
-from app.ml.model_registry import MODEL_NAME
+from app.ml.model_registry import MODEL_NAME, current_version
 from app.ml.predict import CompletionPredictor
 from app.ml.retraining import RetrainingService
 from app.ml.tracking import choose_tracker
 from app.rag.factory import choose_embedder, load_index, min_score, tenant_folder
-from app.rag.index import KnowledgeIndex, read_manifest
+from app.rag.index import MANIFEST, KnowledgeIndex, read_manifest
 from app.rag.vector_store import choose_backend
 from app.repositories.base import LmsRepository
 from app.repositories.csv_repository import CsvLmsRepository
@@ -89,18 +89,32 @@ def get_role_matching_service(repository: RepositoryDep) -> RoleMatchingService:
 RoleMatchingServiceDep = Annotated[RoleMatchingService, Depends(get_role_matching_service)]
 
 
-@lru_cache
+@lru_cache(maxsize=4)
+def _load_predictor(
+    version: int | None, model_dir: str, data_source: str, database_url: str, data_dir: str
+) -> CompletionPredictor | None:
+    if data_source == "database":
+        return CompletionPredictor.from_database(model_dir, database_url)
+    return CompletionPredictor.from_files(model_dir, data_dir)
+
+
 def get_completion_predictor() -> CompletionPredictor | None:
     """The registered completion model, or None (no model trained, or switched off in settings).
 
-    Loaded once. After training a new model, restart the server to pick it up.
+    Loaded once per model version: when the CURRENT version changes (retraining or a rollback,
+    in this process or in another replica sharing the models folder - Phase 20), the next
+    request loads the new one. Reading the current version is one small file per request.
     """
     settings = get_settings()
     if not settings.use_completion_model:
         return None
-    if settings.data_source == "database":
-        return CompletionPredictor.from_database(settings.model_dir, settings.database_url)
-    return CompletionPredictor.from_files(settings.model_dir, settings.data_dir)
+    version = current_version(settings.model_dir)
+    return _load_predictor(
+        version, str(settings.model_dir), settings.data_source, settings.database_url, str(settings.data_dir)
+    )
+
+
+get_completion_predictor.cache_clear = _load_predictor.cache_clear  # type: ignore[attr-defined]
 
 
 def get_training_recommendation_service(repository: RepositoryDep) -> TrainingRecommendationService:
@@ -143,17 +157,26 @@ def get_index_manifest() -> dict | None:
     return read_manifest(tenant_folder(get_settings()))
 
 
-@lru_cache
-def get_knowledge_index() -> KnowledgeIndex | None:
-    """The document index, loaded once (None if it has not been built yet).
+@lru_cache(maxsize=2)
+def _load_knowledge_index(folder: str, built: int) -> KnowledgeIndex:
+    return load_index(get_settings())
 
-    Uploads and deletions (API 7) clear this cache, so the next question uses the new index.
-    After running scripts/build_index.py by hand, restart the server.
+
+def get_knowledge_index() -> KnowledgeIndex | None:
+    """The document index (None if it has not been built yet), loaded once per BUILD.
+
+    Every rebuild writes a new manifest, so its modification time identifies the build. When it
+    changes - an upload here, an upload in another replica sharing the index folder (Phase 20),
+    or scripts/build_index.py - the next request loads the new index. No restart needed.
     """
-    settings = get_settings()
-    if read_manifest(tenant_folder(settings)) is None:
+    folder = tenant_folder(get_settings())
+    manifest = folder / MANIFEST
+    if not manifest.exists():
         return None
-    return load_index(settings)
+    return _load_knowledge_index(str(folder), manifest.stat().st_mtime_ns)
+
+
+get_knowledge_index.cache_clear = _load_knowledge_index.cache_clear  # type: ignore[attr-defined]
 
 
 def get_chat_service(repository: RepositoryDep, llm: LLMProviderDep) -> ChatService:

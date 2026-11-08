@@ -54,3 +54,5 @@ Thumbs.db
 logs/
 data/users.json
 data/accounts/
+# --- Kubernetes secret values (Phase 20) ---
+deployment/kubernetes/secret.env
