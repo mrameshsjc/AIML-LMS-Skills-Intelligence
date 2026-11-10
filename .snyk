@@ -1,7 +1,26 @@
-# Snyk policy file (Phase 21): ignores that were reviewed and ACCEPTED, with a reason and an expiry date.
+# Snyk policy file (Phase 21): findings that were reviewed and ACCEPTED for a limited time.
+# Every entry has a reason and an expiry date; after it, the finding counts again and must be reviewed.
 # Add entries with the CLI so the format stays correct, for example:
-#   snyk ignore --id=SNYK-PYTHON-EXAMPLE-1234567 --expiry=2027-03-31 --reason="Only reachable from admin-only retraining; fix pending upstream"
-# Every ignore needs a reason and an expiry. Review them in each phase. See docs/SNYK_SECURITY_GUIDE.md.
+#   snyk ignore --id=SNYK-... --expiry=2027-02-09 --reason="..."
+# See docs/SNYK_SECURITY_GUIDE.md, section 5.
 version: v1.25.0
-ignore: {}
+ignore:
+  SNYK-DEBIAN13-ATTR-17678182:
+    - '*':
+        reason: >-
+          libattr1 "link following" in the Debian 13 base image (python:3.11-slim-trixie), used by
+          coreutils/adduser, not by the application. No fixed Debian package at the time of review
+          (apt-get upgrade applied). Containers run read-only, non-root, with all capabilities dropped.
+          Reviewed 2026-11-09; re-check when Debian publishes a fix or at expiry.
+        expires: 2027-02-09T00:00:00.000Z
+        created: 2026-11-09T00:00:00.000Z
+  SNYK-DEBIAN13-ACL-17677866:
+    - '*':
+        reason: >-
+          libacl1 "link following" in the Debian 13 base image (python:3.11-slim-trixie), used by
+          coreutils/sed/dpkg, not by the application. No fixed Debian package at the time of review
+          (apt-get upgrade applied). Containers run read-only, non-root, with all capabilities dropped.
+          Reviewed 2026-11-09; re-check when Debian publishes a fix or at expiry.
+        expires: 2027-02-09T00:00:00.000Z
+        created: 2026-11-09T00:00:00.000Z
 patch: {}

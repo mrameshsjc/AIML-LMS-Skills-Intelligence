@@ -75,7 +75,9 @@ The first Jenkins build ran all 11 stages; the smoke test passed 16/16, and the 
 | 1 critical (`zlib`), several high (`sqlite3`, …) | System packages of the base image `python:3.11-slim-bookworm` (Debian 12) | Base image changed to `python:3.11-slim-trixie` (Debian 13, Snyk's recommendation) and `apt-get upgrade` added to the image build |
 | None | Python packages inside the image | – |
 
-Re-run the pipeline after such a change. Findings that remain and have **no fix in Debian yet** are accepted in `.snyk` with a reason and an expiry (section 5), and reviewed at the next phase.
+**Second build** (Debian 13 + `apt-get upgrade`): 7 findings → **2 high**: `libattr1` (SNYK-DEBIAN13-ATTR-17678182) and `libacl1` (SNYK-DEBIAN13-ACL-17677866), both "link following" in system libraries of the base image, with no fixed Debian package yet. The smoke test passed 17/17 (with Ollama).
+
+Both are **accepted until 2027-02-09** in `.snyk`, with the reason recorded: system libraries used by coreutils/dpkg, not by the app; containers run read-only, non-root, without capabilities. Both container scans read the file (`--policy-path=.snyk`). A test (`tests/unit/test_cicd_config.py`) makes sure every acceptance has a real reason and an expiry of at most about four months. After the expiry the findings count again and must be reviewed.
 
 ## 6. Dependabot: updates before they become findings
 
