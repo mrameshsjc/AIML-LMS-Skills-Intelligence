@@ -1,20 +1,102 @@
 # LMS Skills Intelligence Engine
 
-Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-role matching, explainable training recommendations, personalised learning paths and an LLM + RAG learning assistant.**
+AI engine for an enterprise learning management system (LMS): **skills-gap analysis, job-role matching, explainable training recommendations, personalised learning paths and an LLM + RAG learning assistant**, as seven REST APIs, a web dashboard, and a live public demo.
 
 | | |
 | --- | --- |
-| Project folder / Git repo | `AIML-LMS-Skills-Intelligence` |
-| Current phase | **Phase 21 – CI/CD: Jenkins pipeline (11 stages) and Snyk security scanning** (Phases 1–20 on GitHub, CI green) |
-| **Live demo** | Dashboard: **https://lms-skills-intelligence.streamlit.app** · API: **https://lms-skills-api.onrender.com/api/v1** · Swagger: **https://lms-skills-api.onrender.com/docs** (synthetic data, no account needed; the API wakes in about a minute after a quiet period) |
-| Python | 3.11 |
-| LMS integration | Not in this project. The architecture is API-ready for it (later phase). |
+| **Live dashboard** | **https://lms-skills-intelligence.streamlit.app** (no account needed) |
+| **Live API** | **https://lms-skills-api.onrender.com/api/v1** · Swagger UI **https://lms-skills-api.onrender.com/docs** (the free API wakes in about a minute after a quiet period) |
+| Repository | `AIML-LMS-Skills-Intelligence` · branches `main` (stable) and `development` |
+| Stack | Python 3.11 · FastAPI · Streamlit · pandas · scikit-learn · MLflow · FAISS · Ollama · Docker · Kubernetes · Jenkins · Snyk |
+| Status | All 22 phases complete · about 660 automated tests · CI green · [acceptance checklist](docs/ACCEPTANCE_CHECKLIST.md) |
 
-> All data in this project is **synthetic**. No real employee data is used.
+> All data is **synthetic**: no real employee information is used anywhere.
 
 ---
 
-## 1. What is built so far (Phases 1–21)
+## What it does
+
+| # | API | Answers | Try it |
+| --- | --- | --- | --- |
+| 1 | `POST /api/v1/skills/analyze` | Gap score, match %, missing and below-level skills toward a role | E1001 → Data Engineer: gap 37.5, match 62.5 % |
+| 2 | `POST /api/v1/roles/match` | Best-matching roles and what is missing for each | Roles closest to E1001 |
+| 3 | `POST /api/v1/trainings/recommend` | Ranked courses with reason, score parts and predicted completion | C-SQL-201 first |
+| 4 | `GET /api/v1/learning-path/{employee_id}` | Ordered steps, hours, projected readiness, next action | 62.5 % → 100 % in 5 steps |
+| 5 | `POST /api/v1/ai/chat` | Answers grounded in LMS data and company documents, with citations | "How many learning hours do I have per year?" |
+| 6 | `POST /api/v1/ml/retrain` | Controlled retraining with a quality gate and MLflow (admins) | |
+| 7 | `POST /api/v1/rag/ingest` | Add documents (PDF, Word, Markdown, CSV, text) to the assistant (admins) | |
+
+The **dashboard** shows the same results for any employee, plus the indexed documents and the ML model's metrics. A 15-minute tour: [`docs/DEMO_WALKTHROUGH.md`](docs/DEMO_WALKTHROUGH.md).
+
+## How it is built
+
+```mermaid
+flowchart LR
+    U[Browser / LMS] --> D[Streamlit dashboard] & API[FastAPI · 7 APIs]
+    D & API --> S[Services: skills · roles ·<br/>recommendations · learning path · chat]
+    S --> R[(LMS data<br/>CSV / SQLite)]
+    S --> ML[Completion model<br/>scikit-learn · MLflow]
+    S --> RAG[RAG index<br/>embeddings · FAISS]
+    S --> LLM[LLM: Ollama / hosted /<br/>labelled fallback]
+```
+
+- **Explainable by design:** gap scores are a published formula; recommendations are a weighted mix of gap coverage, level fit, prerequisites and an ML completion probability, and every course shows its reason.
+- **Grounded AI:** the assistant uses only LMS facts and retrieved document passages, cites them, refuses prompt-injection attempts, and says clearly when it runs without a language model.
+- **Production practices:** login with roles, rate limits, audit log; hardened containers; Kubernetes with probes, limits and autoscaling; Jenkins and GitHub Actions pipelines with Snyk scanning.
+
+Diagrams of every part: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Overview of goals and methods: [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md).
+
+## Quick start (Windows 11, PowerShell)
+
+```powershell
+git clone https://github.com/mrameshsjc/AIML-LMS-Skills-Intelligence.git
+cd AIML-LMS-Skills-Intelligence
+py -3.11 -m venv .venv; .\.venv\Scripts\Activate.ps1
+pip install -r requirements-dev.txt
+Copy-Item .env.example .env
+python scripts/build_index.py              # document index for the assistant
+uvicorn app.main:app --reload              # API → http://127.0.0.1:8000/docs
+streamlit run dashboard/Home.py            # dashboard → http://127.0.0.1:8501 (second window)
+pytest                                      # about 660 tests
+```
+
+Or everything in containers: `docker compose up --build -d` → http://127.0.0.1:8000/docs and http://127.0.0.1:8501 ([`docs/DOCKER_GUIDE.md`](docs/DOCKER_GUIDE.md)). For written AI answers instead of the fallback, install [Ollama](https://ollama.com) and run `ollama pull llama3.2:3b` ([`docs/LLM_RAG_GUIDE.md`](docs/LLM_RAG_GUIDE.md)).
+
+## Documentation
+
+| Topic | Guide |
+| --- | --- |
+| Overview and architecture | [PROJECT_OVERVIEW](docs/PROJECT_OVERVIEW.md) · [ARCHITECTURE](docs/ARCHITECTURE.md) |
+| Live demo | [DEMO_WALKTHROUGH](docs/DEMO_WALKTHROUGH.md) · [screenshots](docs/screenshots/README.md) · [ACCEPTANCE_CHECKLIST](docs/ACCEPTANCE_CHECKLIST.md) |
+| APIs | [API_DOCUMENTATION](docs/API_DOCUMENTATION.md) · [api_contract.json](docs/api_contract.json) |
+| Data | [DATA_DICTIONARY](docs/DATA_DICTIONARY.md) · [DATA_PIPELINE_GUIDE](docs/DATA_PIPELINE_GUIDE.md) · [DATABASE_GUIDE](docs/DATABASE_GUIDE.md) · [MYSQL_CONFIGURATION_GUIDE](docs/MYSQL_CONFIGURATION_GUIDE.md) |
+| AI | [ML_MODEL_GUIDE](docs/ML_MODEL_GUIDE.md) · [LLM_RAG_GUIDE](docs/LLM_RAG_GUIDE.md) |
+| Dashboard | [DASHBOARD_GUIDE](docs/DASHBOARD_GUIDE.md) |
+| Security | [SECURITY_GUIDE](docs/SECURITY_GUIDE.md) · [SNYK_SECURITY_GUIDE](docs/SNYK_SECURITY_GUIDE.md) |
+| Running it | [DOCKER_GUIDE](docs/DOCKER_GUIDE.md) · [KUBERNETES_GUIDE](docs/KUBERNETES_GUIDE.md) · [PUBLIC_DEPLOYMENT_GUIDE](docs/PUBLIC_DEPLOYMENT_GUIDE.md) |
+| Quality and delivery | [TESTING_GUIDE](docs/TESTING_GUIDE.md) · [JENKINS_CICD_GUIDE](docs/JENKINS_CICD_GUIDE.md) · [TROUBLESHOOTING](docs/TROUBLESHOOTING.md) |
+
+## Known limitations and future improvements
+
+| Limitation today | Future improvement |
+| --- | --- |
+| Synthetic data (100 employees): ML metrics show the method, not real accuracy | Real LMS data after a privacy review; larger training set; drift monitoring |
+| Public demo runs the assistant in labelled fallback mode (no GPU on free hosting) | A hosted LLM through the existing adapter (`LLM_PROVIDER=hosted`) |
+| Public demo uses word-based TF-IDF search | Neural embeddings (Ollama `nomic-embed-text` locally already) |
+| SQLite and files: one machine or one Kubernetes node | MySQL (`MYSQL_CONFIGURATION_GUIDE.md`) and shared storage for multi-node scaling |
+| Rate limits counted per process | Redis for cluster-wide limits |
+| Free hosting sleeps when idle and forgets uploads on restart | Paid instances or persistent storage |
+| Accounts in a JSON file; no single sign-on | The LMS's own login (token passed to the engine), SSO |
+| Dashboard runs as one replica (Streamlit sessions) | Sticky sessions behind an Ingress |
+| Not yet connected to the company LMS | LMS integration: the PHP/F3/Vue LMS calls the seven APIs |
+
+---
+
+## Development history
+
+The sections below record how the engine was built, phase by phase, with the commands of each step.
+
+## 1. What was built in each phase (Phases 1–22)
 
 | Item | File(s) | Why it exists |
 | --- | --- | --- |
@@ -101,6 +183,8 @@ Standalone AI/ML application for an enterprise LMS: **skills-gap analysis, job-r
 | **Phase 21:** Jenkins pipeline | `Jenkinsfile`, `deployment/jenkins/` | Checkout → Python → dependencies → code quality → unit tests → API tests → Snyk → Docker build → publish (if configured) → dev deployment → smoke test; secrets only from Jenkins credentials |
 | **Phase 21:** Snyk + updates | GitHub job "Snyk security scan", `.snyk`, `.github/dependabot.yml` | Dependency and container scans with results in GitHub's Security tab; weekly update pull requests |
 | **Phase 21:** tests + docs | `tests/unit/test_cicd_config.py`, `docs/JENKINS_CICD_GUIDE.md`, `docs/SNYK_SECURITY_GUIDE.md` | 16 checks; step-by-step Jenkins and Snyk setup |
+| **Phase 22:** final documentation | `docs/PROJECT_OVERVIEW.md`, `docs/ARCHITECTURE.md`, `docs/DEMO_WALKTHROUGH.md`, `docs/MYSQL_CONFIGURATION_GUIDE.md`, `docs/TROUBLESHOOTING.md`, `docs/ACCEPTANCE_CHECKLIST.md`, `docs/screenshots/` | Overview, diagrams, live demo tour, acceptance evidence, screenshots |
+| **Phase 22:** tests | `tests/unit/test_documentation.py` | 23 checks: required docs exist, are linked, no broken links |
 
 **All seven APIs are live:** 1 (`/skills/analyze`), 2 (`/roles/match`), 3 (`/trainings/recommend`), 4 (`/learning-path/{id}`), 5 (`/ai/chat`), 6 (`/ml/retrain`, admin) and 7 (`/rag/ingest`, admin). With `AUTH_ENABLED=true` they need a login (`/auth/token`). Full reference: [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md).
 
@@ -161,6 +245,7 @@ AIML-LMS-Skills-Intelligence/
 │   ├── unit/test_hosted_llm.py, test_prepare_hf_space.py, api/test_admin_api.py [Phase 19 ✓]
 │   ├── unit/test_kubernetes_manifests.py # 14 checks                        [Phase 20 ✓]
 │   ├── unit/test_cicd_config.py  # Jenkinsfile, Jenkins image, Snyk job, Dependabot (16) [Phase 21 ✓]
+│   ├── unit/test_documentation.py # docs exist, linked, no broken links (23) [Phase 22 ✓]
 │   ├── unit/  integration/  security/
 ├── reports/                      # generated charts and reports (not in Git)   [Phase 4]
 ├── deployment/                   # docker/, kubernetes/, cloud/                (later, 18–20)

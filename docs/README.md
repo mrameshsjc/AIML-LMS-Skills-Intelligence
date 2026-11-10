@@ -1,22 +1,48 @@
 # Documentation
 
-Guides are added in the phase that needs them:
+Everything about the LMS Skills Intelligence Engine. New here? Start with the **overview**, then try the **live demo walkthrough**.
 
-| Guide | Phase |
+| Live dashboard | Live API / Swagger |
 | --- | --- |
-| PROJECT_PROPOSAL.md, ARCHITECTURE.md | Copied from the approved blueprint |
-| DATA_DICTIONARY.md (**done**), DATA_PIPELINE_GUIDE.md (scripts 01–15 **done**) | 2–4, 8, 9 |
-| API_DOCUMENTATION.md (all 7 APIs **done**) | 5–16 |
-| ML_MODEL_GUIDE.md (formula, TF-IDF, hybrid scoring, completion model, learning path, retraining + MLflow **done**) | 5–8, 16 |
-| LLM_RAG_GUIDE.md (Ollama, fallback, guardrails, document search, RAG assistant **done**) | 11–13 |
-| DATABASE_GUIDE.md (SQLite **done**; MySQL later) | 9 |
-| DOCKER_GUIDE.md (**done**: build, run, stop, inspect, debug, volumes, hardening) | 1, 18 |
-| JENKINS_CICD_GUIDE.md (**done**: Jenkins pipeline + GitHub Actions), SNYK_SECURITY_GUIDE.md (**done**) | 1, 21 |
-| KUBERNETES_GUIDE.md (**done**: Docker vs Kubernetes, Minikube, manifests, scaling, rollout, troubleshooting) | 20 |
-| PUBLIC_DEPLOYMENT_GUIDE.md (**done**: hosting evaluation, Streamlit Community Cloud + Render, hosted LLM, reset, walkthrough, limitations); DEMO_WALKTHROUGH.md | 19, 22 |
-| TESTING_GUIDE.md (**done**), api_contract.json (the saved API contract) | 14 |
-| DASHBOARD_GUIDE.md (**done**) | 15 |
-| SECURITY_GUIDE.md (**done**: login, roles, rate limits, audit log, prompt injection, uploads) | 17 |
-| TROUBLESHOOTING.md | grows every phase |
+| https://lms-skills-intelligence.streamlit.app | https://lms-skills-api.onrender.com/docs |
 
-For Phase 1, setup, Docker and CI/CD instructions are in the main README.md.
+## Start here
+
+| Guide | What it covers |
+| --- | --- |
+| [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) | The problem, what the engine does, methods, technology, risks, future work |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Diagrams: system context, layers, request flow, RAG, ML lifecycle, data model, security, deployment |
+| [DEMO_WALKTHROUGH.md](DEMO_WALKTHROUGH.md) | A 15-minute guided tour of the live system |
+| [screenshots/](screenshots/README.md) | Screenshots of every step |
+| [ACCEPTANCE_CHECKLIST.md](ACCEPTANCE_CHECKLIST.md) | Every acceptance criterion with its evidence; deliverables map |
+
+## Using the engine
+
+| Guide | What it covers |
+| --- | --- |
+| [API_DOCUMENTATION.md](API_DOCUMENTATION.md) | The seven APIs and supporting endpoints, with examples; [api_contract.json](api_contract.json) is the saved contract |
+| [DASHBOARD_GUIDE.md](DASHBOARD_GUIDE.md) | The Streamlit dashboard, page by page |
+
+## Data and AI
+
+| Guide | What it covers |
+| --- | --- |
+| [DATA_DICTIONARY.md](DATA_DICTIONARY.md) | The eleven synthetic datasets, columns and rules |
+| [DATA_PIPELINE_GUIDE.md](DATA_PIPELINE_GUIDE.md) | Generation, validation and loading scripts |
+| [DATABASE_GUIDE.md](DATABASE_GUIDE.md) | SQLite schema, migrations, CSV/SQLite parity |
+| [MYSQL_CONFIGURATION_GUIDE.md](MYSQL_CONFIGURATION_GUIDE.md) | MySQL setup for the LMS integration |
+| [ML_MODEL_GUIDE.md](ML_MODEL_GUIDE.md) | Gap formula, role matching, hybrid recommendations, completion model, retraining, MLflow |
+| [LLM_RAG_GUIDE.md](LLM_RAG_GUIDE.md) | Ollama / hosted LLM, fallback, guardrails, document index, RAG assistant |
+
+## Security, running and delivery
+
+| Guide | What it covers |
+| --- | --- |
+| [SECURITY_GUIDE.md](SECURITY_GUIDE.md) | Login, roles, rate limits, audit log, prompt injection, uploads |
+| [SNYK_SECURITY_GUIDE.md](SNYK_SECURITY_GUIDE.md) | Dependency and container scanning, the `.snyk` policy |
+| [DOCKER_GUIDE.md](DOCKER_GUIDE.md) | Build, run, volumes, hardening |
+| [KUBERNETES_GUIDE.md](KUBERNETES_GUIDE.md) | Minikube, manifests, scaling, rollout |
+| [JENKINS_CICD_GUIDE.md](JENKINS_CICD_GUIDE.md) | Jenkins pipeline and GitHub Actions |
+| [PUBLIC_DEPLOYMENT_GUIDE.md](PUBLIC_DEPLOYMENT_GUIDE.md) | Streamlit Community Cloud + Render, secrets, demo reset |
+| [TESTING_GUIDE.md](TESTING_GUIDE.md) | Test layers and how to run them |
+| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common problems and fixes |
