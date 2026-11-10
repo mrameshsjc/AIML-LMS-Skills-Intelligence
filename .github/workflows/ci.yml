@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -49,7 +49,7 @@ jobs:
     needs: test               # only builds if lint and tests passed
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Render the Kubernetes manifests (kubectl kustomize, no cluster needed)
         run: kubectl kustomize deployment/kubernetes > /dev/null && echo "Kubernetes manifests render"
@@ -111,7 +111,7 @@ jobs:
 
       - name: Check out code
         if: env.SNYK_TOKEN != ''
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python 3.11
         if: env.SNYK_TOKEN != ''
