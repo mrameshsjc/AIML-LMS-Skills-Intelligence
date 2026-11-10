@@ -5,6 +5,7 @@ Snyk job only runs with a token; Dependabot watches every kind of dependency.
 """
 
 import re
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -115,3 +116,30 @@ def test_the_admin_key_is_not_printed_in_the_log():
     for stage in ("stage('10. Development deployment')", "stage('11. Smoke test')"):
         block = JENKINSFILE.split(stage)[1].split("stage('")[0]
         assert "set +x" in block, stage
+
+
+def _when(value) -> datetime:
+    """A date from .snyk: YAML may already have turned it into a datetime."""
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=UTC)
+    return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+
+
+def test_accepted_snyk_findings_have_a_reason_and_an_expiry():
+    policy = yaml.safe_load((ROOT / ".snyk").read_text(encoding="utf-8"))
+    expiries = []
+    for finding, rules in (policy.get("ignore") or {}).items():
+        for rule in rules:
+            details = next(iter(rule.values()))
+            assert len(details["reason"]) > 40, finding  # a real explanation, not "ok"
+            expires, created = _when(details["expires"]), _when(details["created"])
+            assert 0 < (expires - created).days <= 120, finding  # temporary: at most about four months
+            expiries.append(expires)
+    # Fails once every acceptance has expired: time to review them (docs/SNYK_SECURITY_GUIDE.md).
+    assert not expiries or datetime.now(UTC) < max(expiries)
+
+
+def test_container_scans_use_the_policy_file():
+    assert "snyk container test" in JENKINSFILE and "--policy-path=.snyk" in JENKINSFILE
+    ci_commands = " ".join(step.get("run", "") for step in CI["jobs"]["security"]["steps"])
+    assert "--policy-path=.snyk" in ci_commands

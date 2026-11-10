@@ -122,7 +122,7 @@ pipeline {
                 '''
                 script {
                     snyk('container', """
-                        snyk container test "$IMAGE:$IMAGE_TAG" --file=Dockerfile \
+                        snyk container test "$IMAGE:$IMAGE_TAG" --file=Dockerfile --policy-path=.snyk \
                             --severity-threshold=${params.SNYK_SEVERITY} --json-file-output=reports/snyk-container.json
                     """)
                 }

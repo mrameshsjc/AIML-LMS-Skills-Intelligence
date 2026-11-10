@@ -142,7 +142,7 @@ jobs:
       - name: Snyk container scan (base image + system packages)
         if: env.SNYK_TOKEN != ''
         continue-on-error: true
-        run: snyk container test aiml-lms-skills-intelligence:snyk --file=Dockerfile --severity-threshold=high --sarif-file-output=snyk-container.sarif
+        run: snyk container test aiml-lms-skills-intelligence:snyk --file=Dockerfile --policy-path=.snyk --severity-threshold=high --sarif-file-output=snyk-container.sarif
 
       - name: Upload dependency results to the Security tab
         if: always() && env.SNYK_TOKEN != '' && hashFiles('snyk-dependencies.sarif') != ''
